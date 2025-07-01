@@ -1,0 +1,147 @@
+{
+  "$schema": "https://biomejs.dev/schemas/1.9.4/schema.json",
+  "formatter": {
+    "enabled": true,
+    "formatWithErrors": false,
+    "indentStyle": "space",
+    "indentWidth": 2,
+    "lineEnding": "lf",
+    "lineWidth": 100,
+    "attributePosition": "auto"
+  },
+  "organizeImports": { "enabled": true },
+  "linter": {
+    "enabled": true,
+    "rules": {
+      "recommended": false,
+      "complexity": {
+        "noExcessiveCognitiveComplexity": {
+          "level": "warn",
+          "options": {
+            "maxAllowedComplexity": 15
+          }
+        },
+        "noStaticOnlyClass": "error",
+        "noUselessRename": "error",
+        "noUselessConstructor": "error",
+        "noExtraBooleanCast": "error",
+        "noUselessStringConcat": "warn",
+        "noUselessSwitchCase": "error",
+        "noUselessTernary": "error",
+        "noMultipleSpacesInRegularExpressionLiterals": "error",
+        "useOptionalChain": "warn",
+        "noUselessCatch": "error",
+        "useRegexLiterals": "error",
+        "noWith": "error",
+        "useDateNow": "error",
+        "useFlatMap": "error",
+        "useSimplifiedLogicExpression": "error",
+        "useArrowFunction": "warn"
+      },
+      "correctness": {
+        "noUndeclaredDependencies": "off",
+        "noConstAssign": "error",
+        "noConstantCondition": "error",
+        "noEmptyCharacterClassInRegex": "warn",
+        "noEmptyPattern": "error",
+        "noGlobalObjectCalls": "warn",
+        "noInvalidConstructorSuper": "error",
+        "noConstantMathMinMaxClamp": "warn",
+        "noConstructorReturn": "error",
+        "noFlatMapIdentity": "warn",
+        "noSelfAssign": "warn",
+        "noSetterReturn": "warn",
+        "noInnerDeclarations": "error",
+        "noInvalidBuiltinInstantiation": "error",
+        "noSwitchDeclarations": "error",
+        "noUndeclaredVariables": "error",
+        "noUnreachable": "error",
+        "noUnreachableSuper": "error",
+        "noUnsafeFinally": "warn",
+        "noUnsafeOptionalChaining": "warn",
+        "noUnusedLabels": "warn",
+        "noUnusedPrivateClassMembers": "warn",
+        "noUnusedVariables": "warn",
+        "useIsNan": "warn",
+        "useValidForDirection": "warn",
+        "noInvalidUseBeforeDeclaration": "error",
+        "noNodejsModules": "off",
+        "noStringCaseMismatch": "error",
+        "noUnnecessaryContinue": "error",
+        "noUnusedImports": "error",
+        "noUnusedFunctionParameters": "info",
+        "useArrayLiterals": "warn",
+        "useImportExtensions": "error",
+        "useYield": "error"
+      },
+      "suspicious": {
+        "noAsyncPromiseExecutor": "error",
+        "noCatchAssign": "error",
+        "noClassAssign": "error",
+        "noControlCharactersInRegex": "warn",
+        "noDuplicateCase": "warn",
+        "noDuplicateClassMembers": "warn",
+        "noDuplicateObjectKeys": "warn",
+        "noDuplicateParameters": "warn",
+        "noEmptyBlockStatements": "warn",
+        "noFallthroughSwitchClause": "error",
+        "noFunctionAssign": "error",
+        "noGlobalAssign": "error",
+        "noImportAssign": "error",
+        "noRedeclare": "error",
+        "noShadowRestrictedNames": "error",
+        "noUnsafeNegation": "warn",
+        "useGetterReturn": "warn",
+        "useValidTypeof": "error",
+        "useAwait": "error",
+        "noDoubleEquals": "error",
+        "noConsole": "error",
+        "noEmptyBlock": "warn",
+        "noDebugger": "error"
+      },
+      "nursery": {
+        "noDuplicateElseIf": "warn"
+      },
+      "style": {
+        "recommended": true
+      }
+    }
+  },
+  "javascript": {
+    "formatter": {
+      "enabled": true,
+      "jsxQuoteStyle": "double",
+      "quoteProperties": "asNeeded",
+      "trailingCommas": "all",
+      "semicolons": "always",
+      "arrowParentheses": "always",
+      "bracketSpacing": true,
+      "bracketSameLine": false,
+      "quoteStyle": "double",
+      "attributePosition": "auto"
+    }
+  },
+  "json": {
+    "formatter": {
+      "enabled": true
+    }
+  },
+  "overrides": [
+    {
+      "linter": {
+        "rules": {
+          "correctness": { "noUnusedVariables": "warn" },
+          "suspicious": {
+            "noDoubleEquals": "error"
+          }
+        }
+      }
+    }
+  ],
+  "vcs": {
+    "enabled": true,
+    "clientKind": "git",
+    "useIgnoreFile": true,
+    "defaultBranch": "main"
+  }
+}
