@@ -5,11 +5,7 @@ export class PersonDatabaseRepository extends PersonRepository {
 	tableName = "person";
 
 	async create(person) {
-		const personAsJSON = person.toJSON();
-		const personData = {
-			person_firstname_de: personAsJSON.firstname,
-			person_lastname_de: personAsJSON.lastname,
-		};
+		const personData = person.toJSON();
 
 		const [createdPerson] = await databaseService(this.tableName)
 			.insert(personData)
