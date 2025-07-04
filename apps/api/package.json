@@ -1,0 +1,23 @@
+{
+  "name": "@scoreflow/api",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "nodemon ./src/bin/www"
+  },
+  "imports": {
+    "#src/*": "./src/*",
+    "#person/*": "./src/modules/person/*",
+    "#database/*": "./src/services/database/*"
+  },
+  "dependencies": {
+    "dotenv": "^17.0.1",
+    "express": "^5.1.0",
+    "knex": "^3.1.0",
+    "pg": "^8.16.3"
+  },
+  "devDependencies": {
+    "nodemon": "^3.1.0"
+  }
+}

@@ -1,0 +1,28 @@
+{
+  "name": "@scoreflow/root",
+  "version": "0.1.0",
+  "description": "Monorepo de la aplicacion score flow",
+  "main": "index.js",
+  "private": true,
+  "workspaces": [
+    "apps/*",
+    "packages/*/*"
+  ],
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/willisq/score-flow.git"
+  },
+  "devDependencies": {
+    "@biomejs/biome": "^2.0.6"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "bugs": {
+    "url": "https://github.com/willisq/score-flow/issues"
+  },
+  "homepage": "https://github.com/willisq/score-flow#readme"
+}
