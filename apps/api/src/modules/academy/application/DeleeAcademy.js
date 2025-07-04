@@ -1,9 +1,9 @@
-export class FindAcademy {
+export class DeleteAcdemy {
   constructor({ academyRepository }) {
     this.academyRepository = academyRepository;
   }
 
   async execute(id) {
-    return await this.academyRepository.findById(id);
+    return await this.academyRepository.delete(id);
   }
 }
