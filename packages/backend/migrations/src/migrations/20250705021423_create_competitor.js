@@ -24,6 +24,9 @@ export const up = async (knex) => {
 			.references("id")
 			.inTable("academy")
 			.onDelete("RESTRICT");
+		table.integer("age").notNullable();
+		table.decimal("weight", 5, 2).notNullable();
+		table.decimal("height", 5, 2);
 		table.boolean("special_condition").notNullable().defaultTo(false);
 		table.timestamps(true, true);
 	});
