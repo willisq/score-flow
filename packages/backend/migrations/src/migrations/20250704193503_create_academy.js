@@ -11,7 +11,7 @@ export const up = async (knex) => {
       .notNullable()
       .references("id")
       .inTable("person")
-      .onDelete("NOTHING");
+      .onDelete("RESTRICT");
     table.timestamps(true, true);
   });
 };
