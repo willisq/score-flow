@@ -10,6 +10,7 @@
     "#src/*": "./src/*",
     "#person/*": "./src/modules/person/*",
     "#academy/*": "./src/modules/academy/*",
+    "#rank/*": "./src/modules/rank/*",
     "#database/*": "./src/services/database/*"
   },
   "dependencies": {
