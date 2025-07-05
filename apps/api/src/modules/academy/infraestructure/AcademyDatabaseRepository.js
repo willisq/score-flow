@@ -1,35 +1,88 @@
 import { AcademyRepository } from "#academy/domain/repositories/AcademyRepository.js";
 
 export class AcademyDatabaseRepository extends AcademyRepository {
-    tableName = "academy";
+	tableName = "academy";
 
-    constructor(databaseService) {
-        this.databaseService = databaseService;
-    }
+	async create(academy, trx = null) {
+		const academyData = academy.toJSON();
+		const db = trx || this.databaseService;
 
-    async create(academy) {
-        const academyAsJSON = academy.toJSON();
-        const academyData = {
-            academy_name_de: academyAsJSON.name,
-            person_id: academyAsJSON.person.id,
-        };
+		const [createdAcademy] = await db(this.tableName)
+			.insert(academyData)
+			.returning("*");
 
-        const [createdAcademy] = await this.databaseService(this.tableName)
-            .insert(academyData)
-            .returning("*");
+		return createdAcademy;
+	}
 
-        return createdAcademy;
-    }
+	async findAll(trx = null) {
+		const db = trx || this.databaseService;
+		const academies = await db(this.tableName).select("*");
 
-    async findById(id) {
-    }
+		return academies;
+	}
 
-    async findByName(name) {
-    }
+	async findById(id, trx = null) {
+		const db = trx || this.databaseService;
+		const academy = await db(this.tableName).where({ id }).first();
 
-    async update(academy) {
-    }
+		return academy;
+	}
 
-    async delete(id) {
-    }
+	async findByName(name, trx = null) {
+		const db = trx || this.databaseService;
+		
+		const academy = await db(this.tableName).where(
+			"name",
+			"ilike",
+			`%${name}%`,
+		);
+
+		return academy;
+	}
+
+	async findByInstructorId(instructorId, trx = null) {
+		const db = trx || this.databaseService;
+		const academy = await db(this.tableName)
+			.where({ instructor: instructorId })
+			.first();
+
+		return academy;
+	}
+
+	async findByInstructorName(instructorName, trx = null) {
+		const db = trx || this.databaseService;
+		const academy = await db(this.tableName)
+			.join("person", "academy.instructor", "=", "person.id")
+			.select("academy.*")
+			.where("person.firstname", "like", `%${instructorName}%`)
+			.first();
+
+		return academy;
+	}
+
+	async update(id, { name, instructorId }, trx = null) {
+		const academyData = {};
+		const db = trx || this.databaseService;
+
+		if (name) {
+			academyData.name = name.value;
+		}
+		if (instructorId) {
+			academyData.instructor = instructorId;
+		}
+
+		const [updatedAcademy] = await db(this.tableName)
+			.where({ id })
+			.update(academyData)
+			.returning("*");
+
+		return updatedAcademy;
+	}
+
+	async delete(id, trx = null) {
+		const db = trx || this.databaseService;
+		const deletedCount = await db(this.tableName).where({ id }).del();
+
+		return deletedCount > 0;
+	}
 }
