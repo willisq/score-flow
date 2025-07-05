@@ -1,4 +1,4 @@
-export class DeleteAcdemy {
+export class DeleteAcademy {
   constructor({ academyRepository }) {
     this.academyRepository = academyRepository;
   }
