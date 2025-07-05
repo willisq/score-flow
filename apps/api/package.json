@@ -13,6 +13,7 @@
     "#rank/*": "./src/modules/rank/*",
     "#competitor/*": "./src/modules/competitor/*",
     "#modality/*": "./src/modules/modality/*",
+    "#round/*": "./src/modules/round/*",
     "#database/*": "./src/services/database/*"
   },
   "dependencies": {
