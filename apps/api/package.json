@@ -9,6 +9,7 @@
   "imports": {
     "#src/*": "./src/*",
     "#person/*": "./src/modules/person/*",
+    "#academy/*": "./src/modules/academy/*",
     "#database/*": "./src/services/database/*"
   },
   "dependencies": {
