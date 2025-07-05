@@ -6,6 +6,13 @@ export const up = async (knex) => {
 	await knex.schema.createTable("competitor", (table) => {
 		table.uuid("id").primary();
 		table
+			.uuid("student")
+			.notNullable()
+			.unique()
+			.references("id")
+			.inTable("person")
+			.onDelete("RESTRICT");
+		table
 			.uuid("rank")
 			.notNullable()
 			.references("id")
