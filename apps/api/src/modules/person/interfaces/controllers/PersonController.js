@@ -1,9 +1,11 @@
 import { CreatePerson } from "#person/application/CreatePerson.js";
 import { PersonDatabaseRepository } from "#person/infraestructure/PersonDatabaseRepository.js";
 
+import { databaseService } from "#src/services/database/databaseService.js";
+
 export class PersonController {
 	static async createPerson(req, res) {
-		const repo = new PersonDatabaseRepository();
+		const repo = new PersonDatabaseRepository(databaseService);
 		const useCase = new CreatePerson({ personRepository: repo });
 
 		await useCase.execute({
