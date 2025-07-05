@@ -1,13 +1,13 @@
-import { databaseService } from "#database/databaseService.js";
 import { PersonRepository } from "#person/domain/repositories/PersonRepository.js";
 
 export class PersonDatabaseRepository extends PersonRepository {
 	tableName = "person";
 
-	async create(person) {
+	async create(person, trx = null) {
 		const personData = person.toJSON();
-
-		const [createdPerson] = await databaseService(this.tableName)
+		const db = trx || this.databaseService;
+		
+		const [createdPerson] = await db(this.tableName)
 			.insert(personData)
 			.returning("*");
 
@@ -15,7 +15,7 @@ export class PersonDatabaseRepository extends PersonRepository {
 	}
 
 	async findById(id) {
-		const person = await databaseService(this.personModel.tableName)
+		const person = await this.databaseService(this.tableName)
 			.where({ id })
 			.first();
 
