@@ -1,7 +1,7 @@
 import { randomUUID } from "crypto";
 
 import { Academy } from "#academy/domain/entities/Academy.js";
-import { Name } from "#academy/domain/valuesObjects/Name.js";
+import { Name } from "#academy/domain/valueObjects/Name.js";
 
 export class CreateAcademy {
   constructor({ academyRepository }) {
