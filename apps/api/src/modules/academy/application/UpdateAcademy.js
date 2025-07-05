@@ -8,7 +8,7 @@ export class UpdateAcademy {
     const academy = await this.academyRepository.findById(id);
 
     if (!academy) {
-      throw new Error("Academy not found");
+      throw new Error("Academia no encontrada");
     }
 
     if (instructorId) {
@@ -16,7 +16,7 @@ export class UpdateAcademy {
         instructorId
       );
       if (!instructorExists) {
-        throw new Error("Instructor not found");
+        throw new Error("Instructor no encontrado");
       }
       academy.changeInstructor(instructorId);
     }
