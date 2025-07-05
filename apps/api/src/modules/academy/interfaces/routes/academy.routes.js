@@ -4,3 +4,4 @@ import {AcademyController} from "#academy/interfaces/controllers/AcademyControll
 export const AcademyRouter = Router();
 
 AcademyRouter.post("/", AcademyController.createAcademy);
+AcademyRouter.get("/", AcademyController.getAll);
