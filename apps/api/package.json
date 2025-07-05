@@ -12,6 +12,7 @@
     "#academy/*": "./src/modules/academy/*",
     "#rank/*": "./src/modules/rank/*",
     "#competitor/*": "./src/modules/competitor/*",
+    "#modality/*": "./src/modules/modality/*",
     "#database/*": "./src/services/database/*"
   },
   "dependencies": {
