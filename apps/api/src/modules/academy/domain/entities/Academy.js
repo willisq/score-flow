@@ -1,4 +1,4 @@
-import { Name } from "#academy/domain/valuesObjects/Name.js";
+import { Name } from "#academy/domain/valueObjects/Name.js";
 
 export class Academy {
   constructor({ id, name, instructor }) {
@@ -19,7 +19,7 @@ export class Academy {
     return {
       id: this.id,
       name: this.name.value,
-      instructorId: this.instructor,
+      instructor: this.instructor,
     };
   }
 }
