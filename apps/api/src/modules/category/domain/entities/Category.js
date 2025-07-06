@@ -1,13 +1,31 @@
 export class Category {
 	constructor(categoryData) {
-		Object.assign(this, categoryData);
+		const {
+			id,
+			initialWeight,
+			finalWeight,
+			initialAge,
+			finalAge,
+			initialHeight,
+			finalHeight,
+			modality,
+			specialCondition,
+		} = categoryData;
+
+		this.id = id;
+		this.initialWeight = initialWeight;
+		this.finalWeight = finalWeight;
+		this.initialAge = initialAge;
+		this.finalAge = finalAge;
+		this.initialHeight = initialHeight;
+		this.finalHeight = finalHeight;
+		this.modality = modality;
+		this.specialCondition = specialCondition;
 	}
 
 	toJSON() {
 		return {
 			id: this.id,
-			initial_rank: this.initialRank,
-			final_rank: this.finalRank,
 			initial_weight: this.initialWeight.value,
 			final_weight: this.finalWeight.value,
 			initial_age: this.initialAge.value,
