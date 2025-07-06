@@ -6,6 +6,7 @@ import { competitorRouter } from "#competitor/interfaces/routes/competitor.route
 import { modalityRouter } from "#modality/interfaces/routes/modality.routes.js";
 import { roundRouter } from "#round/interfaces/routes/round.routes.js";
 import { sexRouter } from "#sex/interfaces/routes/sex.routes.js";
+import { categoryRouter } from "#category/interfaces/routes/category.routes.js";
 
 export const router = Router();
 
@@ -16,3 +17,4 @@ router.use("/competitor", competitorRouter);
 router.use("/modality", modalityRouter);
 router.use("/round", roundRouter);
 router.use("/sex", sexRouter);
+router.use("/category", categoryRouter);
