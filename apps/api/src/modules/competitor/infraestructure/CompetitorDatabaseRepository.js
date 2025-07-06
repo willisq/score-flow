@@ -6,6 +6,9 @@ export class CompetitorDatabaseRepository extends CompetitorRepository {
 	async create(competitor, trx = null) {
 		const competitorData = competitor.toJSON();
 
+		console.log(competitorData);
+		
+
 		const db = trx || this.databaseService;
 
 		const [createdCompetitor] = await db(this.tableName)

@@ -15,17 +15,10 @@ import { CategoryHeight } from "#category/domain/valueObjects/CategoryHeight.js"
 import { CategorySpecialCondition } from "#category/domain/valueObjects/CategorySpecialCondition.js";
 import { CategoryWeight } from "#category/domain/valueObjects/CategoryWeight.js";
 
-export class CreateBulkCompetitorsWithPersons {
-	constructor({
-		competitorRepository,
-		personRepository,
-		categoryRepository,
-		databaseService,
-	}) {
-		this.competitorRepository = competitorRepository;
-		this.personRepository = personRepository;
-		this.databaseService = databaseService;
-		this.categoryRepository = categoryRepository;
+
+export class CreateBulkCompetitors {
+	constructor({ unitOfWork }) {
+		this.unitOfWork = unitOfWork;
 	}
 
 	async execute(competitorsData) {
@@ -33,7 +26,7 @@ export class CreateBulkCompetitorsWithPersons {
 			throw new Error("Input must be a non-empty array of competitors.");
 		}
 
-		return this.databaseService.transaction(async (trx) => {
+		return this.unitOfWork.execute(async (repos) => {
 			const createdRecords = await Promise.all(
 				competitorsData.map(async (data) => {
 					const {
@@ -53,7 +46,7 @@ export class CreateBulkCompetitorsWithPersons {
 						firstname: new Firstname(personData.firstname),
 						lastname: new Lastname(personData.lastname),
 					});
-					const createdPerson = await this.personRepository.create(person, trx);
+					const createdPerson = await repos.personRepository.create(person);
 
 					const competitor = new Competitor({
 						id: randomUUID(),
@@ -66,36 +59,28 @@ export class CreateBulkCompetitorsWithPersons {
 						weight: new Weight(weight),
 						age: new Age(age),
 					});
-					const createdCompetitor = await this.competitorRepository.create(
-						competitor,
-						trx,
-					);
+					const createdCompetitor =
+						await repos.competitorRepository.create(competitor);
 
-					const category = await this.categoryRepository.findCategory(
-						{
-							rank: createdCompetitor.rank,
-							weight: new CategoryWeight(competitor.weight.value),
-							age: new CategoryAge(competitor.age.value),
-							height: new CategoryHeight(competitor.height.value),
-							sex: createdCompetitor.sex,
-							modality: modality,
-							specialCondition: new CategorySpecialCondition(
-								competitor.specialCondition.value,
-							),
-						},
-						trx,
-					);
-
-					console.log(category);
-					
+					const category = await repos.categoryRepository.findCategory({
+						rank: createdCompetitor.rank,
+						weight: new CategoryWeight(competitor.weight.value),
+						age: new CategoryAge(competitor.age.value),
+						height: new CategoryHeight(competitor.height.value),
+						sex: createdCompetitor.sex,
+						modality: modality,
+						specialCondition: new CategorySpecialCondition(
+							competitor.specialCondition.value,
+						),
+					});
 
 					if (!category)
 						throw new Error("No hay categoria creada para el competidor");
 
-					await this.categoryRepository.addCompetitorOnCategory({
+					await repos.categoryRepository.addCompetitorOnCategory({
+                        id: randomUUID(),
 						competitor,
 						category,
-						trx,
 					});
 
 					return { ...createdCompetitor, person: createdPerson };
