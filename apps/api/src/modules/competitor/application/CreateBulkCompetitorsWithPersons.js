@@ -28,6 +28,7 @@ export class CreateBulkCompetitorsWithPersons {
 					const {
 						personData,
 						rank,
+						sex,
 						academy,
 						weight,
 						height = null,
@@ -46,6 +47,7 @@ export class CreateBulkCompetitorsWithPersons {
 						id: randomUUID(),
 						student: createdPerson.id,
 						rank,
+						sex,
 						academy,
 						specialCondition: new SpecialCondition(specialCondition),
 						height: new Height(height),

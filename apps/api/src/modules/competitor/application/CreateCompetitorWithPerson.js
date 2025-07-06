@@ -20,6 +20,7 @@ export class CreateCompetitorWithPerson {
 	async execute({
 		personData,
 		rank,
+		sex,
 		academy,
 		weight,
 		height = null,
@@ -38,6 +39,7 @@ export class CreateCompetitorWithPerson {
 				id: randomUUID(),
 				student: createdPerson.id,
 				rank: rank,
+				sex: sex,
 				academy: academy,
 				specialCondition: new SpecialCondition(specialCondition),
 				height: new Height(height),
