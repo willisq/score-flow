@@ -5,6 +5,7 @@ export class Competitor {
 		rank,
 		academy,
 		specialCondition,
+		sex,
 		weight = null,
 		age = null,
 		height = null,
@@ -17,6 +18,7 @@ export class Competitor {
 		this.weight = weight;
 		this.age = age;
 		this.height = height;
+		this.sex = sex;
 	}
 
 	toJSON() {
@@ -24,6 +26,7 @@ export class Competitor {
 			id: this.id,
 			student: this.student,
 			rank: this.rank,
+			sex: this.sex,
 			academy: this.academy,
 			special_condition: this.specialCondition.value,
 			weight: this.weight.value,
