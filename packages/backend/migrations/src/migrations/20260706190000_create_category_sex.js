@@ -5,13 +5,13 @@
 export const up = async (knex) => {
 	await knex.schema.createTable("category_sex", (table) => {
 		table
-			.uuid("sex_id")
+			.uuid("sex")
 			.notNullable()
 			.references("id")
 			.inTable("sex")
 			.onDelete("RESTRICT");
 		table
-			.uuid("category_id")
+			.uuid("category")
 			.notNullable()
 			.references("id")
 			.inTable("category")
