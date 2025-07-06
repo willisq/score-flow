@@ -3,7 +3,9 @@ export class CategoryWeight {
 		if (value === null || value === undefined) {
 			throw new Error("El peso no puede ser nulo.");
 		}
-		if (typeof value !== "number" || value <= 0) {
+
+		const val = Number(value);
+		if (isNaN(val) || value <= 0) {
 			throw new Error("El peso debe ser un número positivo.");
 		}
 

@@ -1,6 +1,9 @@
 export class CategorySex {
 	constructor(categorySexData) {
-        Object.assign(this, categorySexData);
+		const {category, sex} = categorySexData;
+
+		this.category = category;
+		this.sex = sex;
 	}
 
 	toJSON() {
