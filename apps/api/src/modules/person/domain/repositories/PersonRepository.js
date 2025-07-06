@@ -1,5 +1,5 @@
 export class PersonRepository {
-	constructor(databaseService) {
+	constructor({databaseService}) {
 		this.databaseService = databaseService;
 	}
 

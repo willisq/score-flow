@@ -4,6 +4,5 @@ import { CompetitorController } from "#competitor/interfaces/controllers/Competi
 const competitorRouter = Router();
 
 competitorRouter.post("/", CompetitorController.create);
-competitorRouter.post("/bulk", CompetitorController.createBulk);
 
 export { competitorRouter };

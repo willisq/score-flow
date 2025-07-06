@@ -1,33 +1,24 @@
-import { databaseService } from "#src/services/database/databaseService.js";
+import { databaseService } from "#database/databaseService.js";
+import { UnitOfWork } from "#database/UnitOfWork.js";
 
-import { CreateCompetitorWithPerson } from "#competitor/application/CreateCompetitorWithPerson.js";
-import { CreateBulkCompetitorsWithPersons } from "#competitor/application/CreateBulkCompetitorsWithPersons.js";
+import { CreateBulkCompetitors } from "#competitor/application/CreateCompetitor.js";
 
 import { CompetitorDatabaseRepository } from "#competitor/infraestructure/CompetitorDatabaseRepository.js";
+import { CategoryDatabaseRepository } from "#src/modules/category/infraestructure/CategoryDatabaseRepository.js";
 import { PersonDatabaseRepository } from "#person/infraestructure/PersonDatabaseRepository.js";
-
 export class CompetitorController {
 	static async create(req, res) {
-		const useCase = new CreateCompetitorWithPerson({
-			competitorRepository: new CompetitorDatabaseRepository(databaseService),
-			personRepository: new PersonDatabaseRepository(databaseService),
-			databaseService: databaseService,
-		});
+		const repositoriesClasses = {
+			personRepository: PersonDatabaseRepository,
+			competitorRepository: CompetitorDatabaseRepository,
+			categoryRepository: CategoryDatabaseRepository,
+		};
+		const unitOfWork = new UnitOfWork({ databaseService, repositoriesClasses });
 
-		const createdCompetitor = await useCase.execute(req.body);
-
-		return res.status(201).json(createdCompetitor);
-	}
-
-	static async createBulk(req, res) {
-		const useCase = new CreateBulkCompetitorsWithPersons({
-			competitorRepository: new CompetitorDatabaseRepository(databaseService),
-			personRepository: new PersonDatabaseRepository(databaseService),
-			databaseService: databaseService,
-		});
+		const useCase = new CreateBulkCompetitors({ unitOfWork });
 
 		const createdCompetitors = await useCase.execute(req.body);
 
-		return res.status(201).json(createdCompetitors);
+		res.status(201).json(createdCompetitors);
 	}
 }
