@@ -15,6 +15,7 @@
     "#modality/*": "./src/modules/modality/*",
     "#round/*": "./src/modules/round/*",
     "#sex/*": "./src/modules/sex/*",
+    "#category/*": "./src/modules/category/*",
     "#database/*": "./src/services/database/*"
   },
   "dependencies": {
