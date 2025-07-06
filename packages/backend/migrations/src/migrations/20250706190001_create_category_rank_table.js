@@ -2,29 +2,31 @@
  * @param { import("knex").Knex } knex
  * @returns { Promise<void> }
  */
-export const up = async (knex) => {
-	await knex.schema.createTable("category_sex", (table) => {
-		table
-			.uuid("sex")
-			.notNullable()
-			.references("id")
-			.inTable("sex")
-			.onDelete("RESTRICT");
+export function up(knex) {
+	return knex.schema.createTable("category_rank", (table) => {
 		table
 			.uuid("category")
 			.notNullable()
 			.references("id")
 			.inTable("category")
 			.onDelete("RESTRICT");
-		table.primary(["sex", "category"]);
+		table
+			.uuid("rank")
+			.notNullable()
+			.references("id")
+			.inTable("rank")
+			.onDelete("RESTRICT");
+
+		table.primary(["category", "rank"]);
+
 		table.timestamps(true, true);
 	});
-};
+}
 
 /**
  * @param { import("knex").Knex } knex
  * @returns { Promise<void> }
  */
-export const down = async (knex) => {
-	await knex.schema.dropTableIfExists("category_sex");
-};
+export function down(knex) {
+	return knex.schema.dropTable("category_rank");
+}
