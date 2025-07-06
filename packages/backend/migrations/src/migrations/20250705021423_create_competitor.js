@@ -24,6 +24,12 @@ export const up = async (knex) => {
 			.references("id")
 			.inTable("academy")
 			.onDelete("RESTRICT");
+		table
+			.uuid("sex")
+			.notNullable()
+			.references("id")
+			.inTable("sex")
+			.onDelete("RESTRICT");
 		table.integer("age").notNullable();
 		table.decimal("weight", 5, 2).notNullable();
 		table.decimal("height", 5, 2);
