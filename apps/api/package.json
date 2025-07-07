@@ -16,6 +16,7 @@
     "#round/*": "./src/modules/round/*",
     "#sex/*": "./src/modules/sex/*",
     "#category/*": "./src/modules/category/*",
+    "#pyramid/*": "./src/modules/pyramid/*",
     "#database/*": "./src/services/database/*"
   },
   "dependencies": {

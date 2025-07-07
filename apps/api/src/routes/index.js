@@ -7,6 +7,7 @@ import { modalityRouter } from "#modality/interfaces/routes/modality.routes.js";
 import { roundRouter } from "#round/interfaces/routes/round.routes.js";
 import { sexRouter } from "#sex/interfaces/routes/sex.routes.js";
 import { categoryRouter } from "#category/interfaces/routes/category.routes.js";
+import { pyramidRouter } from "#src/modules/pyramid/interfaces/routes/pyramid.routes.js";
 
 export const router = Router();
 
@@ -18,3 +19,4 @@ router.use("/modality", modalityRouter);
 router.use("/round", roundRouter);
 router.use("/sex", sexRouter);
 router.use("/category", categoryRouter);
+router.use("/pyramid", pyramidRouter);
