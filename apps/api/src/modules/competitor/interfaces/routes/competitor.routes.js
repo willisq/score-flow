@@ -3,6 +3,8 @@ import { CompetitorController } from "#competitor/interfaces/controllers/Competi
 
 const competitorRouter = Router();
 
+competitorRouter.get("/by-category-and-championship", CompetitorController.findByCategory);
+
 competitorRouter.post("/", CompetitorController.create);
 
 export { competitorRouter };
