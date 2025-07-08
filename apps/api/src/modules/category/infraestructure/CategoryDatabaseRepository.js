@@ -68,6 +68,8 @@ export class CategoryDatabaseRepository extends CategoryRepository {
 	_toEntity(dbData) {
 		return new Category({
 			id: dbData.id,
+			initialRank: dbData.initial_rank,
+			finalRank: dbData.final_rank,
 			initialWeight: new CategoryWeight(dbData.initial_weight),
 			finalWeight: new CategoryWeight(dbData.final_weight),
 			initialAge: new CategoryAge(dbData.initial_age),
@@ -95,5 +97,41 @@ export class CategoryDatabaseRepository extends CategoryRepository {
 			.returning("*");
 
 		return createdLink;
+	}
+
+	async findAllCategories() {
+		const categoriesData = await this.databaseService(`${this.tableName} as c`)
+			.select(
+				"c.*",
+				this.databaseService.raw(
+					'json_agg(DISTINCT s) FILTER (WHERE s.id IS NOT NULL) as sexes',
+				),
+				this.databaseService.raw(
+					'json_agg(DISTINCT r) FILTER (WHERE r.id IS NOT NULL) as ranks',
+				),
+				this.databaseService.raw(
+					"json_build_object('id', m.id, 'name', m.description) as modality_object",
+				),
+			)
+			.leftJoin("category_sex as cs", "c.id", "cs.category")
+			.leftJoin("sex as s", "cs.sex", "s.id")
+			.leftJoin("category_rank as cr", "c.id", "cr.category")
+			.leftJoin("rank as r", "cr.rank", "r.id")
+			.leftJoin("modality as m", "c.modality", "m.id")
+			.groupBy("c.id", "m.id", "m.description");
+
+		return categoriesData.map((data) => {
+			const categoryEntity = this._toEntity(data);
+			const categoryJSON = categoryEntity.toJSON();
+
+			const modality = data.modality_object.id ? data.modality_object : null;
+
+			return {
+				...categoryJSON,
+				modality,
+				sexes: data.sexes || [],
+				ranks: data.ranks || [],
+			};
+		});
 	}
 }
