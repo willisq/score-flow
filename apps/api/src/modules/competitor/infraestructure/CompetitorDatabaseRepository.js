@@ -28,4 +28,37 @@ export class CompetitorDatabaseRepository extends CompetitorRepository {
 
 		return records.map((record) => new CompetitorCategory(record));
 	}
+
+	async findCompetitorsByCategory(categoryId, championshipId) {
+		const competitorsData = await this.databaseService(
+			"competitor_category as cc",
+		)
+			.select(
+				"c.id",
+				"c.weight",
+				"c.height",
+				"c.age",
+				"c.special_condition",
+				"c.academy",
+				this.databaseService.raw(
+					"json_build_object('id', p.id, 'firstname', p.firstname, 'lastname', p.lastname) as person",
+				),
+				this.databaseService.raw(
+					"json_build_object('id', r.id, 'description', r.description) as rank",
+				),
+				this.databaseService.raw(
+					"json_build_object('id', s.id, 'description', s.description) as sex",
+				),
+			)
+			.leftJoin("competitor as c", "c.id", "cc.competitor")
+			.leftJoin("person as p", "p.id", "c.student")
+			.leftJoin("rank as r", "r.id", "c.rank")
+			.leftJoin("sex as s", "s.id", "c.sex")
+			.where({
+				"cc.category": categoryId,
+				"cc.championship": championshipId,
+			});
+
+		return competitorsData;
+	}
 }
