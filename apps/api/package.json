@@ -20,6 +20,7 @@
     "#database/*": "./src/services/database/*"
   },
   "dependencies": {
+    "cors": "^2.8.5",
     "dotenv": "^17.0.1",
     "express": "^5.1.0",
     "knex": "^3.1.0",
