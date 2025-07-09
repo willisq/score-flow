@@ -45,10 +45,20 @@ export class PyramidDatabaseRepository extends PyramidRepository {
 			.join("category_sex as cs", "cat.id", "cs.category")
 			.join("category_rank as cr", "cat.id", "cr.category")
 			.join("round as r", "p.round", "r.id")
+			.join("modality as mod", "cat.modality", "mod.id")
 			.select(
 				"p.id as pyramid_id",
 				"r.description as round_name",
 				"cat.id as category_id",
+				"cat.initial_age",
+				"cat.final_age",
+				"cat.initial_weight",
+				"cat.final_weight",
+				"cat.special_condition",
+				"mod.description as modality_description",
+				this.databaseService.raw(
+					`(SELECT json_agg(r.description) FROM rank r JOIN category_rank cr_sub ON r.id = cr_sub.rank WHERE cr_sub.category = cat.id) as ranks`,
+				),
 				// Construir objeto JSON para el primer competidor
 				this.databaseService.raw(
 					"json_build_object('id', comp1.id, 'academy_name', ac1.name, 'name', CONCAT(per1.firstname, ' ', per1.lastname)) as first_competitor",
@@ -57,7 +67,7 @@ export class PyramidDatabaseRepository extends PyramidRepository {
 				this.databaseService.raw(
 					`CASE
 						WHEN p.second_competitor IS NOT NULL THEN
-							json_build_object('id', comp2.id, 'academy_name', ac1.name, 'name', CONCAT(per2.firstname, ' ', per2.lastname))
+							json_build_object('id', comp2.id, 'academy_name', ac2.name, 'name', CONCAT(per2.firstname, ' ', per2.lastname))
 						ELSE
 							NULL
 					END as second_competitor`,
@@ -76,6 +86,12 @@ export class PyramidDatabaseRepository extends PyramidRepository {
 				"comp2.id",
 				"ac1.name",
 				"ac2.name",
+				"mod.description",
+				"cat.initial_age",
+				"cat.final_age",
+				"cat.initial_weight",
+				"cat.final_weight",
+				"cat.special_condition",
 			);
 
 		if (age) {
