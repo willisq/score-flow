@@ -19,6 +19,16 @@ const router = createRouter({
           component: () => import("@/views/pyramid/Pyramid.vue"),
         },
         {
+          path: "/competitor",
+          name: "competitor",
+          component: () => import("@/views/competitor/Competitor.vue"),
+        },
+        {
+          path: "/academy",
+          name: "academy",
+          component: () => import("@/views/academy/Academy.vue"),
+        },
+        {
           path: "/",
           name: "dashboard",
           component: () => import("@/views/Dashboard.vue"),
