@@ -1,40 +1,22 @@
 <template>
   <div class="tournament-brackets">
     <div class="bracket">
-      <div
-        v-for="(round, roundIndex) in bracketRounds"
-        :key="roundIndex"
-        class="round"
-        :class="['round-' + (roundIndex + 1)]"
-      >
-        <div
-          v-for="(match, matchIndex) in round"
-          :key="matchIndex"
-          class="match"
-        >
-          <div class="match__content" :style="matchStyle">
-            <div class="competitor">
-              <span class="name">{{
-                match.first_competitor?.name || "---"
-              }}</span>
-              <span class="score">{{ match.first_competitor?.score }}</span>
-            </div>
-            <div class="competitor">
-              <span class="name">{{
-                match.second_competitor?.name || "---"
-              }}</span>
-              <span class="score">{{ match.second_competitor?.score }}</span>
-            </div>
+      <div v-for="(round, roundIndex) in bracketRounds" :key="roundIndex" class="round"
+        :class="['round-' + (roundIndex + 1)]">
+        <div v-for="(match, matchIndex) in round" :key="matchIndex" class="match">
+          <div class="match__content flex flex-col gap-2" :style="matchStyle">
+            <CompetitorCard :name="match?.first_competitor?.name" :academy="match?.first_competitor?.academy_name" />
+            <CompetitorCard :name="match?.second_competitor?.name" :academy="match?.second_competitor?.academy_name" />
           </div>
         </div>
       </div>
     </div>
   </div>
-  {{ bracketRounds.length }}
 </template>
 
 <script setup>
 import { computed } from "vue";
+import CompetitorCard from "./CompetitorCard.vue";
 
 const pairs = defineModel({
   type: Object,
@@ -55,7 +37,7 @@ const props = defineProps({
     default: () => ({
       border: "1px solid #ccc",
       width: "180px",
-      height: "60px",
+      height: "80px",
     }),
   },
 });
@@ -90,7 +72,7 @@ const bracketRounds = computed(() => {
 
   // 2. Obtener los datos de las partidas y los byes desde el v-model
   const round1Matches = pairs.value?.round1 || [];
-  const byeCompetitors = [...(pairs.value?.byes || [])]; // Copia para poder mutarla
+  const byeCompetitors = [...(pairs.value?.byes || [])];
 
   // 3. Poblar la primera ronda con las partidas definidas en `round1`
   for (let i = 0; i < round1Matches.length; i++) {
@@ -109,34 +91,6 @@ const bracketRounds = computed(() => {
     }
   });
 
-  // 4. Poblar la segunda ronda con los competidores "bye"
-  // Un "bye" ocupa una plaza vacía en la primera ronda y avanza a la segunda.
-  // if (allRounds.length >= 2) {
-  //   const round2 = allRounds[1];
-  //   for (let i = 0; i < round2.length; i++) {
-  //     const matchInRound2 = round2[i];
-  //     const firstFeederMatchIndex = i * 2;
-  //     const secondFeederMatchIndex = i * 2 + 1;
-
-  //     // console.log(matchInRound2, firstFeederMatchIndex, secondFeederMatchIndex);
-  //     //
-  //     // Revisa la primera partida que alimenta esta casilla de R2
-  //     const firstFeederMatch = allRounds[0][firstFeederMatchIndex];
-  //     if (!firstFeederMatch.first_competitor && byeCompetitors.length > 0) {
-  //       matchInRound2.first_competitor = byeCompetitors.shift();
-  //     }
-
-  //     // Revisa la segunda partida que alimenta esta casilla de R2
-  //     const secondFeederMatch = allRounds[0][secondFeederMatchIndex];
-  //     if (!secondFeederMatch.first_competitor && byeCompetitors.length > 0) {
-  //       matchInRound2.second_competitor = byeCompetitors.shift();
-  //     }
-  //   }
-  // }
-
-  // 5. Poblar el resto de la pirámide (futuras implementaciones podrían calcular ganadores aquí)
-  // Por ahora, las rondas futuras permanecerán vacías como se solicitó.
-
   return allRounds;
 });
 </script>
@@ -150,7 +104,8 @@ const bracketRounds = computed(() => {
 
 .bracket {
   display: flex;
-  min-height: 400px; /* Altura mínima para visualizar pirámides pequeñas */
+  min-height: 400px;
+  /* Altura mínima para visualizar pirámides pequeñas */
 }
 
 .round {
@@ -184,12 +139,14 @@ const bracketRounds = computed(() => {
 .match::before {
   content: "";
   display: block;
-  min-height: 40px; /* Ajustado a la altura del padding del match */
+  min-height: 40px;
+  /* Ajustado a la altura del padding del match */
   border-left: 2px solid #888;
   position: absolute;
   left: -10px;
   top: 50%;
-  margin-top: -20px; /* Mitad de min-height */
+  margin-top: -20px;
+  /* Mitad de min-height */
   margin-left: -2px;
 }
 
@@ -226,8 +183,6 @@ const bracketRounds = computed(() => {
   justify-content: space-around;
   padding: 5px 10px;
   background-color: #f9f9f9;
-  font-family: sans-serif;
-  font-size: 0.85rem;
 }
 
 .match__content::before {
@@ -245,9 +200,5 @@ const bracketRounds = computed(() => {
   display: flex;
   justify-content: space-between;
   align-items: center;
-}
-
-.score {
-  font-weight: bold;
 }
 </style>

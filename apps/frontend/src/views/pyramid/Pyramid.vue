@@ -2,66 +2,48 @@
   <div class="grid">
     <div class="col-12">
       <div class="card" style="overflow-x: auto">
-        <TournamentBracket :bracketSize="32" v-model="pairs" />
+        <div class="mb-6">
+          <span class="text-4xl">Piramides</span>
+        </div>
+
+        <div class="card !bg-gray-100">
+          <!-- <Form> -->
+          <!-- <InputNumber placeholder="Edad"></InputNumber>
+          <MultiSelect placeholder="Sexo"></MultiSelect>
+          <MultiSelect placeholder="Rango"></MultiSelect>
+          <Select placeholder="Modalidad"></Select>
+          <div class="flex items-center gap-2">
+            <Checkbox v-model="pizza" inputId="ingredient1" name="pizza" value="Cheese" />
+            <label for="ingredient1"> Cond. Especial </label>
+          </div> -->
+
+          <!-- </Form> -->
+        </div>
+        <Accordion value="0">
+          <AccordionPanel v-for="piramid in piramids" :key="piramid.details.id" :value="piramid">
+            <AccordionHeader>{{ piramid.details.initial_age }} - {{ piramid.details.final_age  }} Años {{ piramid.details.modality }} <template v-for="description, index in piramid.details.ranks" :index="index">
+              <Tag :value="description"/>
+            </template></AccordionHeader>
+            <AccordionContent>
+              <TournamentBracket  v-model="piramid.rounds" />
+            </AccordionContent>
+          </AccordionPanel>
+        </Accordion>
       </div>
     </div>
   </div>
 </template>
 <script setup>
-import { ref } from "vue";
+import { ref, onMounted } from "vue";
 import TournamentBracket from "@/views/pyramid/components/TournamentBracket.vue";
 
-// Estructura de datos para la pirámide.
-// Para un bracket de 16 (8 partidas en R1), tenemos 3 partidas y 5 byes.
-// Total de competidores: (3 * 2) + 5 = 11. Los 5 espacios restantes quedarán vacíos.
-const pairs = ref({
-  // Partidas que se juegan en la primera ronda
-  round1: [
-    {
-      first_competitor: { name: "1", score: 3 },
-      second_competitor: { name: "2", score: 1 },
-    },
-    {
-      first_competitor: { name: "3" },
-      second_competitor: { name: "4" },
-    },
-    {
-      first_competitor: { name: "5" },
-      second_competitor: { name: "6" },
-    },
-    {
-      first_competitor: { name: "7" },
-      second_competitor: { name: "8" },
-    },
-    {
-      first_competitor: { name: "9" },
-      second_competitor: { name: "10" },
-    },
-    {
-      first_competitor: { name: "11" },
-      second_competitor: { name: "12" },
-    },
-    {
-      first_competitor: { name: "14" },
-      second_competitor: { name: "15" },
-    },
-  ],
-  // Competidores que avanzan directamente a la segunda ronda (byes)
-  byes: [
-    {
-      first_competitor: { name: "13" },
-      second_competitor: null,
-    },
-    // { name: "Ana" },
-    // { name: "Maria" },
-    // { name: "Pedro" },
-    // { name: "Luis" },
-    // { name: "Miguel" },
-    // { name: "Miguel" },
-    // { name: "Miguel" },
-    // { name: "Miguel" },
-    // { name: "Miguel" },
-    // { name: "Javier" },
-  ],
-});
+import { PyramidService } from "@/service/PyramidService";
+
+const pairs = ref();
+const piramids = ref({})
+onMounted(async () => {
+  const piramidsData = await PyramidService.findPyramid();
+
+  piramids.value = piramidsData;
+})
 </script>
