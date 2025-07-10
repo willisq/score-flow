@@ -46,7 +46,7 @@ const roundsSize = computed(
   () =>
     2 **
     Math.ceil(
-      Math.log2(pairs.value.round1.length + pairs.value.byes.length * 2)
+      Math.log2(pairs.value.round1.length + pairs.value.byes.length )
     )
 );
 
