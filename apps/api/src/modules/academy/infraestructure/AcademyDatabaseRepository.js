@@ -16,7 +16,12 @@ export class AcademyDatabaseRepository extends AcademyRepository {
 
 	async findAll(trx = null) {
 		const db = trx || this.databaseService;
-		const academies = await db(this.tableName).select("*");
+		const academies = await db(this.tableName)
+			.join("person", "academy.instructor", "=", "person.id")
+			.select(
+				"academy.*",
+				db.raw("CONCAT(person.firstname, ' ', person.lastname) as instructor_name"),
+			);
 
 		return academies;
 	}
