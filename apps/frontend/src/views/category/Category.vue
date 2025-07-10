@@ -4,6 +4,13 @@
       <AppTitle title="Categorías" />
     </div>
 
+    <div>
+      <Button
+        @click="openModalToCreateCategory"
+        icon="pi pi-plus"
+        label="Nueva Categoría"
+      ></Button>
+    </div>
     <DataView :value="categories" paginator :rows="5">
       <template #list="slotProps">
         <div class="flex flex-col">
@@ -99,9 +106,18 @@ import { CompetitorService } from "@/service/CompetitorService";
 import AppTitle from "@/components/tags/AppTitle.vue";
 import { useDialog } from "primevue/usedialog";
 
-const dynamicComponent = defineAsyncComponent(() =>
+import { RankService } from "@/service/RankService";
+import { SexService } from "@/service/SexService";
+import { ModalityService } from "@/service/ModalityService";
+
+const competitorList = defineAsyncComponent(() =>
   import("@/views/category/components/CategoryCompetitorList.vue")
 );
+
+const createCategory = defineAsyncComponent(() =>
+  import("@/views/category/components/CategoryCreate.vue")
+);
+
 const sharedModalProps = {
   style: {
     width: "50vw",
@@ -117,6 +133,9 @@ const sharedModalProps = {
 const dialog = useDialog();
 
 const categories = ref([]);
+const ranks = ref([]);
+const sexes = ref([]);
+const modalities = ref([]);
 
 onMounted(async () => {
   categories.value = await CategoryService.getCategories();
@@ -127,7 +146,7 @@ const showCompetitors = async (categoryData) => {
   const competitorsOnCategory =
     await CompetitorService.findByCategoryAndChampionShip(categoryId);
 
-  dialog.open(dynamicComponent, {
+  dialog.open(competitorList, {
     props: {
       header: "Competidores En la Categoria",
       ...sharedModalProps,
@@ -138,4 +157,27 @@ const showCompetitors = async (categoryData) => {
     },
   });
 };
+
+const openModalToCreateCategory = () => {
+  dialog.open(createCategory, {
+    props: {
+      header: "Crear Categoría",
+      ...sharedModalProps,
+    },
+    data: { ranks, sexes, modalities },
+  });
+};
+
+onMounted(async () => {
+  const data = [
+    RankService.findAll(),
+    SexService.findAll(),
+    ModalityService.findAll(),
+  ];
+  const [ranksData, sexesData, modalitiesData] = await Promise.all(data);
+
+  ranks.value = ranksData;
+  sexes.value = sexesData;
+  modalities.value = modalitiesData;
+});
 </script>

@@ -6,7 +6,7 @@
           <div class="flex justify-between items-end">
             <div class="flex flex-col items-start gap-1">
               <Tag :value="category.modality?.name" class="mb-2"></Tag>
-              <div v-if="true">
+              <div v-if="category.special_condition">
                 <Tag
                   value="Condición Especial"
                   class="!bg-indigo-600 !text-white"
