@@ -15,18 +15,14 @@ export class CompetitorDatabaseRepository extends CompetitorRepository {
 		return createdCompetitor;
 	}
 
-
-	/**
-	 * Finds all competitor-category entries for a given championship.
-	 * @param {string} championshipId - The UUID of the championship.
-	 * @returns {Promise<CompetitorCategory[]>} A list of CompetitorCategory entity instances.
-	 */
-	async findAllByChampionship(championshipId) {		
+	async findCompetitorCategory({ championship, category }) {
+		
 		const records = await this.databaseService("competitor_category")
-			.where({ championship: championshipId })
-			.select("*");
+		.join("competitor as com", "competitor_category.competitor","com.id")
+			.where({ championship, category })
+			.select("competitor_category.id", "com.academy");
 
-		return records.map((record) => new CompetitorCategory(record));
+		return records;
 	}
 
 	async findCompetitorsByCategory(categoryId, championshipId) {
