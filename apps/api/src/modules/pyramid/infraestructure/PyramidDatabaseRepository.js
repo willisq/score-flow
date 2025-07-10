@@ -4,16 +4,24 @@ export class PyramidDatabaseRepository extends PyramidRepository {
 	tableName = "pyramid";
 
 	async createBulk(matches) {
+		if (matches.length === 0) return [];
+
+		const roundNames = [...new Set(matches.map((match) => match.roundName))];
+		const rounds = await this.databaseService("round")
+			.whereIn("description", roundNames)
+			.select("id", "description");
+
+		const roundMap = rounds.reduce((acc, round) => {
+			acc[round.description] = round.id;
+			return acc;
+		}, {});
+
 		const dataToInsert = matches.map((match) => ({
 			id: match.id,
 			first_competitor: match.firstCompetitor,
 			second_competitor: match.secondCompetitor,
-			round: this.databaseService("round")
-				.select("id")
-				.where("description", match.roundName),
+			round: roundMap[match.roundName],
 		}));
-
-		if (dataToInsert.length === 0) return [];
 
 		return this.databaseService(this.tableName)
 			.insert(dataToInsert)
@@ -110,5 +118,16 @@ export class PyramidDatabaseRepository extends PyramidRepository {
 		}
 
 		return await query;
+	}
+
+	async deletePyramidByCategory(category) {
+		const competitorCategoryIds = this.databaseService("competitor_category")
+			.select("id")
+			.where("category", category);
+
+		return await this.databaseService(this.tableName)
+			.whereIn("first_competitor", competitorCategoryIds)
+			.orWhereIn("second_competitor", competitorCategoryIds)
+			.del();
 	}
 }

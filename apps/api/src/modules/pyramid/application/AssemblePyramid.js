@@ -1,5 +1,7 @@
 import { randomUUID } from "crypto";
 
+import { CompetitorCategory } from "#src/modules/competitor/domain/entities/CompetitorCategory.js";
+
 import { Description as RoundType } from "#src/modules/round/domain/valueObjects/Description.js";
 
 export class AssemblePyramid {
@@ -7,93 +9,128 @@ export class AssemblePyramid {
 		this.unitOfWork = unitOfWork;
 	}
 
-	async execute({ championshipId }) {
+	async execute({ championship, category }) {
 		return this.unitOfWork.execute(async (repos) => {
 			const { competitorRepository, pyramidRepository } = repos;
 
-			await pyramidRepository.deleteAllPyramids();
+			await pyramidRepository.deletePyramidByCategory(category);
 
 			const competitorsCategories =
-				await competitorRepository.findAllByChampionship(championshipId);
+				await competitorRepository.findCompetitorCategory({
+					championship,
+					category,
+				});
+			const numberOfCompetitors = competitorsCategories.length;
 
-			const competitorOrganizedByCategory = Object.groupBy(
+			const competitorsOrganizedByAcademy = Object.groupBy(
 				competitorsCategories,
-				(competitorsCategory) => competitorsCategory.category,
+				(competitorsCategory) => competitorsCategory.academy,
 			);
 
-			this.#shuffleCompetitorsOnCategories(competitorOrganizedByCategory);
+			const academyNames = Object.keys(competitorsOrganizedByAcademy);
 
-			const pyramidStructure = {};
-			for (const categoryId in competitorOrganizedByCategory) {
-				const competitors = competitorOrganizedByCategory[categoryId];
-				const numberOfCompetitors = competitors.length;
+			this.#shuffleCompetitorsOnCategories(competitorsOrganizedByAcademy);
 
-				const numberOfRounds = this.#calculateRounds(numberOfCompetitors);
-				const roundTypes = this.#determineRoundTypes(numberOfRounds);
-				const firstRoundSetup = this.#generateFirstRound(competitors);
+			const pairs = [];
+			const competitorsOnPyramid = new Set();
 
-				// Los enfrentamientos ocurren en la primera ronda del torneo.
-				const matchesRoundName =
-					roundTypes.length > 0 ? roundTypes[0] : RoundType.FINAL;
-				// Los competidores con "bye" avanzan directamente a la segunda ronda.
-				const byesRoundName = roundTypes.length > 1 ? roundTypes[1] : null;
+			while (competitorsOnPyramid.size < numberOfCompetitors) {
+				let first = null,
+					second = null;
 
-				const competitorsOnSecondRound = firstRoundSetup.byes.map(
-					(competitor) => competitor.firstCompetitor,
-				);
-				const nextRoundPairs = [];
-				for (let i = 0; i < competitorsOnSecondRound.length; i += 2) {
-					const pair = {
-						firstCompetitor: competitorsOnSecondRound[i],
-						secondCompetitor: competitorsOnSecondRound[i + 1] || null,
+				for (let academyName of academyNames) {
+					const competitorsOnAcademy =
+						competitorsOrganizedByAcademy[academyName];
+					for (let competitor of competitorsOnAcademy) {
+						if (!competitorsOnPyramid.has(competitor.id)) {
+							first = competitor;
+							break;
+						}
+					}
+					if (first) break;
+				}
+				if (!first) break;
+
+				for (let academyName of academyNames) {
+					const competitorsOnAcademy =
+						competitorsOrganizedByAcademy[academyName];
+					for (let competitor of competitorsOnAcademy) {
+						if (
+							!competitorsOnPyramid.has(competitor.id) &&
+							competitor.academy !== first.academy
+						) {
+							second = competitor;
+							break;
+						}
+					}
+					if (second) break;
+				}
+
+				if (!second) {
+					for (const competitor of competitorsCategories) {
+						if (
+							!competitorsOnPyramid.has(competitor.id) &&
+							competitor.id !== first.id
+						) {
+							second = competitor;
+							break;
+						}
+					}
+				}
+
+				if (second) {
+					pairs.push({
+						first: new CompetitorCategory(first),
+						second: new CompetitorCategory(second),
+					});
+					competitorsOnPyramid.add(first.id);
+					competitorsOnPyramid.add(second.id);
+				} else {
+					pairs.push({
+						first: new CompetitorCategory(first),
+						second: null,
+					});
+					competitorsOnPyramid.add(first.id);
+				}
+			}
+
+			const numberOfRounds = this.#calculateRounds(numberOfCompetitors);
+			const roundTypes = this.#determineRoundTypes(numberOfRounds);
+
+			const numberOfPairs = pairs.length;
+			let indexOfPower = 1;
+			while (indexOfPower < numberOfPairs) {
+				indexOfPower *= 2;
+			}
+
+			const byesCount = indexOfPower - numberOfPairs;
+
+			const pairsWithRound = pairs.map((pair, index) => {
+				if (numberOfPairs - index <= byesCount) {
+					return {
+						id: randomUUID(),
+						firstCompetitor: pair.first.id,
+						secondCompetitor: pair.second?.id ?? null,
+						roundName: roundTypes.length > 0 ? roundTypes[1] : RoundType.FINAL,
 					};
-					nextRoundPairs.push(pair);
-				}
-
-				pyramidStructure[categoryId] = {
-					numberOfRounds,
-					roundTypes,
-					firstRound: {
-						roundName: matchesRoundName,
-						pairs: firstRoundSetup.matches,
-					},
-					byes: {
-						roundName: byesRoundName,
-						pairs: nextRoundPairs,
-					},
-				};
-			}
-
-			const dataToPersist = [];
-			for (const { firstRound, byes } of Object.values(pyramidStructure)) {
-				for (const pairs of firstRound.pairs) {
-					dataToPersist.push({
+				} else {
+					return {
 						id: randomUUID(),
-						firstCompetitor: pairs.firstCompetitor.id,
-						secondCompetitor: pairs.secondCompetitor?.id || null,
-						roundName: firstRound.roundName,
-					});
+						firstCompetitor: pair.first.id,
+						secondCompetitor: pair.second?.id ?? null,
+						roundName: roundTypes.length > 0 ? roundTypes[0] : RoundType.FINAL,
+					};
 				}
-				for (const pairs of byes.pairs) {
-					dataToPersist.push({
-						id: randomUUID(),
-						firstCompetitor: pairs.firstCompetitor.id,
-						secondCompetitor: pairs.secondCompetitor?.id || null,
-						roundName: byes.roundName,
-					});
-				}
-			}
+			});
 
-			await pyramidRepository.createBulk(dataToPersist);
+			await pyramidRepository.createBulk(pairsWithRound);
 
-			return dataToPersist;
+			return pairsWithRound;
 		});
 	}
 
-	#shuffleCompetitorsOnCategories(competitorOrganizedByCategory) {
-		for (const competitorsOnCategory of Object.values(
-			competitorOrganizedByCategory,
-		)) {
+	#shuffleCompetitorsOnCategories(organizedCompetitors) {
+		for (const competitorsOnCategory of Object.values(organizedCompetitors)) {
 			for (let i = competitorsOnCategory.length - 1; i > 0; i--) {
 				const j = Math.floor(Math.random() * (i + 1));
 				[competitorsOnCategory[i], competitorsOnCategory[j]] = [
@@ -114,46 +151,6 @@ export class AssemblePyramid {
 		if (competitorCount < 2) return 0;
 		// Math.ceil(Math.log2(N))
 		return Math.ceil(Math.log2(competitorCount));
-	}
-
-	/**
-	 * Generates the matches and byes for the first round of the tournament.
-	 * @param {Array<object>} competitors - The shuffled list of competitors for a category.
-	 * @returns {{matches: Array<object>, byes: Array<object>}} An object containing the matches and byes.
-	 */
-	#generateFirstRound(competitors) {
-		const numberOfCompetitors = competitors.length;
-		if (numberOfCompetitors < 2) {
-			return { matches: [], byes: [] };
-		}
-
-		// Calculate the size of the bracket (next power of 2)
-		const bracketSize = 2 ** this.#calculateRounds(numberOfCompetitors);
-
-		// Calculate how many competitors get a bye
-		const numberOfByes = bracketSize - numberOfCompetitors;
-
-		// The first N competitors in the shuffled list get a bye
-		const competitorsWithBye = competitors.slice(0, numberOfByes);
-
-		const byes = competitorsWithBye.map((competitor) => ({
-			firstCompetitor: competitor,
-			secondCompetitor: null,
-		}));
-
-		// The rest of the competitors will play in the first round
-		const competitorsInFirstRound = competitors.slice(numberOfByes);
-
-		const matches = [];
-		for (let i = 0; i < competitorsInFirstRound.length; i += 2) {
-			const match = {
-				firstCompetitor: competitorsInFirstRound[i],
-				secondCompetitor: competitorsInFirstRound[i + 1],
-			};
-			matches.push(match);
-		}
-
-		return { matches, byes };
 	}
 
 	/**
