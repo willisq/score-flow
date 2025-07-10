@@ -4,22 +4,11 @@
       <AppTitle title="Academias" />
     </div>
     <div class="col-12">
-      <DataTable
-        v-model:filters="filters"
-        :value="academies"
-        paginator
-        :rows="8"
-        filterDisplay="row"
-        :globalFilterFields="['name', 'instructor']"
-      >
+      <DataTable v-model:filters="filters" :value="academies" paginator :rows="8" filterDisplay="row"
+        :globalFilterFields="['name', 'instructor']">
         <template #header>
           <div class="flex justify-end">
-            <Button
-              @click="showAcademyModalToCreate"
-              icon="pi pi-plus"
-              type="button"
-              label="Nueva Academia"
-            />
+            <Button @click="showAcademyModalToCreate" icon="pi pi-plus" type="button" label="Nueva Academia" />
           </div>
         </template>
         <Column field="name" header="Nombre">
@@ -27,35 +16,24 @@
             {{ data.name }}
           </template>
           <template #filter="{ filterModel, filterCallback }">
-            <InputText
-              v-model="filterModel.value"
-              type="text"
-              @input="filterCallback()"
-              placeholder="Buscar por Nombre"
-            /> </template
-        ></Column>
-        <Column field="instructor" header="Instructor">
+            <InputText v-model="filterModel.value" type="text" @input="filterCallback()"
+              placeholder="Buscar por Nombre" />
+          </template>
+        </Column>
+        <Column field="instructor_name" header="Instructor">
           <template #body="{ data }">
-            {{ data.instructor }}
+            {{ data.instructor_name }}
           </template>
           <template #filter="{ filterModel, filterCallback }">
-            <InputText
-              v-model="filterModel.value"
-              type="text"
-              @input="filterCallback()"
-              placeholder="Buscar por Instructor"
-            /> </template
-        ></Column>
+            <InputText v-model="filterModel.value" type="text" @input="filterCallback()"
+              placeholder="Buscar por Instructor" />
+          </template>
+        </Column>
         <Column>
           <template #body="slotProps">
-            <Button
-              @click="showAcademyModalToEdit(slotProps.data)"
-              icon="pi pi-pencil"
-              type="button"
-              text
-              rounded
-            ></Button> </template
-        ></Column>
+            <Button @click="showAcademyModalToEdit(slotProps.data)" icon="pi pi-pencil" type="button" text
+              rounded></Button> </template>
+        </Column>
       </DataTable>
     </div>
   </div>
@@ -63,7 +41,8 @@
 <script setup>
 import { FilterMatchMode } from "@primevue/core/api";
 import { useDialog } from "primevue/usedialog";
-import { defineAsyncComponent, ref } from "vue";
+import { defineAsyncComponent, ref, onMounted } from "vue";
+import { AcademyService } from "@/service/AcademyService";
 
 const dialog = useDialog();
 
@@ -120,6 +99,10 @@ const academies = ref([
 const filters = ref({
   global: { value: null, matchMode: FilterMatchMode.CONTAINS },
   name: { value: null, matchMode: FilterMatchMode.STARTS_WITH },
-  instructor: { value: null, matchMode: FilterMatchMode.CONTAINS },
+  instructor_name: { value: null, matchMode: FilterMatchMode.CONTAINS },
 });
+
+onMounted(async () => {
+  academies.value = await AcademyService.getAllAcademies();
+})
 </script>
