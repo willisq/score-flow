@@ -3,4 +3,6 @@ import { ModalityController } from "#modality/interfaces/controllers/ModalityCon
 
 export const modalityRouter = Router();
 
+modalityRouter.get("/", ModalityController.findAll);
+
 modalityRouter.post("/", ModalityController.createModality);
