@@ -16,93 +16,90 @@ import { CategorySpecialCondition } from "#category/domain/valueObjects/Category
 import { CategoryWeight } from "#category/domain/valueObjects/CategoryWeight.js";
 
 export class CreateBulkCompetitorsWithPersons {
-	constructor({
-		competitorRepository,
-		personRepository,
-		categoryRepository,
-		databaseService,
-	}) {
-		this.competitorRepository = competitorRepository;
-		this.personRepository = personRepository;
-		this.databaseService = databaseService;
-		this.categoryRepository = categoryRepository;
-	}
+  constructor({
+    competitorRepository,
+    personRepository,
+    categoryRepository,
+    databaseService,
+  }) {
+    this.competitorRepository = competitorRepository;
+    this.personRepository = personRepository;
+    this.databaseService = databaseService;
+    this.categoryRepository = categoryRepository;
+  }
 
-	async execute(competitorsData) {
-		if (!Array.isArray(competitorsData) || competitorsData.length === 0) {
-			throw new Error("Input must be a non-empty array of competitors.");
-		}
+  async execute(competitorsData) {
+    if (!Array.isArray(competitorsData) || competitorsData.length === 0) {
+      throw new Error("Input must be a non-empty array of competitors.");
+    }
 
-		return this.databaseService.transaction(async (trx) => {
-			const createdRecords = await Promise.all(
-				competitorsData.map(async (data) => {
-					const {
-						personData,
-						rank,
-						sex,
-						academy,
-						weight,
-						height = null,
-						age,
-						specialCondition = false,
-						modality,
-					} = data;
+    return this.databaseService.transaction(async (trx) => {
+      const createdRecords = await Promise.all(
+        competitorsData.map(async (data) => {
+          const {
+            personData,
+            rank,
+            sex,
+            academy,
+            weight,
+            height = null,
+            age,
+            specialCondition = false,
+            modality,
+          } = data;
 
-					const person = new Person({
-						id: randomUUID(),
-						firstname: new Firstname(personData.firstname),
-						lastname: new Lastname(personData.lastname),
-					});
-					const createdPerson = await this.personRepository.create(person, trx);
+          const person = new Person({
+            id: randomUUID(),
+            firstname: new Firstname(personData.firstname),
+            lastname: new Lastname(personData.lastname),
+          });
+          const createdPerson = await this.personRepository.create(person, trx);
 
-					const competitor = new Competitor({
-						id: randomUUID(),
-						student: createdPerson.id,
-						rank,
-						sex,
-						academy,
-						specialCondition: new SpecialCondition(specialCondition),
-						height: new Height(height),
-						weight: new Weight(weight),
-						age: new Age(age),
-					});
-					const createdCompetitor = await this.competitorRepository.create(
-						competitor,
-						trx,
-					);
+          const competitor = new Competitor({
+            id: randomUUID(),
+            student: createdPerson.id,
+            rank,
+            sex,
+            academy,
+            specialCondition: new SpecialCondition(specialCondition),
+            height: new Height(height),
+            weight: new Weight(weight),
+            age: new Age(age),
+          });
+          const createdCompetitor = await this.competitorRepository.create(
+            competitor,
+            trx
+          );
 
-					const category = await this.categoryRepository.findCategory(
-						{
-							rank: createdCompetitor.rank,
-							weight: new CategoryWeight(competitor.weight.value),
-							age: new CategoryAge(competitor.age.value),
-							height: new CategoryHeight(competitor.height.value),
-							sex: createdCompetitor.sex,
-							modality: modality,
-							specialCondition: new CategorySpecialCondition(
-								competitor.specialCondition.value,
-							),
-						},
-						trx,
-					);
+          const category = await this.categoryRepository.findCategory(
+            {
+              rank: createdCompetitor.rank,
+              weight: new CategoryWeight(competitor.weight.value),
+              age: new CategoryAge(competitor.age.value),
+              height: new CategoryHeight(competitor.height.value),
+              sex: createdCompetitor.sex,
+              modality: modality,
+              specialCondition: new CategorySpecialCondition(
+                competitor.specialCondition.value
+              ),
+            },
+            trx
+          );
 
-					console.log(category);
-					
+          if (!category)
+            throw new Error("No hay categoria creada para el competidor");
 
-					if (!category)
-						throw new Error("No hay categoria creada para el competidor");
+          await this.categoryRepository.addCompetitorOnCategory({
+            competitor,
+            category,
+            trx,
+          });
 
-					await this.categoryRepository.addCompetitorOnCategory({
-						competitor,
-						category,
-						trx,
-					});
+          return { ...createdCompetitor, person: createdPerson };
+        })
+      );
 
-					return { ...createdCompetitor, person: createdPerson };
-				}),
-			);
-
-			return createdRecords;
-		});
-	}
+      return createdRecords;
+    });
+  }
 }
