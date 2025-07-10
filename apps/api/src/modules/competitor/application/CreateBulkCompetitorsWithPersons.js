@@ -45,7 +45,7 @@ export class CreateBulkCompetitorsWithPersons {
             height = null,
             age,
             specialCondition = false,
-            modality,
+            modalities,
           } = data;
 
           const person = new Person({
@@ -71,29 +71,31 @@ export class CreateBulkCompetitorsWithPersons {
             trx
           );
 
-          const category = await this.categoryRepository.findCategory(
-            {
-              rank: createdCompetitor.rank,
-              weight: new CategoryWeight(competitor.weight.value),
-              age: new CategoryAge(competitor.age.value),
-              height: new CategoryHeight(competitor.height.value),
-              sex: createdCompetitor.sex,
-              modality: modality,
-              specialCondition: new CategorySpecialCondition(
-                competitor.specialCondition.value
-              ),
-            },
-            trx
-          );
+          for (const modality of modalities) {
+            const category = await this.categoryRepository.findCategory(
+              {
+                rank: createdCompetitor.rank,
+                weight: new CategoryWeight(competitor.weight.value),
+                age: new CategoryAge(competitor.age.value),
+                height: new CategoryHeight(competitor.height.value),
+                sex: createdCompetitor.sex,
+                modality,
+                specialCondition: new CategorySpecialCondition(
+                  competitor.specialCondition.value
+                ),
+              },
+              trx
+            );
 
-          if (!category)
-            throw new Error("No hay categoria creada para el competidor");
+            if (!category)
+              throw new Error("No hay categoria creada para el competidor");
 
-          await this.categoryRepository.addCompetitorOnCategory({
-            competitor,
-            category,
-            trx,
-          });
+            await this.categoryRepository.addCompetitorOnCategory({
+              competitor,
+              category,
+              trx,
+            });
+          }
 
           return { ...createdCompetitor, person: createdPerson };
         })
