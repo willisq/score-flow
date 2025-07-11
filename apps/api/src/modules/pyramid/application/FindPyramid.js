@@ -6,7 +6,7 @@ export class FindPyramid {
   }
 
   async execute(pyramidFilters) {
-    const matches = await this.pyramidRepo.findPyramid(pyramidFilters);
+    const matches = await this.pyramidRepo.findAll(pyramidFilters);
 
     const groupedByCategory = matches.reduce((acc, match) => {
       const categoryId = match.category_id;
