@@ -97,11 +97,11 @@
   </Form>
 </template>
 <script setup>
-import { computed, inject } from "vue";
 import { Form } from "@primevue/forms";
 import { yupResolver } from "@primevue/forms/resolvers/yup";
-import * as yup from "yup";
 import { useToast } from "primevue/usetoast";
+import { computed, inject } from "vue";
+import * as yup from "yup";
 
 import { CategoryService } from "@/service/CategoryService";
 
@@ -144,8 +144,6 @@ const initialValues = {
 
 const createCategory = async (data) => {
   const { valid, values } = data;
-
-  console.log(valid, values);
 
   if (!valid) return;
 
