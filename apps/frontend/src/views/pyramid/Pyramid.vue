@@ -9,7 +9,7 @@
           <AccordionPanel
             v-for="piramid in piramids"
             :key="piramid.details.id"
-            :value="piramid"
+            :value="piramid.details.id"
           >
             <AccordionHeader
               >{{ piramid.details.initial_age }} -
@@ -31,12 +31,10 @@
   </div>
 </template>
 <script setup>
-import { ref, onMounted } from "vue";
+import { onMounted, ref } from "vue";
+import { PyramidService } from "@/service/PyramidService";
 import TournamentBracket from "@/views/pyramid/components/TournamentBracket.vue";
 
-import { PyramidService } from "@/service/PyramidService";
-
-const pairs = ref();
 const piramids = ref({});
 onMounted(async () => {
   const piramidsData = await PyramidService.findPyramid();
