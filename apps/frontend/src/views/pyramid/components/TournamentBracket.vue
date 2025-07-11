@@ -1,12 +1,26 @@
 <template>
   <div class="tournament-brackets">
     <div class="bracket">
-      <div v-for="(round, roundIndex) in bracketRounds" :key="roundIndex" class="round"
-        :class="['round-' + (roundIndex + 1)]">
-        <div v-for="(match, matchIndex) in round" :key="matchIndex" class="match">
+      <div
+        v-for="(round, roundIndex) in bracketRounds"
+        :key="roundIndex"
+        class="round"
+        :class="['round-' + (roundIndex + 1)]"
+      >
+        <div
+          v-for="(match, matchIndex) in round"
+          :key="matchIndex"
+          class="match"
+        >
           <div class="match__content flex flex-col gap-2" :style="matchStyle">
-            <CompetitorCard :name="match?.first_competitor?.name" :academy="match?.first_competitor?.academy_name" />
-            <CompetitorCard :name="match?.second_competitor?.name" :academy="match?.second_competitor?.academy_name" />
+            <CompetitorCard
+              :name="match?.first_competitor?.name"
+              :academy="match?.first_competitor?.academy_name"
+            />
+            <CompetitorCard
+              :name="match?.second_competitor?.name"
+              :academy="match?.second_competitor?.academy_name"
+            />
           </div>
         </div>
       </div>
@@ -42,22 +56,18 @@ const props = defineProps({
   },
 });
 
-const roundsSize = computed(
-  () =>
-    2 **
-    Math.ceil(
-      Math.log2(pairs.value.round1.length + pairs.value.byes.length )
-    )
-);
+const roundsSize = computed(() => {
+  const nummberOfPairs = Object.values(pairs.value).reduce((acc, round) => {
+    return acc + round.length;
+  }, 0);
+
+  return 2 ** Math.ceil(Math.log2(nummberOfPairs));
+});
 
 /**
  * Genera la estructura completa de la pirámide, incluyendo rondas vacías.
  */
 const bracketRounds = computed(() => {
-  if (roundsSize.value < 2) {
-    return [];
-  }
-
   // 1. Crear la estructura completa de la pirámide con partidas vacías
   const allRounds = [];
   let numberOfMatchesInRound = roundsSize.value;
@@ -71,8 +81,8 @@ const bracketRounds = computed(() => {
   }
 
   // 2. Obtener los datos de las partidas y los byes desde el v-model
-  const round1Matches = pairs.value?.round1 || [];
-  const byeCompetitors = [...(pairs.value?.byes || [])];
+  const round1Matches = pairs.value?.round1 || pairs.value?.Final || [];
+  const byeCompetitors = Reflect.get(pairs.value, "byes") || [];
 
   // 3. Poblar la primera ronda con las partidas definidas en `round1`
   for (let i = 0; i < round1Matches.length; i++) {
