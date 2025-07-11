@@ -53,9 +53,9 @@
           <template #body="{ data }">
             <i
               :class="`pi pi-${
-                data.sex.description === 'hombre' ? 'mars' : 'venus'
+                data.sex.description === 'Hombre' ? 'mars' : 'venus'
               } text-${
-                data.sex.description === 'hombre' ? 'blue' : 'pink'
+                data.sex.description === 'Hombre' ? 'blue' : 'pink'
               }-500`"
             ></i>
           </template>
@@ -77,9 +77,9 @@
   </div>
 </template>
 <script setup>
-import { ref, inject, onMounted } from "vue";
 import { useConfirm } from "primevue/useconfirm";
 import { useToast } from "primevue/usetoast";
+import { inject, onMounted, ref } from "vue";
 
 import { PyramidService } from "@/service/PyramidService";
 

@@ -12,7 +12,7 @@
           :key="matchIndex"
           class="match"
         >
-          <div class="match__content flex flex-col gap-2" :style="matchStyle">
+          <div class="match__content flex flex-col gap-4" :style="matchStyle">
             <CompetitorCard
               :name="match?.first_competitor?.name"
               :academy="match?.first_competitor?.academy_name"
@@ -51,7 +51,7 @@ const props = defineProps({
     default: () => ({
       border: "1px solid #ccc",
       width: "180px",
-      height: "80px",
+      height: "100px",
     }),
   },
 });
@@ -81,7 +81,8 @@ const bracketRounds = computed(() => {
   }
 
   // 2. Obtener los datos de las partidas y los byes desde el v-model
-  const round1Matches = pairs.value?.round1 || pairs.value?.Final || [];
+  const round1Matches =
+    pairs.value[Object.keys(pairs.value).find((key) => key !== "byes")] || [];
   const byeCompetitors = Reflect.get(pairs.value, "byes") || [];
 
   // 3. Poblar la primera ronda con las partidas definidas en `round1`

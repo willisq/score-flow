@@ -28,9 +28,9 @@
           <template #body="{ data }">
             <i
               :class="`pi pi-${
-                data.sex.description === 'hombre' ? 'mars' : 'venus'
+                data.sex.description === 'Hombre' ? 'mars' : 'venus'
               } text-${
-                data.sex.description === 'hombre' ? 'blue' : 'pink'
+                data.sex.description === 'Hombre' ? 'blue' : 'pink'
               }-500`"
             ></i>
           </template>
@@ -74,9 +74,9 @@ import { useDialog } from "primevue/usedialog";
 import { defineAsyncComponent, ref, onMounted } from "vue";
 import { AcademyService } from "@/service/AcademyService";
 import { CompetitorService } from "@/service/CompetitorService";
+import { ModalityService } from "@/service/ModalityService";
 import { RankService } from "@/service/RankService";
 import { SexService } from "@/service/SexService";
-import { ModalityService } from "@/service/ModalityService";
 
 const dialog = useDialog();
 
