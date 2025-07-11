@@ -99,11 +99,11 @@ export class AssemblePyramid {
 
       const numberOfPairs = pairs.length;
       let indexOfPower = 1;
-      while (indexOfPower < numberOfPairs) {
+      while (indexOfPower < numberOfCompetitors) {
         indexOfPower *= 2;
       }
 
-      const byesCount = indexOfPower - numberOfPairs;
+      const byesCount = Math.ceil((indexOfPower - numberOfCompetitors) / 2);
 
       const pairsWithRound = pairs.map((pair, index) => {
         if (numberOfPairs - index <= byesCount) {
