@@ -28,7 +28,7 @@ const model = ref([
       },
       {
         label: "Academias",
-        icon: "pi pi-fw pi-id-card",
+        icon: "pi pi-fw pi-home",
         to: "/academy",
       },
     ],
