@@ -74,7 +74,7 @@ El sistema se basa en un esquema de PostgreSQL (v17) que define la logística de
 * **Competitor**: Estudiante vinculado a una `person`, una `academy`, un `rank` (grado) y un `sex`. Incluye métricas físicas: `age`, `weight` y `height`.
 
 ### 2. Estructura de Competencia (Categorización)
-* **Category**: Define el grupo de competencia mediante rangos de edad (`initial_age` a `final_age`) y peso (`initial_weight` a `final_weight`). Está vinculada a una **Modality** (ej. Combate o Formas).
+* **Category**: Define el grupo de competencia mediante una lista de edades y un rango de peso (`initial_weight` a `final_weight`). Está vinculada a una **Modality** (ej. Combate o Formas).
 * **Category_Rank / Category_Sex**: Tablas intermedias que restringen qué grados y sexos pueden participar en una categoría específica.
 * **Championship**: El evento macro. Los competidores se inscriben mediante la tabla **Competitor_Category**, que vincula al atleta con una categoría y un campeonato.
 
