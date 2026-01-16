@@ -42,14 +42,15 @@ class Category:
 
     id: UUID
     name: str
-    initial_age: int
-    final_age: int
+    ages: List[int]
     special_condition: bool
     modality: Modality
     sexes: List[Sex]
     ranks: List[Rank]
     initial_weight: float = None
     final_weight: float = None
+    initial_height: float = None
+    final_height: float = None
 
     def __post_init__(self):
         if not self.name:
@@ -62,16 +63,48 @@ class Category:
                 TournamentError.INVALID_CATEGORY_MODALITY.message,
                 code=TournamentError.INVALID_CATEGORY_MODALITY.code,
             )
-        if self.initial_age < 0 or self.final_age < 0:
+        if len(self.ages) == 0:
+            raise DomainException(
+                TournamentError.INVALID_AGE_LIST.message,
+                code=TournamentError.INVALID_AGE_LIST.code,
+            )
+        if any(age <= 0 for age in self.ages):
             raise DomainException(
                 TournamentError.INVALID_AGE_LIMITS.message,
                 code=TournamentError.INVALID_AGE_LIMITS.code,
             )
-        if self.initial_age > self.final_age:
+        if self._has_weight_limits and (
+            self.initial_weight < 0 or self.final_weight < 0
+        ):
             raise DomainException(
-                TournamentError.INVALID_AGE_RANGE.message,
-                code=TournamentError.INVALID_AGE_RANGE.code,
+                TournamentError.INVALID_WEIGHT_LIMITS.message,
+                code=TournamentError.INVALID_WEIGHT_LIMITS.code,
             )
+        if self._has_weight_limits and self.initial_weight > self.final_weight:
+            raise DomainException(
+                TournamentError.INVALID_WEIGHT_RANGE.message,
+                code=TournamentError.INVALID_WEIGHT_RANGE.code,
+            )
+        if self._has_height_limits and (
+            self.initial_height < 0 or self.final_height < 0
+        ):
+            raise DomainException(
+                TournamentError.INVALID_HEIGHT_LIMITS.message,
+                code=TournamentError.INVALID_HEIGHT_LIMITS.code,
+            )
+        if self._has_height_limits and self.initial_height > self.final_height:
+            raise DomainException(
+                TournamentError.INVALID_HEIGHT_RANGE.message,
+                code=TournamentError.INVALID_HEIGHT_RANGE.code,
+            )
+
+    @property
+    def _has_weight_limits(self) -> bool:
+        return self.initial_weight is not None and self.final_weight is not None
+
+    @property
+    def _has_height_limits(self) -> bool:
+        return self.initial_height is not None and self.final_height is not None
 
 
 @dataclass
