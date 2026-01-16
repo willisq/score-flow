@@ -50,7 +50,7 @@ No se escribe código de producción sin una prueba que lo justifique. Se seguir
 ---
 
 ## 📜 Convenciones y Estándares
-- **Tipado:** Type Hints obligatorios en firmas de funciones y métodos.
+- **Tipado:** Type Hints obligatorios en firmas de funciones y métodos con excepción de los tests.
 - **Nomenclatura:**
     - Python: `snake_case` (interno).
     - JSON: `camelCase` (externo para compatibilidad con Vue).
