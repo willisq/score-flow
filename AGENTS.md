@@ -50,7 +50,7 @@ No se escribe código de producción sin una prueba que lo justifique. Se seguir
 ---
 
 ## 📜 Convenciones y Estándares
-- **Tipado:** Type Hints obligatorios en firmas de funciones y métodos con excepción de los tests.
+- **Tipado:** Type Hints obligatorios en firmas de funciones y métodos con excepción de los tests y el self en los métodos de las clases.
 - **Nomenclatura:**
     - Python: `snake_case` (interno).
     - JSON: `camelCase` (externo para compatibilidad con Vue).
@@ -87,9 +87,11 @@ El sistema se basa en un esquema de PostgreSQL (v17) que define la logística de
 
 ### 🧠 Reglas de Negocio para el Dominio (DDD)
 1.  **Validación de Categoría**: Antes de inscribir a un competidor, el dominio debe validar que su `age`, `weight`, `sex` y `rank` coincidan con los rangos permitidos por la `Category`.
-2.  **Generación de Brackets**: La lógica debe garantizar que el número de competidores sea potencia de 2 ($2^n$), o gestionar adecuadamente los "Byes" (pases directos) cuando el `second_competitor` sea nulo en la primera ronda.
-3.  **UUIDs**: Se utiliza `UUID` como estándar para todas las claves primarias, permitiendo la generación de identidades en la capa de aplicación sin depender de la base de datos.
-4.  
+2.  **Generación de Brackets**: La lógica debe garantizar que el número de parejas de competidores sea potencia de 2 ($2^n$), y gestionar adecuadamente los "Byes".
+3.  **Pairing Strategy**: Se debe implementar una estrategia de emparejamiento que garantice que los competidores de la misma academia no se enfrenten entre sí.
+4.  **Generación de primera ronda**: La lógica debe generar la primera ronda de la pirámide, donde los competidores se enfrentan entre sí de forma aleatoria siguiendo la estrategia de emparejamiento. La salida de esta lógica es la lista de enfrentamientos (Matches), la cual indica el primer enfrentamiento de cada competidor. Para los competidores que no tengan enfrentamientos (porque son byes) se crean enfrentamientos con el competidor como primer competidor y el competidor como ganador automatico, mientras que el segundo competidor deja de None.
+5.  **UUIDs**: Se utiliza `UUID` como estándar para todas las claves primarias, permitiendo la generación de identidades en la capa de aplicación sin depender de la base de datos.
+
 
 # Estructura de archivos:
 

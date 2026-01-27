@@ -15,18 +15,18 @@ def academy_aware_strategy():
 
 
 class TestRound:
-    def test_valid_creation(self, valid_id):
+    def test_valid_creation(self, valid_id) -> None:
         round_entity = Round(id=valid_id, description="Semi-Finals")
         assert round_entity.description == "Semi-Finals"
 
-    def test_invalid_description(self, valid_id):
+    def test_invalid_description(self, valid_id) -> None:
         with pytest.raises(DomainException) as exc:
             Round(id=valid_id, description="")
         assert exc.value.code == BracketError.INVALID_ROUND_DESCRIPTION.code
 
 
 class TestMatch:
-    def test_valid_creation(self, valid_id, valid_round, valid_competitor):
+    def test_valid_creation(self, valid_id, valid_round, valid_competitor) -> None:
         competitor_2 = Competitor(
             id=uuid4(),
             first_name="Jane",
@@ -48,7 +48,7 @@ class TestMatch:
         assert match.round == valid_round
         assert match.winner is None
 
-    def test_set_winner_success(self, valid_id, valid_round, valid_competitor):
+    def test_set_winner_success(self, valid_id, valid_round, valid_competitor) -> None:
         competitor_2 = Competitor(
             id=uuid4(),
             first_name="Jane",
@@ -73,7 +73,7 @@ class TestMatch:
 
     def test_set_winner_invalid_competitor(
         self, valid_id, valid_round, valid_competitor
-    ):
+    ) -> None:
         competitor_2 = Competitor(
             id=uuid4(),
             first_name="Jane",
@@ -120,9 +120,7 @@ class TestPyramid:
         valid_sex,
         valid_rank,
         academy_aware_strategy,
-    ):
-        # 1. Arrange
-        # Creamos objetos falsos (mocks/stubs) para la prueba
+    ) -> None:
         competitors = [
             Competitor(
                 id=uuid4(),
@@ -140,16 +138,11 @@ class TestPyramid:
 
         pyramid = Pyramid(id=valid_id, category=valid_category)
 
-        # 2. Act (Actuar)
         matches = pyramid.generate_initial_round(competitors, academy_aware_strategy)
 
-        # 3. Assert (Verificar)
-        # La primera ronda para 8 competidores debe tener 4 partidos.
         assert len(pyramid.matches) == 4
-        # Return value should be the same list
         assert matches == pyramid.matches
 
-        # Verificamos que todos los competidores estén en algún partido.
         all_competitor_ids_in_matches = set()
         for match in pyramid.matches:
             all_competitor_ids_in_matches.add(match.first_competitor.id)
@@ -166,8 +159,7 @@ class TestPyramid:
         valid_sex,
         valid_rank,
         academy_aware_strategy,
-    ):
-        # 1. Arrange - 5 competidores (número impar)
+    ) -> None:
         competitors = [
             Competitor(
                 id=uuid4(),
@@ -185,27 +177,98 @@ class TestPyramid:
 
         pyramid = Pyramid(id=valid_id, category=valid_category)
 
-        # 2. Act
         matches = pyramid.generate_initial_round(competitors, academy_aware_strategy)
 
-        # 3. Assert
-        # Con 5 competidores: 2 matches reales + 1 bye = 3 matches totales
-        assert len(pyramid.matches) == 3
+        # With 5 competitors:
+        # Nearest power of 2 is 8. Matches = 8/2 = 4.
+        # Byes = 2*4 - 5 = 3.
+        # Real matches = 5 - 4 = 1.
+        assert len(pyramid.matches) == 4
         assert matches == pyramid.matches
 
-        # Identificar matches reales y byes
+        # All matches should be in Round 1
+        for match in matches:
+            assert match.round.description == "Round 1"
+
+        # Identify real matches and bye matches
         real_matches = [m for m in matches if m.second_competitor is not None]
         bye_matches = [m for m in matches if m.second_competitor is None]
 
-        assert len(real_matches) == 2
-        assert len(bye_matches) == 1
+        assert len(real_matches) == 1
+        assert len(bye_matches) == 3
 
-        # Verificar ids únicos
+        # Verify byes have winners
+        for match in bye_matches:
+            assert match.winner == match.first_competitor
+
+        # Verify unique ids
         played_ids = set()
         for match in matches:
             played_ids.add(match.first_competitor.id)
             if match.second_competitor:
                 played_ids.add(match.second_competitor.id)
 
-        # 5 competidores en total
         assert len(played_ids) == 5
+
+    def test_generate_initial_round_with_ten_competitors(
+        self,
+        valid_id,
+        valid_category,
+        valid_academy,
+        valid_sex,
+        valid_rank,
+        academy_aware_strategy,
+    ) -> None:
+        # 1. Arrange - 10 competitors
+        competitors = [
+            Competitor(
+                id=uuid4(),
+                academy=valid_academy,
+                first_name=f"Competitor{i}",
+                last_name="Doe",
+                rank=valid_rank,
+                sex=valid_sex,
+                weight=valid_category.initial_weight,
+                height=valid_category.initial_height,
+                special_condition=False,
+            )
+            for i in range(10)
+        ]
+
+        pyramid = Pyramid(id=valid_id, category=valid_category)
+
+        # 2. Act
+        matches = pyramid.generate_initial_round(competitors, academy_aware_strategy)
+
+        # 3. Assert
+        # With 10 competitors:
+        # Nearest power of 2 is 16. Matches = 16/2 = 8.
+        # Byes = 2*8 - 10 = 6.
+        # Real matches = 10 - 8 = 2.
+        assert len(pyramid.matches) == 8
+        assert matches == pyramid.matches
+
+        # All matches should be in Round 1
+        for match in matches:
+            assert match.round.description == "Round 1"
+
+        # Identify real matches and bye matches
+        real_matches = [m for m in matches if m.second_competitor is not None]
+        bye_matches = [m for m in matches if m.second_competitor is None]
+
+        assert len(real_matches) == 2
+        assert len(bye_matches) == 6
+
+        # Verify byes have winners
+        for match in bye_matches:
+            assert match.winner == match.first_competitor
+
+        # Verify unique ids
+        played_ids = set()
+        for match in matches:
+            played_ids.add(match.first_competitor.id)
+            if match.second_competitor:
+                played_ids.add(match.second_competitor.id)
+
+        # 10 competitors in total
+        assert len(played_ids) == 10
