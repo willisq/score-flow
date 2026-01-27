@@ -119,6 +119,7 @@ class TestPyramid:
         valid_academy,
         valid_sex,
         valid_rank,
+        valid_round,
         academy_aware_strategy,
     ) -> None:
         competitors = [
@@ -138,7 +139,9 @@ class TestPyramid:
 
         pyramid = Pyramid(id=valid_id, category=valid_category)
 
-        matches = pyramid.generate_initial_round(competitors, academy_aware_strategy)
+        matches = pyramid.generate_initial_round(
+            competitors, valid_round, academy_aware_strategy
+        )
 
         assert len(pyramid.matches) == 4
         assert matches == pyramid.matches
@@ -158,6 +161,7 @@ class TestPyramid:
         valid_academy,
         valid_sex,
         valid_rank,
+        valid_round,
         academy_aware_strategy,
     ) -> None:
         competitors = [
@@ -177,7 +181,9 @@ class TestPyramid:
 
         pyramid = Pyramid(id=valid_id, category=valid_category)
 
-        matches = pyramid.generate_initial_round(competitors, academy_aware_strategy)
+        matches = pyramid.generate_initial_round(
+            competitors, valid_round, academy_aware_strategy
+        )
 
         # With 5 competitors:
         # Nearest power of 2 is 8. Matches = 8/2 = 4.
@@ -186,9 +192,9 @@ class TestPyramid:
         assert len(pyramid.matches) == 4
         assert matches == pyramid.matches
 
-        # All matches should be in Round 1
+        # All matches should be in the provided round
         for match in matches:
-            assert match.round.description == "Round 1"
+            assert match.round.description == valid_round.description
 
         # Identify real matches and bye matches
         real_matches = [m for m in matches if m.second_competitor is not None]
@@ -217,6 +223,7 @@ class TestPyramid:
         valid_academy,
         valid_sex,
         valid_rank,
+        valid_round,
         academy_aware_strategy,
     ) -> None:
         # 1. Arrange - 10 competitors
@@ -238,7 +245,9 @@ class TestPyramid:
         pyramid = Pyramid(id=valid_id, category=valid_category)
 
         # 2. Act
-        matches = pyramid.generate_initial_round(competitors, academy_aware_strategy)
+        matches = pyramid.generate_initial_round(
+            competitors, valid_round, academy_aware_strategy
+        )
 
         # 3. Assert
         # With 10 competitors:
@@ -248,9 +257,9 @@ class TestPyramid:
         assert len(pyramid.matches) == 8
         assert matches == pyramid.matches
 
-        # All matches should be in Round 1
+        # All matches should be in the provided round
         for match in matches:
-            assert match.round.description == "Round 1"
+            assert match.round.description == valid_round.description
 
         # Identify real matches and bye matches
         real_matches = [m for m in matches if m.second_competitor is not None]
