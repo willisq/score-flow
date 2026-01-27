@@ -57,6 +57,7 @@ class Pyramid:
     def generate_initial_round(
         self,
         competitors: List[Competitor],
+        first_round: Round,
         pairing_strategy: "PairingStrategy",
         id_factory: Callable[[], UUID] = uuid4,
     ) -> List[Match]:
@@ -73,10 +74,7 @@ class Pyramid:
         """
         self.matches.clear()
 
-        initial_round = Round(id=id_factory(), description="Round 1")
-
-        # The strategy returns matches (including byes as matches)
-        matches = pairing_strategy.pair(competitors, initial_round, id_factory)
+        matches = pairing_strategy.pair(competitors, first_round, id_factory)
 
         self.matches.extend(matches)
 
