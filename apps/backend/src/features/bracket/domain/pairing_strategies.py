@@ -85,7 +85,7 @@ class AcademyAwarePairingStrategy(PairingStrategy):
         matches = []
 
         # Create bye matches
-        for _ in range(number_of_byes):
+        for index in range(number_of_byes):
             if not competitors:
                 break
             competitor = competitors.pop(0)
@@ -94,11 +94,13 @@ class AcademyAwarePairingStrategy(PairingStrategy):
                 round=current_round,
                 first_competitor=competitor,
                 second_competitor=None,
+                position=index,
             )
             match.set_winner(competitor)
             matches.append(match)
 
         # Create real matches
+        current_position = number_of_byes
         while competitors:
             first_competitor = competitors.pop(0)
             second_competitor = self._find_second_competitor(
@@ -110,7 +112,9 @@ class AcademyAwarePairingStrategy(PairingStrategy):
                 round=current_round,
                 first_competitor=first_competitor,
                 second_competitor=second_competitor,
+                position=current_position,
             )
             matches.append(match)
+            current_position += 1
 
         return matches
