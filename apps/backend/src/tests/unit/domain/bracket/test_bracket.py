@@ -8,6 +8,8 @@ from src.features.registration.domain.entities import (
     Competitor,
 )
 
+5
+
 
 @pytest.fixture
 def academy_aware_strategy():
@@ -281,3 +283,205 @@ class TestPyramid:
 
         # 10 competitors in total
         assert len(played_ids) == 10
+
+    def test_get_round_winners(
+        self,
+        valid_id,
+        valid_round,
+        valid_category,
+        valid_academy,
+        valid_sex,
+        valid_rank,
+        academy_aware_strategy,
+    ) -> None:
+        # Arrange
+        competitors = [
+            Competitor(
+                id=uuid4(),
+                academy=valid_academy,
+                first_name=f"C{i}",
+                last_name="Doe",
+                rank=valid_rank,
+                sex=valid_sex,
+                weight=60.0,
+                height=170.0,
+                special_condition=False,
+            )
+            for i in range(4)
+        ]
+
+        pyramid = Pyramid(id=valid_id, category=valid_category)
+        matches_r1 = pyramid.generate_initial_round(
+            competitors, valid_round, academy_aware_strategy, valid_id
+        )
+
+        # Act 1: Set winners for R1
+        for match in matches_r1:
+            match.set_winner(match.first_competitor)
+
+        # Act 2: Get winners for R1
+        winners = pyramid.get_round_winners(valid_round)
+
+        # Assert
+        assert len(winners) == 2
+        assert winners == [m.first_competitor for m in matches_r1]
+
+    def test_get_matches_by_round(
+        self,
+        valid_id,
+        valid_round,
+        valid_category,
+        valid_academy,
+        valid_sex,
+        valid_rank,
+        academy_aware_strategy,
+    ) -> None:
+        # Arrange
+        competitors = [
+            Competitor(
+                id=uuid4(),
+                academy=valid_academy,
+                first_name=f"C{i}",
+                last_name="Doe",
+                rank=valid_rank,
+                sex=valid_sex,
+                weight=60.0,
+                height=170.0,
+                special_condition=False,
+            )
+            for i in range(4)
+        ]
+
+        pyramid = Pyramid(id=valid_id, category=valid_category)
+        matches_r1 = pyramid.generate_initial_round(
+            competitors, valid_round, academy_aware_strategy, valid_id
+        )
+
+        # Act
+        matches = pyramid.get_matches_by_round(valid_round)
+
+        # Assert
+        assert len(matches) == 2
+        assert matches == matches_r1
+
+    def test_advance_to_next_round(
+        self,
+        valid_id,
+        valid_category,
+        valid_academy,
+        valid_sex,
+        valid_rank,
+        academy_aware_strategy,
+    ) -> None:
+        # Arrange
+        round1 = Round(id=uuid4(), description="Round 1", sequence=1)
+        round2 = Round(id=uuid4(), description="Round 2", sequence=2)
+
+        competitors = [
+            Competitor(
+                id=uuid4(),
+                academy=valid_academy,
+                first_name=f"C{i}",
+                last_name="Doe",
+                rank=valid_rank,
+                sex=valid_sex,
+                weight=60.0,
+                height=170.0,
+                special_condition=False,
+            )
+            for i in range(4)
+        ]
+
+        pyramid = Pyramid(id=valid_id, category=valid_category)
+        matches_r1 = pyramid.generate_initial_round(
+            competitors, round1, academy_aware_strategy
+        )
+
+        # Act 1: Set winners for R1
+        for match in matches_r1:
+            match.set_winner(match.first_competitor)
+
+        # Act 2: Advance to R2
+        matches_r2 = pyramid.advance(round1, round2, academy_aware_strategy)
+
+        # Assert
+        assert len(matches_r2) == 1
+        assert matches_r2[0].round.id == round2.id
+        assert matches_r2[0].first_competitor == matches_r1[0].winner
+        assert matches_r2[0].second_competitor == matches_r1[1].winner
+        assert len(pyramid.matches) == 3  # 2 from R1 + 1 from R2
+
+    def test_cannot_advance_if_round_incomplete(
+        self,
+        valid_id,
+        valid_category,
+        valid_academy,
+        valid_sex,
+        valid_rank,
+        academy_aware_strategy,
+    ) -> None:
+        # Arrange
+        round1 = Round(id=uuid4(), description="Round 1", sequence=1)
+        round2 = Round(id=uuid4(), description="Round 2", sequence=2)
+
+        competitors = [
+            Competitor(
+                id=uuid4(),
+                academy=valid_academy,
+                first_name=f"C{i}",
+                last_name="Doe",
+                rank=valid_rank,
+                sex=valid_sex,
+                weight=60.0,
+                height=170.0,
+                special_condition=False,
+            )
+            for i in range(4)
+        ]
+
+        pyramid = Pyramid(id=valid_id, category=valid_category)
+        matches_r1 = pyramid.generate_initial_round(
+            competitors, round1, academy_aware_strategy
+        )
+
+        # Only set winner for the first match
+        matches_r1[0].set_winner(matches_r1[0].first_competitor)
+
+        # Act & Assert
+        with pytest.raises(DomainException) as exc:
+            pyramid.advance(round1, round2, academy_aware_strategy)
+        assert exc.value.code == BracketError.ROUND_NOT_COMPLETE.code
+
+    def test_match_ordering_within_round(
+        self,
+        valid_id,
+        valid_category,
+        valid_academy,
+        valid_sex,
+        valid_rank,
+        academy_aware_strategy,
+    ) -> None:
+        # Arrange
+        round1 = Round(id=uuid4(), description="Round 1", sequence=1)
+        competitors = [
+            Competitor(
+                id=uuid4(),
+                academy=valid_academy,
+                first_name=f"C{i}",
+                last_name="Doe",
+                rank=valid_rank,
+                sex=valid_sex,
+                weight=60.0,
+                height=170.0,
+                special_condition=False,
+            )
+            for i in range(4)
+        ]
+
+        pyramid = Pyramid(id=valid_id, category=valid_category)
+        pyramid.generate_initial_round(competitors, round1, academy_aware_strategy)
+
+        # Assert
+        matches = pyramid.get_matches_by_round(round1)
+        assert matches[0].position == 0
+        assert matches[1].position == 1
