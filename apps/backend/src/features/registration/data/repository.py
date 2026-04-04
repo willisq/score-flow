@@ -1,0 +1,211 @@
+from uuid import UUID
+
+from sqlalchemy import select
+from sqlalchemy.ext.asyncio import AsyncSession
+from sqlalchemy.orm import selectinload
+
+from src.features.registration.data.models import (
+    AcademyModel,
+    CompetitorModel,
+    PersonModel,
+    RankModel,
+    SexModel,
+)
+from src.features.registration.domain.entities import (
+    Academy,
+    Competitor,
+    Person,
+    Rank,
+    Sex,
+)
+
+
+class SexRepository:
+    def __init__(self, session: AsyncSession):
+        self.session = session
+
+    async def get_by_id(self, sex_id: UUID) -> Sex | None:
+        result = await self.session.get(SexModel, sex_id)
+        if not result:
+            return None
+        return Sex(id=result.id, name=result.name)
+
+    async def create(self, sex: Sex) -> Sex:
+        model = SexModel(id=sex.id, name=sex.name)
+        self.session.add(model)
+        return sex
+
+    async def list_all(self) -> list[Sex]:
+        result = await self.session.execute(select(SexModel))
+        return [Sex(id=m.id, name=m.name) for m in result.scalars().all()]
+
+
+class RankRepository:
+    def __init__(self, session: AsyncSession):
+        self.session = session
+
+    async def get_by_id(self, rank_id: UUID) -> Rank | None:
+        result = await self.session.get(RankModel, rank_id)
+        if not result:
+            return None
+        return Rank(
+            id=result.id,
+            name=result.name,
+            classification=result.classification,
+            is_black_belt=result.is_black_belt,
+        )
+
+    async def create(self, rank: Rank) -> Rank:
+        model = RankModel(
+            id=rank.id,
+            name=rank.name,
+            classification=rank.classification,
+            is_black_belt=rank.is_black_belt,
+        )
+        self.session.add(model)
+        return rank
+
+    async def list_all(self) -> list[Rank]:
+        result = await self.session.execute(select(RankModel))
+        return [
+            Rank(
+                id=m.id,
+                name=m.name,
+                classification=m.classification,
+                is_black_belt=m.is_black_belt,
+            )
+            for m in result.scalars().all()
+        ]
+
+
+class AcademyRepository:
+    def __init__(self, session: AsyncSession):
+        self.session = session
+
+    async def create(self, academy: Academy) -> Academy:
+        # Check if instructor (Person) exists, if not create him
+        instructor_model = await self.session.get(PersonModel, academy.instructor.id)
+        if not instructor_model:
+            instructor_model = PersonModel(
+                id=academy.instructor.id,
+                first_name=academy.instructor.first_name,
+                last_name=academy.instructor.last_name,
+            )
+            self.session.add(instructor_model)
+
+        model = AcademyModel(
+            id=academy.id,
+            name=academy.name,
+            instructor_id=academy.instructor.id,
+        )
+        self.session.add(model)
+        return academy
+
+    async def get_by_id(self, academy_id: UUID) -> Academy | None:
+        result = await self.session.execute(
+            select(AcademyModel)
+            .options(selectinload(AcademyModel.instructor))
+            .where(AcademyModel.id == academy_id)
+        )
+        model = result.scalar_one_or_none()
+        if not model:
+            return None
+
+        instructor = Person(
+            id=model.instructor.id,
+            first_name=model.instructor.first_name,
+            last_name=model.instructor.last_name,
+        )
+        return Academy(id=model.id, name=model.name, instructor=instructor)
+
+    async def list_all(self) -> list[Academy]:
+        result = await self.session.execute(
+            select(AcademyModel).options(selectinload(AcademyModel.instructor))
+        )
+        models = result.scalars().all()
+        return [
+            Academy(
+                id=m.id,
+                name=m.name,
+                instructor=Person(
+                    id=m.instructor.id,
+                    first_name=m.instructor.first_name,
+                    last_name=m.instructor.last_name,
+                ),
+            )
+            for m in models
+        ]
+
+
+class CompetitorRepository:
+    def __init__(self, session: AsyncSession):
+        self.session = session
+
+    async def create(self, competitor: Competitor) -> Competitor:
+        # 1. Create or get Person
+        person_model = await self.session.get(PersonModel, competitor.id)
+        if not person_model:
+            person_model = PersonModel(
+                id=competitor.id,
+                first_name=competitor.first_name,
+                last_name=competitor.last_name,
+            )
+            self.session.add(person_model)
+
+        # 2. Map Competitor
+        model = CompetitorModel(
+            id=competitor.id,
+            person_id=competitor.id,
+            academy_id=competitor.academy.id,
+            rank_id=competitor.rank.id,
+            sex_id=competitor.sex.id,
+            weight=competitor.weight,
+            height=competitor.height,
+            special_condition=competitor.special_condition,
+        )
+        self.session.add(model)
+        return competitor
+
+    async def get_by_id(self, competitor_id: UUID) -> Competitor | None:
+        result = await self.session.execute(
+            select(CompetitorModel)
+            .options(
+                selectinload(CompetitorModel.person),
+                selectinload(CompetitorModel.academy).selectinload(
+                    AcademyModel.instructor
+                ),
+                selectinload(CompetitorModel.rank),
+                selectinload(CompetitorModel.sex),
+            )
+            .where(CompetitorModel.id == competitor_id)
+        )
+        model = result.scalar_one_or_none()
+        if not model:
+            return None
+
+        academy = Academy(
+            id=model.academy.id,
+            name=model.academy.name,
+            instructor=Person(
+                id=model.academy.instructor.id,
+                first_name=model.academy.instructor.first_name,
+                last_name=model.academy.instructor.last_name,
+            ),
+        )
+
+        return Competitor(
+            id=model.id,
+            first_name=model.person.first_name,
+            last_name=model.person.last_name,
+            academy=academy,
+            rank=Rank(
+                id=model.rank.id,
+                name=model.rank.name,
+                classification=model.rank.classification,
+                is_black_belt=model.rank.is_black_belt,
+            ),
+            sex=Sex(id=model.sex.id, name=model.sex.name),
+            weight=model.weight,
+            height=model.height,
+            special_condition=model.special_condition,
+        )
