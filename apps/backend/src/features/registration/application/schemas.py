@@ -61,6 +61,10 @@ class CompetitorCreate(TunedModel):
     special_condition: bool = False
 
 
+class CompetitorBulkCreate(TunedModel):
+    competitors: list[CompetitorCreate]
+
+
 class CompetitorSchema(TunedModel):
     id: UUID
     first_name: str
