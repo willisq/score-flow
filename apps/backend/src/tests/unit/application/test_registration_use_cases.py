@@ -153,6 +153,71 @@ def test_register_competitor_with_missing_metrics():
     competitor_repo.create.assert_called_once()
 
 
+def test_register_competitors_bulk():
+    # Arrange
+    academy_repo = MagicMock()
+    rank_repo = MagicMock()
+    sex_repo = MagicMock()
+    competitor_repo = MagicMock()
+
+    academy_id = UUID("12345678-1234-5678-1234-567812345678")
+    rank_id = UUID("87654321-4321-8765-4321-876543210987")
+    sex_id = UUID("11111111-2222-3333-4444-555555555555")
+
+    academy = Academy(
+        id=academy_id,
+        name="Cobra Kai",
+        instructor=Person(id=UUID(int=1), first_name="Johnny", last_name="Lawrence"),
+    )
+    rank = Rank(id=rank_id, name="White", classification=1, is_black_belt=False)
+    sex = Sex(id=sex_id, name="M")
+
+    academy_repo.get_by_id = AsyncMock(return_value=academy)
+    rank_repo.get_by_id = AsyncMock(return_value=rank)
+    sex_repo.get_by_id = AsyncMock(return_value=sex)
+    competitor_repo.create = AsyncMock(side_effect=lambda x: x)
+
+    use_cases = RegistrationUseCases(
+        academy_repo=academy_repo,
+        rank_repo=rank_repo,
+        sex_repo=sex_repo,
+        competitor_repo=competitor_repo,
+    )
+
+    schemas = [
+        CompetitorCreate(
+            first_name="Miguel",
+            last_name="Diaz",
+            academy_id=academy_id,
+            rank_id=rank_id,
+            sex_id=sex_id,
+        ),
+        CompetitorCreate(
+            first_name="Robby",
+            last_name="Keene",
+            academy_id=academy_id,
+            rank_id=rank_id,
+            sex_id=sex_id,
+        ),
+    ]
+
+    # Act
+    results = asyncio.run(use_cases.register_competitors_bulk(schemas))
+
+    # Assert
+    assert len(results) == 2
+    assert results[0].first_name == "Miguel"
+    assert results[1].first_name == "Robby"
+    
+    # Verify that dependencies were fetched only once per unique ID
+    assert academy_repo.get_by_id.call_count == 1
+    assert rank_repo.get_by_id.call_count == 1
+    assert sex_repo.get_by_id.call_count == 1
+    
+    # Verify that create was called for each competitor
+    assert competitor_repo.create.call_count == 2
+
+
 def test_list_competitors_calls_repo_with_filters():
     # Arrange
     competitor_repo = MagicMock()

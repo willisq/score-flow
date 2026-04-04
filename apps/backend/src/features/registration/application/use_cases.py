@@ -91,6 +91,53 @@ class RegistrationUseCases:
 
         return await self.competitor_repo.create(competitor)
 
+    async def register_competitors_bulk(
+        self, schemas: list[CompetitorCreate]
+    ) -> list[Competitor]:
+        # 1. Pre-fetch all unique dependencies to avoid redundant DB calls
+        academy_ids = {s.academy_id for s in schemas}
+        rank_ids = {s.rank_id for s in schemas}
+        sex_ids = {s.sex_id for s in schemas}
+
+        # Use a dict to cache the objects
+        academies = {}
+        for aid in academy_ids:
+            academies[aid] = await self.academy_repo.get_by_id(aid)
+            if not academies[aid]:
+                raise ValueError(f"Academy with ID {aid} not found")
+
+        ranks = {}
+        for rid in rank_ids:
+            ranks[rid] = await self.rank_repo.get_by_id(rid)
+            if not ranks[rid]:
+                raise ValueError(f"Rank with ID {rid} not found")
+
+        sexes = {}
+        for sid in sex_ids:
+            sexes[sid] = await self.sex_repo.get_by_id(sid)
+            if not sexes[sid]:
+                raise ValueError(f"Sex with ID {sid} not found")
+
+        # 2. Create all competitors
+        results = []
+        for schema in schemas:
+            competitor = Competitor(
+                id=uuid4(),
+                first_name=schema.first_name,
+                last_name=schema.last_name,
+                academy=academies[schema.academy_id],
+                rank=ranks[schema.rank_id],
+                sex=sexes[schema.sex_id],
+                weight=schema.weight,
+                height=schema.height,
+                age=schema.age,
+                special_condition=schema.special_condition,
+            )
+            created = await self.competitor_repo.create(competitor)
+            results.append(created)
+
+        return results
+
     async def list_academies(self) -> list[Academy]:
         return await self.academy_repo.list_all()
 

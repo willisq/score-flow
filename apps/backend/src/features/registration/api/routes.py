@@ -5,6 +5,7 @@ from src.core.database import get_db
 from src.features.registration.application.schemas import (
     AcademyCreate,
     AcademySchema,
+    CompetitorBulkCreate,
     CompetitorCreate,
     CompetitorFilters,
     CompetitorSchema,
@@ -104,6 +105,28 @@ async def create_competitor(
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail="Internal server error",
+        )
+
+
+@router.post(
+    "/competitors/bulk",
+    response_model=list[CompetitorSchema],
+    status_code=status.HTTP_201_CREATED,
+)
+async def create_competitors_bulk(
+    schema: CompetitorBulkCreate,
+    use_cases: RegistrationUseCases = Depends(get_registration_use_cases),
+):
+    try:
+        results = await use_cases.register_competitors_bulk(schema.competitors)
+        await use_cases.competitor_repo.session.commit()
+        return results
+    except ValueError as e:
+        raise HTTPException(status_code=400, detail=str(e))
+    except Exception as e:
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Internal server error: {str(e)}",
         )
 
 
