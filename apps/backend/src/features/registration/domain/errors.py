@@ -11,6 +11,10 @@ class RegistrationError(Enum):
         "Academy must have an instructor",
     )
     INVALID_RANK_NAME = ("INVALID_RANK_NAME", "Rank name cannot be empty")
+    INVALID_RANK_CLASSIFICATION = (
+        "INVALID_RANK_CLASSIFICATION",
+        "Rank classification must be positive",
+    )
     INVALID_WEIGHT = ("INVALID_WEIGHT", "Weight must be positive")
     INVALID_HEIGHT = ("INVALID_HEIGHT", "Height must be positive")
 

@@ -66,14 +66,20 @@ class TestAcademy:
 
 class TestRank:
     def test_valid_creation(self, valid_id):
-        rank = Rank(id=valid_id, name="White Belt", is_black_belt=False)
+        rank = Rank(id=valid_id, name="White Belt", classification=1, is_black_belt=False)
         assert rank.name == "White Belt"
+        assert rank.classification == 1
         assert rank.is_black_belt is False
 
     def test_invalid_name(self, valid_id):
         with pytest.raises(DomainException) as exc:
-            Rank(id=valid_id, name="", is_black_belt=False)
+            Rank(id=valid_id, name="", classification=1, is_black_belt=False)
         assert exc.value.code == RegistrationError.INVALID_RANK_NAME.code
+
+    def test_invalid_classification(self, valid_id):
+        with pytest.raises(DomainException) as exc:
+            Rank(id=valid_id, name="White", classification=0, is_black_belt=False)
+        assert exc.value.code == RegistrationError.INVALID_RANK_CLASSIFICATION.code
 
 
 class TestCompetitor:

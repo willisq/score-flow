@@ -72,6 +72,7 @@ class Rank:
 
     id: UUID
     name: str
+    classification: int
     is_black_belt: bool
 
     def __post_init__(self):
@@ -79,6 +80,12 @@ class Rank:
             raise DomainException(
                 RegistrationError.INVALID_RANK_NAME.message,
                 code=RegistrationError.INVALID_RANK_NAME.code,
+            )
+
+        if self.classification <= 0:
+            raise DomainException(
+                RegistrationError.INVALID_RANK_CLASSIFICATION.message,
+                code=RegistrationError.INVALID_RANK_CLASSIFICATION.code,
             )
 
 

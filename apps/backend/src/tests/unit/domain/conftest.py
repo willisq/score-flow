@@ -19,7 +19,7 @@ def valid_id() -> Callable[[], UUID]:
 
 @fixture
 def valid_rank(valid_id) -> Rank:
-    return Rank(id=valid_id(), name="White", is_black_belt=False)
+    return Rank(id=valid_id(), name="White", classification=1, is_black_belt=False)
 
 
 @fixture
