@@ -1,0 +1,67 @@
+from uuid import UUID
+
+from pydantic import Field
+
+from src.core.common.models import TunedModel
+
+
+class SexCreate(TunedModel):
+    name: str
+
+
+class SexSchema(TunedModel):
+    id: UUID
+    name: str
+
+
+class RankCreate(TunedModel):
+    name: str
+    classification: int
+    is_black_belt: bool
+
+
+class RankSchema(TunedModel):
+    id: UUID
+    name: str
+    classification: int
+    is_black_belt: bool
+
+
+class PersonSchema(TunedModel):
+    id: UUID
+    first_name: str
+    last_name: str
+
+
+class AcademyCreate(TunedModel):
+    name: str
+    instructor: PersonSchema
+
+
+class AcademySchema(TunedModel):
+    id: UUID
+    name: str
+    instructor: PersonSchema
+
+
+class CompetitorCreate(TunedModel):
+    first_name: str
+    last_name: str
+    academy_id: UUID
+    rank_id: UUID
+    sex_id: UUID
+    weight: float = Field(gt=0)
+    height: float = Field(gt=0)
+    special_condition: bool = False
+
+
+class CompetitorSchema(TunedModel):
+    id: UUID
+    first_name: str
+    last_name: str
+    academy: AcademySchema
+    rank: RankSchema
+    sex: SexSchema
+    weight: float
+    height: float
+    special_condition: bool

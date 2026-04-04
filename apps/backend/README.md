@@ -15,7 +15,7 @@ El backend utiliza **`uv`** para una gestión de paquetes ultra rápida.
 * **Sincronizar dependencias:** `uv sync`
 * **Ejecutar pruebas (TDD):** `uv run pytest`
 * **Iniciar API en modo desarrollo:** ```bash
-    cd backend && uv run uvicorn app.main:app --host 0.0.0.0 --port 8000 --reload
+    cd backend && uv run uvicorn src.main:app --host 0.0.0.0 --port 8000 --reload
     ```
 * **Documentación Interactiva:** Una vez iniciada, visita `http://localhost:8000/docs`
 
