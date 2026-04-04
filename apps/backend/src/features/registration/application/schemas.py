@@ -55,8 +55,9 @@ class CompetitorCreate(TunedModel):
     academy_id: UUID
     rank_id: UUID
     sex_id: UUID
-    weight: float = Field(gt=0)
-    height: float = Field(gt=0)
+    weight: float | None = Field(default=None, gt=0)
+    height: float | None = Field(default=None, gt=0)
+    age: int | None = None
     special_condition: bool = False
 
 
@@ -67,6 +68,16 @@ class CompetitorSchema(TunedModel):
     academy: AcademySchema
     rank: RankSchema
     sex: SexSchema
-    weight: float
-    height: float
+    weight: float | None = None
+    height: float | None = None
+    age: int | None = None
     special_condition: bool
+
+
+
+class CompetitorFilters(TunedModel):
+    name: str | None = None
+    academy_id: UUID | None = None
+    rank_id: UUID | None = None
+    sex_id: UUID | None = None
+    special_condition: bool | None = None

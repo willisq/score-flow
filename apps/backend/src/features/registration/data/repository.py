@@ -1,6 +1,6 @@
 from uuid import UUID
 
-from sqlalchemy import select
+from sqlalchemy import or_, select
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
@@ -161,6 +161,7 @@ class CompetitorRepository:
             sex_id=competitor.sex.id,
             weight=competitor.weight,
             height=competitor.height,
+            age=competitor.age,
             special_condition=competitor.special_condition,
         )
         self.session.add(model)
@@ -207,5 +208,77 @@ class CompetitorRepository:
             sex=Sex(id=model.sex.id, name=model.sex.name),
             weight=model.weight,
             height=model.height,
+            age=model.age,
             special_condition=model.special_condition,
         )
+
+    async def get_all(
+        self,
+        name: str | None = None,
+        academy_id: UUID | None = None,
+        rank_id: UUID | None = None,
+        sex_id: UUID | None = None,
+        special_condition: bool | None = None,
+    ) -> list[Competitor]:
+        stmt = (
+            select(CompetitorModel)
+            .join(CompetitorModel.person)
+            .options(
+                selectinload(CompetitorModel.person),
+                selectinload(CompetitorModel.academy).selectinload(
+                    AcademyModel.instructor
+                ),
+                selectinload(CompetitorModel.rank),
+                selectinload(CompetitorModel.sex),
+            )
+        )
+
+        if name:
+            search = f"%{name}%"
+            stmt = stmt.where(
+                or_(
+                    PersonModel.first_name.ilike(search),
+                    PersonModel.last_name.ilike(search),
+                )
+            )
+
+        if academy_id:
+            stmt = stmt.where(CompetitorModel.academy_id == academy_id)
+        if rank_id:
+            stmt = stmt.where(CompetitorModel.rank_id == rank_id)
+        if sex_id:
+            stmt = stmt.where(CompetitorModel.sex_id == sex_id)
+        if special_condition is not None:
+            stmt = stmt.where(CompetitorModel.special_condition == special_condition)
+
+        result = await self.session.execute(stmt)
+        models = result.scalars().all()
+
+        return [
+            Competitor(
+                id=m.id,
+                first_name=m.person.first_name,
+                last_name=m.person.last_name,
+                academy=Academy(
+                    id=m.academy.id,
+                    name=m.academy.name,
+                    instructor=Person(
+                        id=m.academy.instructor.id,
+                        first_name=m.academy.instructor.first_name,
+                        last_name=m.academy.instructor.last_name,
+                    ),
+                ),
+                rank=Rank(
+                    id=m.rank.id,
+                    name=m.rank.name,
+                    classification=m.rank.classification,
+                    is_black_belt=m.rank.is_black_belt,
+                ),
+                sex=Sex(id=m.sex.id, name=m.sex.name),
+                weight=m.weight,
+                height=m.height,
+                age=m.age,
+                special_condition=m.special_condition,
+            )
+            for m in models
+        ]

@@ -6,6 +6,7 @@ from src.features.registration.application.schemas import (
     AcademyCreate,
     AcademySchema,
     CompetitorCreate,
+    CompetitorFilters,
     CompetitorSchema,
     RankCreate,
     RankSchema,
@@ -104,3 +105,11 @@ async def create_competitor(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail="Internal server error",
         )
+
+
+@router.get("/competitors", response_model=list[CompetitorSchema])
+async def list_competitors(
+    filters: CompetitorFilters = Depends(),
+    use_cases: RegistrationUseCases = Depends(get_registration_use_cases),
+):
+    return await use_cases.list_competitors(filters)

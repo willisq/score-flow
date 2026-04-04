@@ -97,20 +97,21 @@ class Competitor(Person):
     academy: Academy
     rank: Rank
     sex: Sex
-    weight: float
-    height: float
-    special_condition: bool
+    weight: float | None = None
+    height: float | None = None
+    age: int | None = None
+    special_condition: bool = False
 
     def __post_init__(self):
         super().__post_init__()
 
-        if self.weight <= 0:
+        if self.weight is not None and self.weight <= 0:
             raise DomainException(
                 RegistrationError.INVALID_WEIGHT.message,
                 code=RegistrationError.INVALID_WEIGHT.code,
             )
 
-        if self.height <= 0:
+        if self.height is not None and self.height <= 0:
             raise DomainException(
                 RegistrationError.INVALID_HEIGHT.message,
                 code=RegistrationError.INVALID_HEIGHT.code,
