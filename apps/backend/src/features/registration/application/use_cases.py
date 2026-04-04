@@ -49,7 +49,7 @@ class RegistrationUseCases:
 
     async def register_academy(self, schema: AcademyCreate) -> Academy:
         instructor = Person(
-            id=schema.instructor.id,
+            id=uuid4(),
             first_name=schema.instructor.first_name,
             last_name=schema.instructor.last_name,
         )
