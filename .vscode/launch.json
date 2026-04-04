@@ -1,0 +1,39 @@
+{
+    "version": "0.2.0",
+    "configurations": [
+        {
+            "name": "Debug Unit Tests (UV)",
+            "type": "debugpy",
+            "request": "launch",
+            "module": "pytest",
+            "args": [
+                "${file}"
+            ],
+            "python": "${workspaceFolder}/apps/backend/.venv/Scripts/python.exe",
+            "cwd": "${workspaceFolder}/apps/backend",
+            "console": "integratedTerminal",
+            "justMyCode": true
+        },
+        {
+            "name": "FastAPI: Run & Debug",
+            "type": "debugpy",
+            "request": "launch",
+            "module": "uvicorn",
+            "python": "${workspaceFolder}/apps/backend/.venv/Scripts/python.exe",
+            "cwd": "${workspaceFolder}/apps/backend",
+            "console": "integratedTerminal",
+            "args": [
+                "src.main:app",
+                "--reload",
+                "--host",
+                "127.0.0.1",
+                "--port",
+                "8000"
+            ],
+            "justMyCode": true,
+            "env": {
+                "PYTHONPATH": "${workspaceFolder};${workspaceFolder}/apps/backend"
+            }
+        }
+    ]
+}
