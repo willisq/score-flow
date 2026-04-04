@@ -33,9 +33,14 @@ class PersonSchema(TunedModel):
     last_name: str
 
 
+class PersonCreate(TunedModel):
+    first_name: str
+    last_name: str
+
+
 class AcademyCreate(TunedModel):
     name: str
-    instructor: PersonSchema
+    instructor: PersonCreate
 
 
 class AcademySchema(TunedModel):
