@@ -61,8 +61,8 @@ class CompetitorModel(Base):
     academy_id: Mapped[UUID] = mapped_column(ForeignKey("academy.id"), nullable=False)
     rank_id: Mapped[UUID] = mapped_column(ForeignKey("rank.id"), nullable=False)
     sex_id: Mapped[UUID] = mapped_column(ForeignKey("sex.id"), nullable=False)
-    weight: Mapped[float] = mapped_column(Float, nullable=False)
-    height: Mapped[float] = mapped_column(Float, nullable=False)
+    weight: Mapped[float] = mapped_column(Float, nullable=True)
+    height: Mapped[float] = mapped_column(Float, nullable=True)
     age: Mapped[int] = mapped_column(Integer, nullable=True)
     special_condition: Mapped[bool] = mapped_column(Boolean, default=False)
 

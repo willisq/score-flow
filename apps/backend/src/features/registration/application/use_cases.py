@@ -3,6 +3,7 @@ from uuid import uuid4
 from src.features.registration.application.schemas import (
     AcademyCreate,
     CompetitorCreate,
+    CompetitorFilters,
     RankCreate,
     SexCreate,
 )
@@ -84,6 +85,7 @@ class RegistrationUseCases:
             sex=sex,
             weight=schema.weight,
             height=schema.height,
+            age=schema.age,
             special_condition=schema.special_condition,
         )
 
@@ -97,3 +99,12 @@ class RegistrationUseCases:
 
     async def list_sexes(self) -> list[Sex]:
         return await self.sex_repo.list_all()
+
+    async def list_competitors(self, filters: CompetitorFilters) -> list[Competitor]:
+        return await self.competitor_repo.get_all(
+            name=filters.name,
+            academy_id=filters.academy_id,
+            rank_id=filters.rank_id,
+            sex_id=filters.sex_id,
+            special_condition=filters.special_condition,
+        )
