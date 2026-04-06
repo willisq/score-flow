@@ -1,0 +1,245 @@
+from uuid import UUID
+from typing import List, Optional
+
+from sqlalchemy import select
+from sqlalchemy.ext.asyncio import AsyncSession
+from sqlalchemy.orm import selectinload
+
+from src.features.tournament.data.models import (
+    ModalityModel,
+    TournamentModel,
+    CategoryModel,
+    CategoryRegistrationModel,
+)
+from src.features.tournament.domain.entities import (
+    Modality,
+    Tournament,
+    Category,
+    CategoryRegistration,
+)
+from src.features.registration.domain.entities import Competitor, Rank, Sex, Person, Academy
+from src.features.registration.data.models import CompetitorModel, RankModel, SexModel, AcademyModel
+
+
+class ModalityRepository:
+    def __init__(self, session: AsyncSession):
+        self.session = session
+
+    async def create(self, modality: Modality) -> Modality:
+        model = ModalityModel(id=modality.id, name=modality.name)
+        self.session.add(model)
+        return modality
+
+    async def get_by_id(self, modality_id: UUID) -> Optional[Modality]:
+        result = await self.session.get(ModalityModel, modality_id)
+        if not result:
+            return None
+        return Modality(id=result.id, name=result.name)
+
+    async def list_all(self) -> List[Modality]:
+        result = await self.session.execute(select(ModalityModel))
+        return [Modality(id=m.id, name=m.name) for m in result.scalars().all()]
+
+
+class TournamentRepository:
+    def __init__(self, session: AsyncSession):
+        self.session = session
+
+    async def create(self, tournament: Tournament) -> Tournament:
+        model = TournamentModel(id=tournament.id, description=tournament.description)
+        self.session.add(model)
+        return tournament
+
+    async def get_by_id(self, tournament_id: UUID) -> Optional[Tournament]:
+        result = await self.session.get(TournamentModel, tournament_id)
+        if not result:
+            return None
+        return Tournament(id=result.id, description=result.description)
+
+    async def list_all(self) -> List[Tournament]:
+        result = await self.session.execute(select(TournamentModel))
+        return [Tournament(id=m.id, description=m.description) for m in result.scalars().all()]
+
+
+class CategoryRepository:
+    def __init__(self, session: AsyncSession):
+        self.session = session
+
+    async def create(self, category: Category) -> Category:
+        model = CategoryModel(
+            id=category.id,
+            name=category.name,
+            ages=category.ages,
+            special_condition=category.special_condition,
+            modality_id=category.modality.id,
+            initial_weight=category.initial_weight,
+            final_weight=category.final_weight,
+            initial_height=category.initial_height,
+            final_height=category.final_height,
+        )
+        
+        # Add ranks and sexes (many-to-many)
+        for rank in category.ranks:
+            rank_model = await self.session.get(RankModel, rank.id)
+            if rank_model:
+                model.ranks.append(rank_model)
+        
+        for sex in category.sexes:
+            sex_model = await self.session.get(SexModel, sex.id)
+            if sex_model:
+                model.sexes.append(sex_model)
+
+        self.session.add(model)
+        return category
+
+    async def get_by_id(self, category_id: UUID) -> Optional[Category]:
+        stmt = (
+            select(CategoryModel)
+            .options(
+                selectinload(CategoryModel.modality),
+                selectinload(CategoryModel.ranks),
+                selectinload(CategoryModel.sexes),
+            )
+            .where(CategoryModel.id == category_id)
+        )
+        result = await self.session.execute(stmt)
+        model = result.scalar_one_or_none()
+        if not model:
+            return None
+
+        return self._to_domain(model)
+
+    async def list_all(self) -> List[Category]:
+        stmt = select(CategoryModel).options(
+            selectinload(CategoryModel.modality),
+            selectinload(CategoryModel.ranks),
+            selectinload(CategoryModel.sexes),
+        )
+        result = await self.session.execute(stmt)
+        return [self._to_domain(m) for m in result.scalars().all()]
+
+    def _to_domain(self, model: CategoryModel) -> Category:
+        return Category(
+            id=model.id,
+            name=model.name,
+            ages=model.ages,
+            special_condition=model.special_condition,
+            modality=Modality(id=model.modality.id, name=model.modality.name),
+            ranks=[
+                Rank(
+                    id=r.id,
+                    name=r.name,
+                    classification=r.classification,
+                    is_black_belt=r.is_black_belt,
+                )
+                for r in model.ranks
+            ],
+            sexes=[Sex(id=s.id, name=s.name) for s in model.sexes],
+            initial_weight=model.initial_weight,
+            final_weight=model.final_weight,
+            initial_height=model.initial_height,
+            final_height=model.final_height,
+        )
+
+
+class CategoryRegistrationRepository:
+    def __init__(self, session: AsyncSession):
+        self.session = session
+
+    async def create(self, registration: CategoryRegistration) -> CategoryRegistration:
+        model = CategoryRegistrationModel(
+            id=registration.id,
+            competitor_id=registration.competitor.id,
+            category_id=registration.category.id,
+            tournament_id=registration.tournament.id,
+        )
+        self.session.add(model)
+        return registration
+
+    async def get_by_id(self, registration_id: UUID) -> Optional[CategoryRegistration]:
+        stmt = (
+            select(CategoryRegistrationModel)
+            .options(
+                # Load competitor and its relations
+                selectinload(CategoryRegistrationModel.competitor).selectinload(CompetitorModel.person),
+                selectinload(CategoryRegistrationModel.competitor).selectinload(CompetitorModel.academy).selectinload(AcademyModel.instructor),
+                selectinload(CategoryRegistrationModel.competitor).selectinload(CompetitorModel.rank),
+                selectinload(CategoryRegistrationModel.competitor).selectinload(CompetitorModel.sex),
+                # Load category and its relations
+                selectinload(CategoryRegistrationModel.category).selectinload(CategoryModel.modality),
+                selectinload(CategoryRegistrationModel.category).selectinload(CategoryModel.ranks),
+                selectinload(CategoryRegistrationModel.category).selectinload(CategoryModel.sexes),
+                # Load tournament
+                selectinload(CategoryRegistrationModel.tournament),
+            )
+            .where(CategoryRegistrationModel.id == registration_id)
+        )
+        result = await self.session.execute(stmt)
+        model = result.scalar_one_or_none()
+        if not model:
+            return None
+
+        # Deep mapping to Domain
+        competitor_model = model.competitor
+        academy_model = competitor_model.academy
+        
+        academy = Academy(
+            id=academy_model.id,
+            name=academy_model.name,
+            instructor=Person(
+                id=academy_model.instructor.id,
+                first_name=academy_model.instructor.first_name,
+                last_name=academy_model.instructor.last_name
+            )
+        )
+        
+        competitor = Competitor(
+            id=competitor_model.id,
+            first_name=competitor_model.person.first_name,
+            last_name=competitor_model.person.last_name,
+            academy=academy,
+            rank=Rank(
+                id=competitor_model.rank.id,
+                name=competitor_model.rank.name,
+                classification=competitor_model.rank.classification,
+                is_black_belt=competitor_model.rank.is_black_belt
+            ),
+            sex=Sex(id=competitor_model.sex.id, name=competitor_model.sex.name),
+            weight=competitor_model.weight,
+            height=competitor_model.height,
+            age=competitor_model.age,
+            special_condition=competitor_model.special_condition
+        )
+        
+        category = Category(
+            id=model.category.id,
+            name=model.category.name,
+            ages=model.category.ages,
+            special_condition=model.category.special_condition,
+            modality=Modality(id=model.category.modality.id, name=model.category.modality.name),
+            ranks=[
+                Rank(
+                    id=r.id,
+                    name=r.name,
+                    classification=r.classification,
+                    is_black_belt=r.is_black_belt
+                ) for r in model.category.ranks
+            ],
+            sexes=[Sex(id=s.id, name=s.name) for s in model.category.sexes],
+            initial_weight=model.category.initial_weight,
+            final_weight=model.category.final_weight,
+            initial_height=model.category.initial_height,
+            final_height=model.category.final_height
+        )
+        
+        tournament = Tournament(
+            id=model.tournament.id,
+            description=model.tournament.description
+        )
+
+        return CategoryRegistration(
+            id=model.id,
+            competitor=competitor,
+            category=category,
+            tournament=tournament
+        )
