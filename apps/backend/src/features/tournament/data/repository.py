@@ -68,7 +68,6 @@ class CategoryRepository:
     async def create(self, category: Category) -> Category:
         model = CategoryModel(
             id=category.id,
-            name=category.name,
             ages=category.ages,
             special_condition=category.special_condition,
             modality_id=category.modality.id,
@@ -121,7 +120,6 @@ class CategoryRepository:
     def _to_domain(self, model: CategoryModel) -> Category:
         return Category(
             id=model.id,
-            name=model.name,
             ages=model.ages,
             special_condition=model.special_condition,
             modality=Modality(id=model.modality.id, name=model.modality.name),
@@ -213,7 +211,6 @@ class CategoryRegistrationRepository:
         
         category = Category(
             id=model.category.id,
-            name=model.category.name,
             ages=model.category.ages,
             special_condition=model.category.special_condition,
             modality=Modality(id=model.category.modality.id, name=model.category.modality.name),

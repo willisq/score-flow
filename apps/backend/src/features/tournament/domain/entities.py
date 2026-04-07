@@ -41,7 +41,6 @@ class Category:
     """Entity defining a competition category."""
 
     id: UUID
-    name: str
     ages: List[int]
     special_condition: bool
     modality: Modality
@@ -53,11 +52,6 @@ class Category:
     final_height: float = None
 
     def __post_init__(self):
-        if not self.name:
-            raise DomainException(
-                TournamentError.INVALID_CATEGORY_NAME.message,
-                code=TournamentError.INVALID_CATEGORY_NAME.code,
-            )
         if not self.modality:
             raise DomainException(
                 TournamentError.INVALID_CATEGORY_MODALITY.message,

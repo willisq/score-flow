@@ -49,7 +49,6 @@ class CategoryModel(Base):
     __tablename__ = "category"
 
     id: Mapped[UUID] = mapped_column(primary_key=True)
-    name: Mapped[str] = mapped_column(String(100), nullable=False)
     ages: Mapped[List[int]] = mapped_column(ARRAY(Integer), nullable=False)
     special_condition: Mapped[bool] = mapped_column(Boolean, default=False)
     modality_id: Mapped[UUID] = mapped_column(ForeignKey("modality.id"), nullable=False)

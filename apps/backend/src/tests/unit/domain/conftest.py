@@ -66,7 +66,6 @@ def valid_modality(valid_id) -> Modality:
 def valid_category(valid_id, valid_modality, valid_sex, valid_rank) -> Category:
     return Category(
         id=valid_id(),
-        name="Senior Male -70kg",
         special_condition=False,
         modality=valid_modality,
         sexes=[valid_sex],

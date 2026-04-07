@@ -7,7 +7,6 @@ class TournamentError(Enum):
         "INVALID_TOURNAMENT_DESCRIPTION",
         "Tournament description cannot be empty",
     )
-    INVALID_CATEGORY_NAME = ("INVALID_CATEGORY_NAME", "Category name cannot be empty")
     INVALID_CATEGORY_MODALITY = (
         "INVALID_CATEGORY_MODALITY",
         "Category must have a modality",
