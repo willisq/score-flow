@@ -34,7 +34,6 @@ class TestCategory:
     def test_valid_creation(self, valid_id, valid_modality, valid_sex, valid_rank):
         category = Category(
             id=valid_id,
-            name="Elite Male -70kg",
             ages=[18, 35],
             special_condition=False,
             modality=valid_modality,
@@ -43,27 +42,12 @@ class TestCategory:
             initial_weight=60.0,
             final_weight=70.0,
         )
-        assert category.name == "Elite Male -70kg"
         assert category.modality == valid_modality
-
-    def test_invalid_name(self, valid_id, valid_modality, valid_sex, valid_rank):
-        with pytest.raises(DomainException) as exc:
-            Category(
-                id=valid_id,
-                name="",
-                special_condition=False,
-                modality=valid_modality,
-                sexes=[valid_sex],
-                ranks=[valid_rank],
-                ages=[18, 35],
-            )
-        assert exc.value.code == TournamentError.INVALID_CATEGORY_NAME.code
 
     def test_invalid_modality(self, valid_id, valid_sex, valid_rank):
         with pytest.raises(DomainException) as exc:
             Category(
                 id=valid_id,
-                name="Test Category",
                 special_condition=False,
                 modality=None,  # type: ignore
                 sexes=[valid_sex],
@@ -79,7 +63,6 @@ class TestCategory:
         with pytest.raises(DomainException) as exc:
             Category(
                 id=valid_id,
-                name="Test",
                 ages=[age],
                 special_condition=False,
                 modality=valid_modality,
@@ -94,7 +77,6 @@ class TestCategory:
         with pytest.raises(DomainException) as exc:
             Category(
                 id=valid_id,
-                name="Test",
                 ages=[1, 70],
                 special_condition=False,
                 modality=valid_modality,
@@ -111,7 +93,6 @@ class TestCategory:
         with pytest.raises(DomainException) as exc:
             Category(
                 id=valid_id,
-                name="Test",
                 ages=[1, 70],
                 special_condition=False,
                 modality=valid_modality,
@@ -128,7 +109,6 @@ class TestCategory:
         with pytest.raises(DomainException) as exc:
             Category(
                 id=valid_id,
-                name="Test",
                 ages=[1, 70],
                 special_condition=False,
                 modality=valid_modality,
@@ -145,7 +125,6 @@ class TestCategory:
         with pytest.raises(DomainException) as exc:
             Category(
                 id=valid_id,
-                name="Test",
                 ages=[1, 70],
                 special_condition=False,
                 modality=valid_modality,
@@ -155,3 +134,4 @@ class TestCategory:
                 final_height=165.0,
             )
         assert exc.value.code == TournamentError.INVALID_HEIGHT_RANGE.code
+

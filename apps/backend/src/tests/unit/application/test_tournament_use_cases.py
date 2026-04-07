@@ -83,7 +83,6 @@ def test_register_category():
     )
     
     schema = CategoryCreate(
-        name="Senior Male Heavyweight",
         ages=[18, 40],
         modality_id=modality.id,
         rank_ids=[rank.id],
@@ -95,7 +94,7 @@ def test_register_category():
     result = asyncio.run(use_cases.register_category(schema))
     
     assert isinstance(result, Category)
-    assert result.name == "Senior Male Heavyweight"
+    assert isinstance(result, Category)
     assert result.modality == modality
     assert rank in result.ranks
     assert sex in result.sexes
@@ -121,7 +120,7 @@ def test_inscribe_competitor():
     
     modality = Modality(id=uuid4(), name="Sparring")
     category = Category(
-        id=uuid4(), name="Test Category", ages=[15, 17], 
+        id=uuid4(), ages=[15, 17], 
         special_condition=False,
         modality=modality, ranks=[rank], sexes=[sex]
     )

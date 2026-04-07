@@ -82,7 +82,6 @@ class TournamentUseCases:
         # 2. Create Domain Entity
         category = Category(
             id=uuid4(),
-            name=schema.name,
             ages=schema.ages,
             special_condition=schema.special_condition,
             modality=modality,

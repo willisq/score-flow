@@ -25,7 +25,6 @@ class TournamentSchema(TunedModel):
 
 
 class CategoryCreate(TunedModel):
-    name: str
     ages: List[int]
     special_condition: bool = False
     modality_id: UUID
@@ -39,7 +38,6 @@ class CategoryCreate(TunedModel):
 
 class CategorySchema(TunedModel):
     id: UUID
-    name: str
     ages: List[int]
     special_condition: bool
     modality: ModalitySchema
