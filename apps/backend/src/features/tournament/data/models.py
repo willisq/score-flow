@@ -66,7 +66,7 @@ class CategoryModel(Base):
 
 
 class CategoryRegistrationModel(Base):
-    __tablename__ = "category_registration"
+    __tablename__ = "competitor_category"
 
     id: Mapped[UUID] = mapped_column(primary_key=True)
     competitor_id: Mapped[UUID] = mapped_column(

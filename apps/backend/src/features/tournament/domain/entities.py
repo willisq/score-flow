@@ -100,6 +100,36 @@ class Category:
     def _has_height_limits(self) -> bool:
         return self.initial_height is not None and self.final_height is not None
 
+    def get_eligibility_failures(self, competitor: Competitor) -> dict:
+        """Determines why a competitor is not eligible for this category."""
+        failures = {
+            "age_mismatch": competitor.age not in self.ages,
+            "special_condition_mismatch": competitor.special_condition != self.special_condition,
+            "sex_mismatch": competitor.sex not in self.sexes,
+            "rank_mismatch": self.ranks and competitor.rank not in self.ranks,
+            "weight_mismatch": False,
+            "height_mismatch": False,
+        }
+
+        if self._has_weight_limits:
+            if competitor.weight is None or not (
+                self.initial_weight <= competitor.weight <= self.final_weight
+            ):
+                failures["weight_mismatch"] = True
+
+        if self._has_height_limits:
+            if competitor.height is None or not (
+                self.initial_height <= competitor.height <= self.final_height
+            ):
+                failures["height_mismatch"] = True
+
+        return failures
+
+    def is_eligible(self, competitor: Competitor) -> bool:
+        """Verifies if a competitor meets all the conditions to enter this category"""
+        failures = self.get_eligibility_failures(competitor)
+        return not any(failures.values())
+
 
 @dataclass
 class CategoryRegistration:
