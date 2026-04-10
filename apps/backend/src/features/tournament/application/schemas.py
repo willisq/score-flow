@@ -60,3 +60,22 @@ class CategoryRegistrationSchema(TunedModel):
     competitor: CompetitorSchema
     category: CategorySchema
     tournament: TournamentSchema
+
+
+class RegistrationErrorSchema(TunedModel):
+    competitor_id: UUID
+    competitor_name: str
+    message: str
+    reasons: Optional[dict[str, bool]] = None
+    overlapping_categories: Optional[List[CategorySchema]] = None
+
+
+class MassRegistrationResponse(TunedModel):
+    registrations: List[CategoryRegistrationSchema]
+    errors: List[RegistrationErrorSchema]
+
+
+class MassRegistrationRequest(TunedModel):
+    competitor_ids: List[UUID]
+    tournament_id: UUID
+    category_id: Optional[UUID] = None

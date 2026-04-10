@@ -1,11 +1,13 @@
-from uuid import uuid4
+from uuid import uuid4, UUID
 from typing import List
+
 
 from src.features.tournament.application.schemas import (
     ModalityCreate,
     TournamentCreate,
     CategoryCreate,
     CategoryRegistrationCreate,
+    MassRegistrationRequest,
 )
 from src.features.tournament.data.repository import (
     ModalityRepository,
@@ -121,4 +123,93 @@ class TournamentUseCases:
             tournament=tournament,
         )
 
+
         return await self.registration_repo.create(registration)
+
+    async def mass_register_competitors(
+        self, schema: MassRegistrationRequest
+    ) -> dict:
+        # 1. Fetch tournament
+        tournament = await self.tournament_repo.get_by_id(schema.tournament_id)
+        if not tournament:
+            raise ValueError(f"Tournament with ID {schema.tournament_id} not found")
+
+        # 2. Fetch competitors by IDs
+        competitors = await self.competitor_repo.get_by_ids(schema.competitor_ids)
+
+        registrations: List[CategoryRegistration] = []
+        errors: List[dict] = []
+
+        if schema.category_id:
+            # 3a. Manual registration for a specific category
+            category = await self.category_repo.get_by_id(schema.category_id)
+            if not category:
+                raise ValueError(f"Category with ID {schema.category_id} not found")
+
+            for competitor in competitors:
+                failures = category.get_eligibility_failures(competitor)
+                if any(failures.values()):
+                    errors.append({
+                        "competitor_id": competitor.id,
+                        "competitor_name": f"{competitor.first_name} {competitor.last_name}",
+                        "message": "Competitor is not eligible for the selected category",
+                        "reasons": failures,
+                    })
+                else:
+                    registration = CategoryRegistration(
+                        id=uuid4(),
+                        competitor=competitor,
+                        category=category,
+                        tournament=tournament,
+                    )
+                    registrations.append(registration)
+        else:
+            # 3b. Automatic registration (enhanced logic)
+            # Fetch all categories
+            categories = await self.category_repo.list_all()
+
+            for competitor in competitors:
+                # Find all eligible categories
+                eligible_cats = [c for c in categories if c.is_eligible(competitor)]
+
+                if not eligible_cats:
+                    errors.append({
+                        "competitor_id": competitor.id,
+                        "competitor_name": f"{competitor.first_name} {competitor.last_name}",
+                        "message": "No eligible category found for this competitor",
+                        "reasons": None,
+                    })
+                    continue
+
+                # Group unique matches by modality
+                by_modality: dict[UUID, List[Category]] = {}
+                for cat in eligible_cats:
+                    if cat.modality.id not in by_modality:
+                        by_modality[cat.modality.id] = []
+                    by_modality[cat.modality.id].append(cat)
+
+                for modality_id, cats in by_modality.items():
+                    if len(cats) == 1:
+                        # Exactly one eligible category for this modality
+                        registration = CategoryRegistration(
+                            id=uuid4(),
+                            competitor=competitor,
+                            category=cats[0],
+                            tournament=tournament,
+                        )
+                        registrations.append(registration)
+                    else:
+                        # Conflict: multiple eligible categories for same modality
+                        errors.append({
+                            "competitor_id": competitor.id,
+                            "competitor_name": f"{competitor.first_name} {competitor.last_name}",
+                            "message": f"Multiple categories found for modality '{cats[0].modality.name}'. Impossible to choose automatically.",
+                            "overlapping_categories": cats,
+                            "reasons": None,
+                        })
+
+        # 4. Persist each registration
+        for registration in registrations:
+            await self.registration_repo.create(registration)
+
+        return {"registrations": registrations, "errors": errors}

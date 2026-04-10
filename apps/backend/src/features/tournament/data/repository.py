@@ -240,3 +240,92 @@ class CategoryRegistrationRepository:
             category=category,
             tournament=tournament
         )
+
+    async def get_by_categories(self, category_ids: Optional[List[UUID]] = None) -> List[CategoryRegistration]:
+        stmt = (
+            select(CategoryRegistrationModel)
+            .options(
+                selectinload(CategoryRegistrationModel.competitor).selectinload(CompetitorModel.person),
+                selectinload(CategoryRegistrationModel.competitor).selectinload(CompetitorModel.academy).selectinload(AcademyModel.instructor),
+                selectinload(CategoryRegistrationModel.competitor).selectinload(CompetitorModel.rank),
+                selectinload(CategoryRegistrationModel.competitor).selectinload(CompetitorModel.sex),
+                selectinload(CategoryRegistrationModel.category).selectinload(CategoryModel.modality),
+                selectinload(CategoryRegistrationModel.category).selectinload(CategoryModel.ranks),
+                selectinload(CategoryRegistrationModel.category).selectinload(CategoryModel.sexes),
+                selectinload(CategoryRegistrationModel.tournament),
+            )
+        )
+        
+        if category_ids:
+            stmt = stmt.where(CategoryRegistrationModel.category_id.in_(category_ids))
+            
+        result = await self.session.execute(stmt)
+        models = result.scalars().all()
+        
+        registrations = []
+        for model in models:
+            # Reutilizando el mapeo de get_by_id
+            competitor_model = model.competitor
+            academy_model = competitor_model.academy
+            
+            academy = Academy(
+                id=academy_model.id,
+                name=academy_model.name,
+                instructor=Person(
+                    id=academy_model.instructor.id,
+                    first_name=academy_model.instructor.first_name,
+                    last_name=academy_model.instructor.last_name
+                )
+            )
+            
+            competitor = Competitor(
+                id=competitor_model.id,
+                first_name=competitor_model.person.first_name,
+                last_name=competitor_model.person.last_name,
+                academy=academy,
+                rank=Rank(
+                    id=competitor_model.rank.id,
+                    name=competitor_model.rank.name,
+                    classification=competitor_model.rank.classification,
+                    is_black_belt=competitor_model.rank.is_black_belt
+                ),
+                sex=Sex(id=competitor_model.sex.id, name=competitor_model.sex.name),
+                weight=competitor_model.weight,
+                height=competitor_model.height,
+                age=competitor_model.age,
+                special_condition=competitor_model.special_condition
+            )
+            
+            category = Category(
+                id=model.category.id,
+                ages=model.category.ages,
+                special_condition=model.category.special_condition,
+                modality=Modality(id=model.category.modality.id, name=model.category.modality.name),
+                ranks=[
+                    Rank(
+                        id=r.id,
+                        name=r.name,
+                        classification=r.classification,
+                        is_black_belt=r.is_black_belt
+                    ) for r in model.category.ranks
+                ],
+                sexes=[Sex(id=s.id, name=s.name) for s in model.category.sexes],
+                initial_weight=model.category.initial_weight,
+                final_weight=model.category.final_weight,
+                initial_height=model.category.initial_height,
+                final_height=model.category.final_height
+            )
+            
+            tournament = Tournament(
+                id=model.tournament.id,
+                description=model.tournament.description
+            )
+            
+            registrations.append(CategoryRegistration(
+                id=model.id,
+                competitor=competitor,
+                category=category,
+                tournament=tournament
+            ))
+            
+        return registrations

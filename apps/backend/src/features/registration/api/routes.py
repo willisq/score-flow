@@ -1,7 +1,10 @@
-from fastapi import APIRouter, Depends, HTTPException, status
+import os
+from fastapi import APIRouter, Depends, File, HTTPException, UploadFile, status
+from fastapi.responses import FileResponse
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from src.core.database import get_db
+from src.features.registration.application.excel_processor import ExcelCompetitorProcessor
 from src.features.registration.application.schemas import (
     AcademyCreate,
     AcademySchema,
@@ -136,3 +139,56 @@ async def list_competitors(
     use_cases: RegistrationUseCases = Depends(get_registration_use_cases),
 ):
     return await use_cases.list_competitors(filters)
+
+
+@router.post(
+    "/competitors/upload",
+    response_model=list[CompetitorSchema],
+    status_code=status.HTTP_201_CREATED,
+)
+async def upload_competitors(
+    file: UploadFile = File(...),
+    use_cases: RegistrationUseCases = Depends(get_registration_use_cases),
+):
+    """
+    Ruta para el registro masivo de competidores mediante un archivo Excel.
+    """
+    try:
+        # 1. Procesar Excel y convertirlo en esquemas
+        schemas = await ExcelCompetitorProcessor.process_excel(file, use_cases)
+
+        # 2. Registrar competidores en bloque
+        results = await use_cases.register_competitors_bulk(schemas)
+
+        # 3. Confirmar transacción
+        await use_cases.competitor_repo.session.commit()
+
+        return results
+    except ValueError as e:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(e))
+    except Exception as e:
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Error interno al procesar el archivo Excel: {str(e)}",
+        )
+
+
+@router.get("/competitors/template")
+async def download_template():
+    """
+    Ruta para descargar la plantilla de Excel para el registro masivo de competidores.
+    """
+    current_dir = os.path.dirname(__file__)
+    template_path = os.path.join(current_dir, "templates", "competitor_template.xlsx")
+
+    if not os.path.exists(template_path):
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Plantilla de Excel no encontrada.",
+        )
+
+    return FileResponse(
+        path=template_path,
+        filename="plantilla_competidores.xlsx",
+        media_type="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+    )

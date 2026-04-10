@@ -1,6 +1,6 @@
 from uuid import UUID
 
-from sqlalchemy import or_, select
+from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
@@ -212,6 +212,52 @@ class CompetitorRepository:
             special_condition=model.special_condition,
         )
 
+    async def get_by_ids(self, ids: list[UUID]) -> list[Competitor]:
+        stmt = (
+            select(CompetitorModel)
+            .options(
+                selectinload(CompetitorModel.person),
+                selectinload(CompetitorModel.academy).selectinload(
+                    AcademyModel.instructor
+                ),
+                selectinload(CompetitorModel.rank),
+                selectinload(CompetitorModel.sex),
+            )
+            .where(CompetitorModel.id.in_(ids))
+        )
+
+        result = await self.session.execute(stmt)
+        models = result.scalars().all()
+
+        return [
+            Competitor(
+                id=m.id,
+                first_name=m.person.first_name,
+                last_name=m.person.last_name,
+                academy=Academy(
+                    id=m.academy.id,
+                    name=m.academy.name,
+                    instructor=Person(
+                        id=m.academy.instructor.id,
+                        first_name=m.academy.instructor.first_name,
+                        last_name=m.academy.instructor.last_name,
+                    ),
+                ),
+                rank=Rank(
+                    id=m.rank.id,
+                    name=m.rank.name,
+                    classification=m.rank.classification,
+                    is_black_belt=m.rank.is_black_belt,
+                ),
+                sex=Sex(id=m.sex.id, name=m.sex.name),
+                weight=m.weight,
+                height=m.height,
+                age=m.age,
+                special_condition=m.special_condition,
+            )
+            for m in models
+        ]
+
     async def get_all(
         self,
         name: str | None = None,
@@ -220,6 +266,8 @@ class CompetitorRepository:
         sex_id: UUID | None = None,
         special_condition: bool | None = None,
     ) -> list[Competitor]:
+        from sqlalchemy import or_
+
         stmt = (
             select(CompetitorModel)
             .join(CompetitorModel.person)

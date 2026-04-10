@@ -11,6 +11,8 @@ from src.features.tournament.application.schemas import (
     CategorySchema,
     CategoryRegistrationCreate,
     CategoryRegistrationSchema,
+    MassRegistrationRequest,
+    MassRegistrationResponse,
 )
 from src.features.tournament.application.use_cases import TournamentUseCases
 from src.features.tournament.data.repository import (
@@ -42,7 +44,9 @@ def get_tournament_use_cases(
     )
 
 
-@router.post("/modalities", response_model=ModalitySchema, status_code=status.HTTP_201_CREATED)
+@router.post(
+    "/modalities", response_model=ModalitySchema, status_code=status.HTTP_201_CREATED
+)
 async def create_modality(
     schema: ModalityCreate,
     use_cases: TournamentUseCases = Depends(get_tournament_use_cases),
@@ -59,7 +63,9 @@ async def list_modalities(
     return await use_cases.list_modalities()
 
 
-@router.post("/tournaments", response_model=TournamentSchema, status_code=status.HTTP_201_CREATED)
+@router.post(
+    "/tournaments", response_model=TournamentSchema, status_code=status.HTTP_201_CREATED
+)
 async def create_tournament(
     schema: TournamentCreate,
     use_cases: TournamentUseCases = Depends(get_tournament_use_cases),
@@ -76,7 +82,9 @@ async def list_tournaments(
     return await use_cases.list_tournaments()
 
 
-@router.post("/categories", response_model=CategorySchema, status_code=status.HTTP_201_CREATED)
+@router.post(
+    "/categories", response_model=CategorySchema, status_code=status.HTTP_201_CREATED
+)
 async def create_category(
     schema: CategoryCreate,
     use_cases: TournamentUseCases = Depends(get_tournament_use_cases),
@@ -97,7 +105,11 @@ async def list_categories(
     return await use_cases.list_categories()
 
 
-@router.post("/inscriptions", response_model=CategoryRegistrationSchema, status_code=status.HTTP_201_CREATED)
+@router.post(
+    "/inscriptions",
+    response_model=CategoryRegistrationSchema,
+    status_code=status.HTTP_201_CREATED,
+)
 async def inscribe_competitor(
     schema: CategoryRegistrationCreate,
     use_cases: TournamentUseCases = Depends(get_tournament_use_cases),
@@ -107,6 +119,35 @@ async def inscribe_competitor(
         await use_cases.registration_repo.session.commit()
         # Ensure deep reload for response mapping
         return await use_cases.registration_repo.get_by_id(result.id)
+    except ValueError as e:
+        raise HTTPException(status_code=400, detail=str(e))
+    except Exception as e:
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Internal server error: {str(e)}",
+        )
+
+
+@router.post(
+    "/mass-registration",
+    response_model=MassRegistrationResponse,
+    status_code=status.HTTP_201_CREATED,
+)
+async def mass_register_competitors(
+    schema: MassRegistrationRequest,
+    use_cases: TournamentUseCases = Depends(get_tournament_use_cases),
+):
+    try:
+        result = await use_cases.mass_register_competitors(schema)
+        await use_cases.registration_repo.session.commit()
+
+        # Reload successful registrations for complete response model mapping
+        registrations = [
+            await use_cases.registration_repo.get_by_id(reg.id)
+            for reg in result["registrations"]
+        ]
+
+        return {"registrations": registrations, "errors": result["errors"]}
     except ValueError as e:
         raise HTTPException(status_code=400, detail=str(e))
     except Exception as e:
