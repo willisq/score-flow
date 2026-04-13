@@ -1,3 +1,4 @@
+from pydantic import field_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 
@@ -5,6 +6,12 @@ class Settings(BaseSettings):
     PROJECT_NAME: str = "ScoreFlow API"
     VERSION: str = "0.1.0"
     API_V1_STR: str = "/api/v1"
+    BACKEND_CORS_ORIGINS: list[str] | str = []
+
+    @field_validator("BACKEND_CORS_ORIGINS", mode="before")
+    @classmethod
+    def assemble_cors_origins(cls, v: str) -> list[str]:
+        return [i.strip() for i in v.split(",")]
 
     DEBUG: bool
 
