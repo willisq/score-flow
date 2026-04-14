@@ -45,66 +45,45 @@ async function onSubmit(): Promise<void> {
     <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
       <div class="flex flex-col gap-2">
         <label for="comp-first" class="font-semibold">Nombre</label>
-        <InputText id="comp-first" v-model="form.firstName" required class="w-full" />
+        <InputText id="comp-first" v-model="form.firstName" required fluid />
       </div>
       <div class="flex flex-col gap-2">
         <label for="comp-last" class="font-semibold">Apellido</label>
-        <InputText id="comp-last" v-model="form.lastName" required class="w-full" />
+        <InputText id="comp-last" v-model="form.lastName" required fluid />
       </div>
     </div>
 
     <div class="flex flex-col gap-2">
       <label for="comp-academy" class="font-semibold">Academia</label>
-      <Select
-        id="comp-academy"
-        v-model="form.academyId"
-        :options="academyOptions"
-        optionLabel="name"
-        optionValue="id"
-        placeholder="Seleccionar academia"
-        class="w-full"
-      />
+      <Select id="comp-academy" v-model="form.academyId" :options="academyOptions" optionLabel="name" optionValue="id"
+        placeholder="Seleccionar academia" fluid />
     </div>
 
     <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
       <div class="flex flex-col gap-2">
         <label for="comp-rank" class="font-semibold">Rango</label>
-        <Select
-          id="comp-rank"
-          v-model="form.rankId"
-          :options="rankOptions"
-          optionLabel="name"
-          optionValue="id"
-          placeholder="Seleccionar rango"
-          class="w-full"
-        />
+        <Select id="comp-rank" v-model="form.rankId" :options="rankOptions" optionLabel="name" optionValue="id"
+          placeholder="Seleccionar rango" fluid />
       </div>
       <div class="flex flex-col gap-2">
         <label for="comp-sex" class="font-semibold">Sexo</label>
-        <Select
-          id="comp-sex"
-          v-model="form.sexId"
-          :options="sexOptions"
-          optionLabel="name"
-          optionValue="id"
-          placeholder="Seleccionar sexo"
-          class="w-full"
-        />
+        <Select id="comp-sex" v-model="form.sexId" :options="sexOptions" optionLabel="name" optionValue="id"
+          placeholder="Seleccionar sexo" fluid />
       </div>
     </div>
 
-    <div class="grid grid-cols-1 sm:grid-cols-3 gap-4">
-      <div class="flex flex-col gap-2">
+    <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+      <div class="flex flex-col gap-2 min-w-0">
         <label for="comp-weight" class="font-semibold">Peso (Kg)</label>
-        <InputNumber id="comp-weight" v-model="form.weight" :minFractionDigits="1" class="w-full" />
+        <InputNumber id="comp-weight" v-model="form.weight" :minFractionDigits="1" fluid />
       </div>
-      <div class="flex flex-col gap-2">
+      <div class="flex flex-col gap-2 min-w-0">
         <label for="comp-height" class="font-semibold">Altura (cm)</label>
-        <InputNumber id="comp-height" v-model="form.height" :minFractionDigits="1" class="w-full" />
+        <InputNumber id="comp-height" v-model="form.height" :minFractionDigits="0" fluid />
       </div>
-      <div class="flex flex-col gap-2">
+      <div class="flex flex-col gap-2 min-w-0">
         <label for="comp-age" class="font-semibold">Edad</label>
-        <InputNumber id="comp-age" v-model="form.age" class="w-full" />
+        <InputNumber id="comp-age" v-model="form.age" fluid />
       </div>
     </div>
 
