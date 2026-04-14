@@ -1,6 +1,6 @@
 import os
 from fastapi import APIRouter, Depends, File, HTTPException, UploadFile, status
-from fastapi.responses import FileResponse
+from fastapi.responses import FileResponse, StreamingResponse
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from src.core.database import get_db
@@ -174,21 +174,38 @@ async def upload_competitors(
 
 
 @router.get("/competitors/template")
-async def download_template():
+async def download_template(
+    use_cases: RegistrationUseCases = Depends(get_registration_use_cases)
+):
     """
     Ruta para descargar la plantilla de Excel para el registro masivo de competidores.
     """
-    current_dir = os.path.dirname(__file__)
-    template_path = os.path.join(current_dir, "templates", "competitor_template.xlsx")
-
-    if not os.path.exists(template_path):
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail="Plantilla de Excel no encontrada.",
+    try:
+        from src.features.registration.application.excel_template_generator import ExcelTemplateGenerator
+        
+        # Consultar listas de base de datos
+        sexes_schemas = await use_cases.list_sexes()
+        ranks_schemas = await use_cases.list_ranks()
+        academies_schemas = await use_cases.list_academies()
+        
+        sexes = [s.name for s in sexes_schemas]
+        ranks = [r.name for r in ranks_schemas]
+        academies = [a.name for a in academies_schemas]
+        
+        # Generar buffer del template dinámico
+        buffer = ExcelTemplateGenerator.generate_dynamic_template(
+            academies=academies,
+            ranks=ranks,
+            sexes=sexes
         )
-
-    return FileResponse(
-        path=template_path,
-        filename="plantilla_competidores.xlsx",
-        media_type="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
-    )
+        
+        return StreamingResponse(
+            buffer,
+            media_type="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+            headers={"Content-Disposition": "attachment; filename=plantilla_competidores.xlsx"}
+        )
+    except Exception as e:
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Error al generar la plantilla: {str(e)}",
+        )
