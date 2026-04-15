@@ -1,3 +1,4 @@
+from uuid import UUID
 from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -13,6 +14,7 @@ from src.features.tournament.application.schemas import (
     CategoryRegistrationSchema,
     MassRegistrationRequest,
     MassRegistrationResponse,
+    CompetitorSchema,
 )
 from src.features.tournament.application.use_cases import TournamentUseCases
 from src.features.tournament.data.repository import (
@@ -83,17 +85,19 @@ async def list_tournaments(
 
 
 @router.post(
-    "/categories", response_model=CategorySchema, status_code=status.HTTP_201_CREATED
+    "/categories",
+    response_model=list[CategorySchema],
+    status_code=status.HTTP_201_CREATED,
 )
 async def create_category(
     schema: CategoryCreate,
     use_cases: TournamentUseCases = Depends(get_tournament_use_cases),
 ):
     try:
-        result = await use_cases.register_category(schema)
+        results = await use_cases.register_category(schema)
         await use_cases.category_repo.session.commit()
         # To ensure all relations are loaded
-        return await use_cases.category_repo.get_by_id(result.id)
+        return [await use_cases.category_repo.get_by_id(res.id) for res in results]
     except ValueError as e:
         raise HTTPException(status_code=400, detail=str(e))
 
@@ -150,6 +154,22 @@ async def mass_register_competitors(
         return {"registrations": registrations, "errors": result["errors"]}
     except ValueError as e:
         raise HTTPException(status_code=400, detail=str(e))
+    except Exception as e:
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Internal server error: {str(e)}",
+        )
+
+
+@router.get(
+    "/categories/{category_id}/competitors", response_model=list[CompetitorSchema]
+)
+async def get_category_competitors(
+    category_id: UUID,
+    use_cases: TournamentUseCases = Depends(get_tournament_use_cases),
+):
+    try:
+        return await use_cases.get_competitors_by_category(category_id)
     except Exception as e:
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,

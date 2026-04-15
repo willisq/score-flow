@@ -27,7 +27,7 @@ class TournamentSchema(TunedModel):
 class CategoryCreate(TunedModel):
     ages: List[int]
     special_condition: bool = False
-    modality_id: UUID
+    modality_ids: List[UUID]
     rank_ids: List[UUID]
     sex_ids: List[UUID]
     initial_weight: Optional[float] = Field(default=None, ge=0)

@@ -26,6 +26,7 @@ from src.features.registration.data.repository import (
     RankRepository,
     SexRepository,
 )
+from src.features.registration.domain.entities import Competitor
 
 
 class TournamentUseCases:
@@ -61,11 +62,14 @@ class TournamentUseCases:
     async def list_tournaments(self) -> List[Tournament]:
         return await self.tournament_repo.list_all()
 
-    async def register_category(self, schema: CategoryCreate) -> Category:
+    async def register_category(self, schema: CategoryCreate) -> List[Category]:
         # 1. Fetch dependencies
-        modality = await self.modality_repo.get_by_id(schema.modality_id)
-        if not modality:
-            raise ValueError(f"Modality with ID {schema.modality_id} not found")
+        modalities = []
+        for mid in schema.modality_ids:
+            modality = await self.modality_repo.get_by_id(mid)
+            if not modality:
+                raise ValueError(f"Modality with ID {mid} not found")
+            modalities.append(modality)
 
         ranks = []
         for rid in schema.rank_ids:
@@ -81,21 +85,25 @@ class TournamentUseCases:
                 raise ValueError(f"Sex with ID {sid} not found")
             sexes.append(sex)
 
-        # 2. Create Domain Entity
-        category = Category(
-            id=uuid4(),
-            ages=schema.ages,
-            special_condition=schema.special_condition,
-            modality=modality,
-            ranks=ranks,
-            sexes=sexes,
-            initial_weight=schema.initial_weight,
-            final_weight=schema.final_weight,
-            initial_height=schema.initial_height,
-            final_height=schema.final_height,
-        )
+        # 2. Create Domain Entities
+        created_categories = []
+        for modality in modalities:
+            category = Category(
+                id=uuid4(),
+                ages=schema.ages,
+                special_condition=schema.special_condition,
+                modality=modality,
+                ranks=ranks,
+                sexes=sexes,
+                initial_weight=schema.initial_weight,
+                final_weight=schema.final_weight,
+                initial_height=schema.initial_height,
+                final_height=schema.final_height,
+            )
+            created = await self.category_repo.create(category)
+            created_categories.append(created)
 
-        return await self.category_repo.create(category)
+        return created_categories
 
     async def list_categories(self) -> List[Category]:
         return await self.category_repo.list_all()
@@ -213,3 +221,7 @@ class TournamentUseCases:
             await self.registration_repo.create(registration)
 
         return {"registrations": registrations, "errors": errors}
+
+    async def get_competitors_by_category(self, category_id: UUID) -> List[Competitor]:
+        registrations = await self.registration_repo.get_by_categories([category_id])
+        return [reg.competitor for reg in registrations]

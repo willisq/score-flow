@@ -75,11 +75,17 @@ def test_register_category():
     sex_repo = MagicMock()
     category_repo = MagicMock()
     
-    modality = Modality(id=uuid4(), name="Sparring")
+    modality1 = Modality(id=uuid4(), name="Sparring")
+    modality2 = Modality(id=uuid4(), name="Poomsae")
     rank = Rank(id=uuid4(), name="Black", classification=10, is_black_belt=True)
     sex = Sex(id=uuid4(), name="Male")
     
-    modality_repo.get_by_id = AsyncMock(return_value=modality)
+    async def get_modality_by_id(mid):
+        if mid == modality1.id: return modality1
+        if mid == modality2.id: return modality2
+        return None
+        
+    modality_repo.get_by_id = AsyncMock(side_effect=get_modality_by_id)
     rank_repo.get_by_id = AsyncMock(return_value=rank)
     sex_repo.get_by_id = AsyncMock(return_value=sex)
     category_repo.create = AsyncMock(side_effect=lambda x: x)
@@ -96,20 +102,22 @@ def test_register_category():
     
     schema = CategoryCreate(
         ages=[18, 40],
-        modality_id=modality.id,
+        modality_ids=[modality1.id, modality2.id],
         rank_ids=[rank.id],
         sex_ids=[sex.id],
         initial_weight=80.0,
         final_weight=120.0
     )
     
-    result = asyncio.run(use_cases.register_category(schema))
+    results = asyncio.run(use_cases.register_category(schema))
     
-    assert isinstance(result, Category)
-    assert result.modality == modality
-    assert rank in result.ranks
-    assert sex in result.sexes
-    category_repo.create.assert_called_once()
+    assert isinstance(results, list)
+    assert len(results) == 2
+    assert results[0].modality == modality1
+    assert results[1].modality == modality2
+    assert rank in results[0].ranks
+    assert sex in results[0].sexes
+    assert category_repo.create.call_count == 2
 
 
 def test_inscribe_competitor():
