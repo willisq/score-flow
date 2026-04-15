@@ -14,7 +14,7 @@ const sexOptions = computed(() => dialogRef?.value?.data?.sexes?.value ?? dialog
 const form = ref<CategoryCreate>({
   ages: [],
   specialCondition: false,
-  modalityId: "",
+  modalityIds: [],
   rankIds: [],
   sexIds: [],
   initialWeight: null,
@@ -57,12 +57,12 @@ async function onSubmit(): Promise<void> {
   <form class="flex flex-col gap-4 p-2" @submit.prevent="onSubmit">
     <div class="flex flex-col gap-2">
       <label class="font-semibold">Modalidad</label>
-      <Select
-        v-model="form.modalityId"
+      <MultiSelect
+        v-model="form.modalityIds"
         :options="modalityOptions"
         optionLabel="name"
         optionValue="id"
-        placeholder="Seleccionar modalidad"
+        placeholder="Seleccionar modalidades"
       />
     </div>
 

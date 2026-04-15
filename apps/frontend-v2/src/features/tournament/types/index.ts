@@ -45,7 +45,7 @@ export interface TournamentCreate {
 export interface CategoryCreate {
   ages: number[];
   specialCondition?: boolean;
-  modalityId: string;
+  modalityIds: string[];
   rankIds: string[];
   sexIds: string[];
   initialWeight?: number | null;

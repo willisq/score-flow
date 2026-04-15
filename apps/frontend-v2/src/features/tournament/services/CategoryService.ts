@@ -1,5 +1,6 @@
 import { httpClient } from "@/core/api/http-client";
 import type { Category, CategoryCreate } from "../types";
+import type { Competitor } from "@/features/registration/types";
 
 export class CategoryService {
   private static readonly BASE = "/tournament/categories";
@@ -9,8 +10,15 @@ export class CategoryService {
     return data;
   }
 
-  static async create(payload: CategoryCreate): Promise<Category> {
-    const { data } = await httpClient.post<Category>(this.BASE, payload);
+  static async create(payload: CategoryCreate): Promise<Category[]> {
+    const { data } = await httpClient.post<Category[]>(this.BASE, payload);
+    return data;
+  }
+
+  static async getCompetitors(categoryId: string): Promise<Competitor[]> {
+    const { data } = await httpClient.get<Competitor[]>(
+      `${this.BASE}/${categoryId}/competitors`
+    );
     return data;
   }
 }
