@@ -164,8 +164,6 @@ class RegistrationUseCases:
             rank_ids=filters.rank_ids,
             sex_ids=filters.sex_ids,
             special_condition=filters.special_condition,
-            sort_by=filters.sort_by,
-            sort_order=filters.sort_order,
         )
 
     async def get_competitor_filter_options(self) -> dict:

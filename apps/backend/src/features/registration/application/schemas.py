@@ -92,8 +92,6 @@ class CompetitorCategoryFilters(TunedModel):
     rank_ids: list[UUID] | None = None
     sex_ids: list[UUID] | None = None
     special_condition: bool | None = None
-    sort_by: str | None = None  # age, weight
-    sort_order: str | None = "asc"  # asc, desc
 
 
 class CompetitorFilterOptions(TunedModel):

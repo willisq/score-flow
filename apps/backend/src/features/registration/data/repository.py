@@ -338,8 +338,6 @@ class CompetitorRepository:
         rank_ids: list[UUID] | None = None,
         sex_ids: list[UUID] | None = None,
         special_condition: bool | None = None,
-        sort_by: str | None = None,
-        sort_order: str | None = "asc",
     ) -> list[Competitor]:
         stmt = (
             select(CompetitorModel)
@@ -353,7 +351,7 @@ class CompetitorRepository:
                 selectinload(CompetitorModel.sex),
             )
         )
-
+ 
         if min_age is not None:
             stmt = stmt.where(CompetitorModel.age >= min_age)
         if max_age is not None:
@@ -364,12 +362,9 @@ class CompetitorRepository:
             stmt = stmt.where(CompetitorModel.sex_id.in_(sex_ids))
         if special_condition is not None:
             stmt = stmt.where(CompetitorModel.special_condition == special_condition)
-
-        if sort_by:
-            col = getattr(CompetitorModel, sort_by, None)
-            if col is not None:
-                order_func = asc if sort_order == "asc" else desc
-                stmt = stmt.order_by(order_func(col))
+ 
+        # Default sorting by age and weight (asc)
+        stmt = stmt.order_by(asc(CompetitorModel.age), asc(CompetitorModel.weight))
 
         result = await self.session.execute(stmt)
         models = result.scalars().all()
