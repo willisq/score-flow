@@ -8,6 +8,7 @@ from src.features.tournament.application.schemas import (
     CategoryCreate,
     CategoryRegistrationCreate,
     MassRegistrationRequest,
+    CategoryBulkCreate,
 )
 from src.features.tournament.data.repository import (
     ModalityRepository,
@@ -225,3 +226,10 @@ class TournamentUseCases:
     async def get_competitors_by_category(self, category_id: UUID) -> List[Competitor]:
         registrations = await self.registration_repo.get_by_categories([category_id])
         return [reg.competitor for reg in registrations]
+
+    async def register_categories_bulk(self, schema: CategoryBulkCreate) -> List[Category]:
+        all_created = []
+        for category_schema in schema.categories:
+            created = await self.register_category(category_schema)
+            all_created.extend(created)
+        return all_created

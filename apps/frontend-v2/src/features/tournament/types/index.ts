@@ -80,3 +80,7 @@ export interface MassRegistrationResponse {
   registrations: CategoryRegistration[];
   errors: RegistrationError[];
 }
+
+export interface CategoryBulkCreate {
+  categories: CategoryCreate[];
+}

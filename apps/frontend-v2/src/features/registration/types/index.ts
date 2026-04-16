@@ -82,3 +82,18 @@ export interface CompetitorFilters {
   sexId?: string;
   specialCondition?: boolean;
 }
+
+export interface CompetitorCategoryFilters {
+  minAge?: number;
+  maxAge?: number;
+  rankIds?: string[];
+  sexIds?: string[];
+  specialCondition?: boolean;
+}
+
+export interface CompetitorFilterOptions {
+  ages: number[];
+  ranks: Rank[];
+  sexes: Sex[];
+  hasSpecialCondition: boolean;
+}

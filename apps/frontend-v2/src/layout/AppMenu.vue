@@ -25,6 +25,7 @@ const menuItems = ref([
     label: "Competencia",
     items: [
       { label: "Categorías", icon: "pi pi-fw pi-users", to: "/categories" },
+      { label: "Generador de Categorías", icon: "pi pi-fw pi-sliders-h", to: "/category-builder" },
       { label: "Pirámides", icon: "pi pi-fw pi-sitemap", to: "/brackets" },
     ],
   },
@@ -56,15 +57,9 @@ onMounted(async () => {
       <label class="block text-sm font-semibold mb-2 text-surface-600 dark:text-surface-300">
         <i class="pi pi-trophy mr-1"></i> Competencia Activa
       </label>
-      <Select
-        v-model="tournamentStore.activeTournament"
-        :options="tournamentStore.tournaments"
-        optionLabel="description"
-        placeholder="Seleccionar torneo..."
-        class="w-full"
-        :loading="loadingTournaments"
-        @change="onTournamentChange($event.value)"
-      />
+      <Select v-model="tournamentStore.activeTournament" :options="tournamentStore.tournaments"
+        optionLabel="description" placeholder="Seleccionar torneo..." class="w-full" :loading="loadingTournaments"
+        @change="onTournamentChange($event.value)" />
     </div>
 
     <!-- Navigation Menu -->

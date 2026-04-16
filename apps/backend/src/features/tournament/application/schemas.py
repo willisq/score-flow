@@ -79,3 +79,7 @@ class MassRegistrationRequest(TunedModel):
     competitor_ids: List[UUID]
     tournament_id: UUID
     category_id: Optional[UUID] = None
+
+
+class CategoryBulkCreate(TunedModel):
+    categories: List[CategoryCreate]

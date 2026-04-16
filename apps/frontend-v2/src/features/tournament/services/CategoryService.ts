@@ -1,5 +1,5 @@
 import { httpClient } from "@/core/api/http-client";
-import type { Category, CategoryCreate } from "../types";
+import type { Category, CategoryCreate, CategoryBulkCreate } from "../types";
 import type { Competitor } from "@/features/registration/types";
 
 export class CategoryService {
@@ -19,6 +19,11 @@ export class CategoryService {
     const { data } = await httpClient.get<Competitor[]>(
       `${this.BASE}/${categoryId}/competitors`
     );
+    return data;
+  }
+
+  static async createBulk(payload: CategoryBulkCreate): Promise<Category[]> {
+    const { data } = await httpClient.post<Category[]>(`${this.BASE}/bulk`, payload);
     return data;
   }
 }

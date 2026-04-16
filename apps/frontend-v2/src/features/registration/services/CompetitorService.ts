@@ -1,5 +1,11 @@
 import { httpClient } from "@/core/api/http-client";
-import type { Competitor, CompetitorCreate, CompetitorFilters } from "../types";
+import type {
+  Competitor,
+  CompetitorCreate,
+  CompetitorFilters,
+  CompetitorCategoryFilters,
+  CompetitorFilterOptions,
+} from "../types";
 
 export class CompetitorService {
   private static readonly BASE = "/registration/competitors";
@@ -32,6 +38,23 @@ export class CompetitorService {
     const { data } = await httpClient.get<Blob>(`${this.BASE}/template`, {
       responseType: "blob",
     });
+    return data;
+  }
+
+  static async getForCategoryBuilder(
+    filters: CompetitorCategoryFilters
+  ): Promise<Competitor[]> {
+    const { data } = await httpClient.get<Competitor[]>(
+      `${this.BASE}/for-category-builder`,
+      { params: filters }
+    );
+    return data;
+  }
+
+  static async getFilterOptions(): Promise<CompetitorFilterOptions> {
+    const { data } = await httpClient.get<CompetitorFilterOptions>(
+      `${this.BASE}/filter-options`
+    );
     return data;
   }
 }

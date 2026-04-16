@@ -15,6 +15,7 @@ from src.features.tournament.application.schemas import (
     MassRegistrationRequest,
     ModalityCreate,
     TournamentCreate,
+    CategoryBulkCreate,
 )
 from src.features.tournament.application.use_cases import TournamentUseCases
 from src.features.tournament.domain.entities import (
@@ -396,3 +397,60 @@ def test_mass_register_competitors_overlapping_modalities():
     assert "Multiple categories found" in result["errors"][0]["message"]
     assert result["errors"][0]["overlapping_categories"] == [cat1, cat2]
     registration_repo.create.assert_not_called()
+
+
+def test_register_categories_bulk():
+    # Arrange
+    modality_repo = MagicMock()
+    rank_repo = MagicMock()
+    sex_repo = MagicMock()
+    category_repo = MagicMock()
+    
+    modality = Modality(id=uuid4(), name="Sparring")
+    rank = Rank(id=uuid4(), name="Black", classification=10, is_black_belt=True)
+    sex = Sex(id=uuid4(), name="Male")
+    
+    modality_repo.get_by_id = AsyncMock(return_value=modality)
+    rank_repo.get_by_id = AsyncMock(return_value=rank)
+    sex_repo.get_by_id = AsyncMock(return_value=sex)
+    category_repo.create = AsyncMock(side_effect=lambda x: x)
+    
+    use_cases = TournamentUseCases(
+        modality_repo=modality_repo,
+        tournament_repo=MagicMock(),
+        category_repo=category_repo,
+        registration_repo=MagicMock(),
+        competitor_repo=MagicMock(),
+        rank_repo=rank_repo,
+        sex_repo=sex_repo,
+    )
+    
+    schema = CategoryBulkCreate(
+        categories=[
+            CategoryCreate(
+                ages=[18, 40],
+                modality_ids=[modality.id],
+                rank_ids=[rank.id],
+                sex_ids=[sex.id],
+                initial_weight=80.0,
+                final_weight=120.0
+            ),
+            CategoryCreate(
+                ages=[10, 15],
+                modality_ids=[modality.id],
+                rank_ids=[rank.id],
+                sex_ids=[sex.id],
+                initial_weight=40.0,
+                final_weight=60.0
+            )
+        ]
+    )
+    
+    # Act
+    results = asyncio.run(use_cases.register_categories_bulk(schema))
+    
+    # Assert
+    assert len(results) == 2
+    assert results[0].ages == [18, 40]
+    assert results[1].ages == [10, 15]
+    assert category_repo.create.call_count == 2

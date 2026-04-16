@@ -12,8 +12,9 @@ from src.features.tournament.application.schemas import (
     CategorySchema,
     CategoryRegistrationCreate,
     CategoryRegistrationSchema,
-    MassRegistrationRequest,
     MassRegistrationResponse,
+    MassRegistrationRequest,
+    CategoryBulkCreate,
     CompetitorSchema,
 )
 from src.features.tournament.application.use_cases import TournamentUseCases
@@ -170,6 +171,29 @@ async def get_category_competitors(
 ):
     try:
         return await use_cases.get_competitors_by_category(category_id)
+    except Exception as e:
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Internal server error: {str(e)}",
+        )
+
+
+@router.post(
+    "/categories/bulk",
+    response_model=list[CategorySchema],
+    status_code=status.HTTP_201_CREATED,
+)
+async def create_categories_bulk(
+    schema: CategoryBulkCreate,
+    use_cases: TournamentUseCases = Depends(get_tournament_use_cases),
+):
+    try:
+        results = await use_cases.register_categories_bulk(schema)
+        await use_cases.category_repo.session.commit()
+        # Reload to include all relationships
+        return [await use_cases.category_repo.get_by_id(res.id) for res in results]
+    except ValueError as e:
+        raise HTTPException(status_code=400, detail=str(e))
     except Exception as e:
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,

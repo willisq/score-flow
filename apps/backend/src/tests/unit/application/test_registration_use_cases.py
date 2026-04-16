@@ -270,13 +270,11 @@ def test_list_competitors_for_category_builder_calls_repo_with_filters():
         rank_ids=[UUID(int=1)],
         sex_ids=[UUID(int=2)],
         special_condition=False,
-        sort_by="weight",
-        sort_order="desc",
     )
-
+ 
     # Act
     asyncio.run(use_cases.list_competitors_for_category_builder(filters))
-
+ 
     # Assert
     competitor_repo.get_all_for_category_builder.assert_called_once_with(
         min_age=10,
@@ -284,8 +282,6 @@ def test_list_competitors_for_category_builder_calls_repo_with_filters():
         rank_ids=[UUID(int=1)],
         sex_ids=[UUID(int=2)],
         special_condition=False,
-        sort_by="weight",
-        sort_order="desc",
     )
 
 
