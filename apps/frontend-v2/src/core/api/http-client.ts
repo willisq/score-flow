@@ -6,6 +6,9 @@ export const httpClient = axios.create({
   headers: {
     "Content-Type": "application/json",
   },
+  paramsSerializer: {
+    indexes: null,
+  },
 });
 
 httpClient.interceptors.response.use(
