@@ -7,6 +7,7 @@ from src.features.registration.application.schemas import (
     PersonCreate,
     CompetitorCreate,
     CompetitorFilters,
+    CompetitorCategoryFilters,
 )
 from src.features.registration.domain.entities import Academy, Person, Competitor, Rank, Sex
 
@@ -249,3 +250,59 @@ def test_list_competitors_calls_repo_with_filters():
         sex_id=UUID(int=3),
         special_condition=True,
     )
+
+
+def test_list_competitors_for_category_builder_calls_repo_with_filters():
+    # Arrange
+    competitor_repo = MagicMock()
+    competitor_repo.get_all_for_category_builder = AsyncMock(return_value=[])
+
+    use_cases = RegistrationUseCases(
+        academy_repo=MagicMock(),
+        rank_repo=MagicMock(),
+        sex_repo=MagicMock(),
+        competitor_repo=competitor_repo,
+    )
+
+    filters = CompetitorCategoryFilters(
+        min_age=10,
+        max_age=12,
+        rank_ids=[UUID(int=1)],
+        sex_ids=[UUID(int=2)],
+        special_condition=False,
+        sort_by="weight",
+        sort_order="desc",
+    )
+
+    # Act
+    asyncio.run(use_cases.list_competitors_for_category_builder(filters))
+
+    # Assert
+    competitor_repo.get_all_for_category_builder.assert_called_once_with(
+        min_age=10,
+        max_age=12,
+        rank_ids=[UUID(int=1)],
+        sex_ids=[UUID(int=2)],
+        special_condition=False,
+        sort_by="weight",
+        sort_order="desc",
+    )
+
+
+def test_get_competitor_filter_options_calls_repo():
+    # Arrange
+    competitor_repo = MagicMock()
+    competitor_repo.get_filter_options = AsyncMock(return_value={})
+
+    use_cases = RegistrationUseCases(
+        academy_repo=MagicMock(),
+        rank_repo=MagicMock(),
+        sex_repo=MagicMock(),
+        competitor_repo=competitor_repo,
+    )
+
+    # Act
+    asyncio.run(use_cases.get_competitor_filter_options())
+
+    # Assert
+    competitor_repo.get_filter_options.assert_called_once()

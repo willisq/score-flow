@@ -1,5 +1,6 @@
 import os
-from fastapi import APIRouter, Depends, File, HTTPException, UploadFile, status
+from typing import Annotated
+from fastapi import APIRouter, Depends, File, HTTPException, Query, UploadFile, status
 from fastapi.responses import FileResponse, StreamingResponse
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -11,6 +12,8 @@ from src.features.registration.application.schemas import (
     CompetitorBulkCreate,
     CompetitorCreate,
     CompetitorFilters,
+    CompetitorCategoryFilters,
+    CompetitorFilterOptions,
     CompetitorSchema,
     RankCreate,
     RankSchema,
@@ -139,6 +142,21 @@ async def list_competitors(
     use_cases: RegistrationUseCases = Depends(get_registration_use_cases),
 ):
     return await use_cases.list_competitors(filters)
+
+
+@router.get("/competitors/filter-options", response_model=CompetitorFilterOptions)
+async def get_competitor_filter_options(
+    use_cases: RegistrationUseCases = Depends(get_registration_use_cases),
+):
+    return await use_cases.get_competitor_filter_options()
+
+
+@router.get("/competitors/for-category-builder", response_model=list[CompetitorSchema])
+async def list_competitors_for_category_builder(
+    filters: Annotated[CompetitorCategoryFilters, Query()],
+    use_cases: RegistrationUseCases = Depends(get_registration_use_cases),
+):
+    return await use_cases.list_competitors_for_category_builder(filters)
 
 
 @router.post(

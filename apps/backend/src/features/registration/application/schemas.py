@@ -1,6 +1,6 @@
 from uuid import UUID
 
-from pydantic import Field
+from pydantic import Field, field_validator
 
 from src.core.common.models import TunedModel
 
@@ -78,10 +78,26 @@ class CompetitorSchema(TunedModel):
     special_condition: bool
 
 
-
 class CompetitorFilters(TunedModel):
     name: str | None = None
     academy_id: UUID | None = None
     rank_id: UUID | None = None
     sex_id: UUID | None = None
     special_condition: bool | None = None
+
+
+class CompetitorCategoryFilters(TunedModel):
+    min_age: int | None = None
+    max_age: int | None = None
+    rank_ids: list[UUID] | None = None
+    sex_ids: list[UUID] | None = None
+    special_condition: bool | None = None
+    sort_by: str | None = None  # age, weight
+    sort_order: str | None = "asc"  # asc, desc
+
+
+class CompetitorFilterOptions(TunedModel):
+    ages: list[int]
+    ranks: list[RankSchema]
+    sexes: list[SexSchema]
+    has_special_condition: bool

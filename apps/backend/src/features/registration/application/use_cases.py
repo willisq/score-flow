@@ -4,6 +4,7 @@ from src.features.registration.application.schemas import (
     AcademyCreate,
     CompetitorCreate,
     CompetitorFilters,
+    CompetitorCategoryFilters,
     RankCreate,
     SexCreate,
 )
@@ -155,3 +156,17 @@ class RegistrationUseCases:
             sex_id=filters.sex_id,
             special_condition=filters.special_condition,
         )
+
+    async def list_competitors_for_category_builder(self, filters: CompetitorCategoryFilters) -> list[Competitor]:
+        return await self.competitor_repo.get_all_for_category_builder(
+            min_age=filters.min_age,
+            max_age=filters.max_age,
+            rank_ids=filters.rank_ids,
+            sex_ids=filters.sex_ids,
+            special_condition=filters.special_condition,
+            sort_by=filters.sort_by,
+            sort_order=filters.sort_order,
+        )
+
+    async def get_competitor_filter_options(self) -> dict:
+        return await self.competitor_repo.get_filter_options()
