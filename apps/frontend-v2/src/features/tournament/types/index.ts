@@ -52,16 +52,32 @@ export interface TournamentCreate {
   description: string;
 }
 
-export interface CategoryCreate {
-  ages: number[];
-  specialCondition?: boolean;
-  modalityIds: string[];
-  rankIds: string[];
-  sexIds: string[];
+export interface PhysicalRequirementCreate {
   initialWeight?: number | null;
   finalWeight?: number | null;
   initialHeight?: number | null;
   finalHeight?: number | null;
+}
+
+export interface CategoryModalityCreate {
+  modalityId: string;
+  physicalRequirement?: PhysicalRequirementCreate | null;
+}
+
+export interface CategoryCreate {
+  ages: number[];
+  specialCondition?: boolean;
+  rankIds: string[];
+  sexIds: string[];
+  modalities: CategoryModalityCreate[];
+}
+
+export interface CategoryUpdate {
+  ages?: number[];
+  specialCondition?: boolean;
+  rankIds?: string[];
+  sexIds?: string[];
+  modalities?: CategoryModalityCreate[];
 }
 
 export interface CategoryRegistrationCreate {

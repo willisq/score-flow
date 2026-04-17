@@ -86,15 +86,21 @@ const suggestedCategory = computed((): CategoryCreate | null => {
   const uniqueSexes = Array.from(new Set(range.map(c => c.sex.id)));
 
   return {
-    modalityIds: [selectedModalityId.value],
     ages: ages.length > 0 ? [Math.min(...ages), Math.max(...ages)] : [0, 99],
     rankIds: uniqueRanks,
     sexIds: uniqueSexes,
-    initialWeight: weights.length > 0 ? Math.min(...weights) : null,
-    finalWeight: weights.length > 0 ? Math.max(...weights) : null,
-    initialHeight: heights.length > 0 ? Math.min(...heights) : null,
-    finalHeight: heights.length > 0 ? Math.max(...heights) : null,
-    specialCondition: range.some(c => c.specialCondition)
+    specialCondition: range.some(c => c.specialCondition),
+    modalities: [
+      {
+        modalityId: selectedModalityId.value,
+        physicalRequirement: {
+          initialWeight: weights.length > 0 ? Math.min(...weights) : null,
+          finalWeight: weights.length > 0 ? Math.max(...weights) : null,
+          initialHeight: heights.length > 0 ? Math.min(...heights) : null,
+          finalHeight: heights.length > 0 ? Math.max(...heights) : null,
+        }
+      }
+    ]
   };
 });
 
@@ -196,8 +202,10 @@ async function submitBulk() {
 
 // Helper to format category description
 function getCategoryInfo(cat: CategoryCreate) {
-  const modalityName = modalities.value.find(m => m.id === cat.modalityIds[0])?.name || '';
-  return `${modalityName} | ${cat.ages[0]}-${cat.ages[1]} años | ${cat.initialWeight?.toFixed(1) || '?'} - ${cat.finalWeight?.toFixed(1) || '?'} kg`;
+  const modData = cat.modalities[0];
+  const modalityName = modalities.value.find(m => m.id === modData.modalityId)?.name || '';
+  const pr = modData.physicalRequirement;
+  return `${modalityName} | ${cat.ages[0]}-${cat.ages[1]} años | ${pr?.initialWeight?.toFixed(1) || '?'} - ${pr?.finalWeight?.toFixed(1) || '?'} kg`;
 }
 
 onMounted(() => {
@@ -419,7 +427,7 @@ watch(filters, () => {
                         class="text-xs font-normal opacity-60">años</span>
                     </div>
                     <div class="text-xs opacity-70">
-                      {{ item.category.initialWeight?.toFixed(1) }} - {{ item.category.finalWeight?.toFixed(1) }} kg
+                      {{ item.category.modalities[0].physicalRequirement?.initialWeight?.toFixed(1) }} - {{ item.category.modalities[0].physicalRequirement?.finalWeight?.toFixed(1) }} kg
                     </div>
                     <div class="mt-2 flex flex-wrap gap-1">
                       <Tag v-if="item.category.specialCondition" icon="pi pi-star" value="CE" severity="warn"

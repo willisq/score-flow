@@ -4,6 +4,8 @@ from src.features.tournament.domain.entities import (
     Modality,
     Tournament,
     Category,
+    CategoryModality,
+    PhysicalRequirement,
 )
 from src.features.tournament.domain.errors import TournamentError
 
@@ -30,108 +32,96 @@ class TestTournament:
         assert exc.value.code == TournamentError.INVALID_TOURNAMENT_DESCRIPTION.code
 
 
+class TestPhysicalRequirement:
+    def test_invalid_weight_limits(self, valid_id):
+        with pytest.raises(DomainException) as exc:
+            PhysicalRequirement(
+                id=valid_id,
+                initial_weight=-1,
+                final_weight=70.0,
+            )
+        assert exc.value.code == TournamentError.INVALID_WEIGHT_LIMITS.code
+
+    def test_invalid_weight_range(self, valid_id):
+        with pytest.raises(DomainException) as exc:
+            PhysicalRequirement(
+                id=valid_id,
+                initial_weight=70.0,
+                final_weight=60.0,  # Initial > Final
+            )
+        assert exc.value.code == TournamentError.INVALID_WEIGHT_RANGE.code
+
+    def test_invalid_height_limits(self, valid_id):
+        with pytest.raises(DomainException) as exc:
+            PhysicalRequirement(
+                id=valid_id,
+                initial_height=-1,
+                final_height=175.0,
+            )
+        assert exc.value.code == TournamentError.INVALID_HEIGHT_LIMITS.code
+
+    def test_invalid_height_range(self, valid_id):
+        with pytest.raises(DomainException) as exc:
+            PhysicalRequirement(
+                id=valid_id,
+                initial_height=175.0,
+                final_height=165.0,
+            )
+        assert exc.value.code == TournamentError.INVALID_HEIGHT_RANGE.code
+
+
 class TestCategory:
-    def test_valid_creation(self, valid_id, valid_modality, valid_sex, valid_rank):
+    def test_valid_creation(self, valid_id, valid_sex, valid_rank):
         category = Category(
             id=valid_id,
             ages=[18, 35],
             special_condition=False,
-            modality=valid_modality,
             sexes=[valid_sex],
             ranks=[valid_rank],
-            initial_weight=60.0,
-            final_weight=70.0,
         )
-        assert category.modality == valid_modality
-
-    def test_invalid_modality(self, valid_id, valid_sex, valid_rank):
-        with pytest.raises(DomainException) as exc:
-            Category(
-                id=valid_id,
-                special_condition=False,
-                modality=None,  # type: ignore
-                sexes=[valid_sex],
-                ranks=[valid_rank],
-                ages=[18, 35],
-            )
-        assert exc.value.code == TournamentError.INVALID_CATEGORY_MODALITY.code
+        assert category.ages == [18, 35]
 
     @pytest.mark.parametrize("age", [-1, 0])
     def test_invalid_age_limits(
-        self, valid_id, valid_modality, valid_sex, valid_rank, age
+        self, valid_id, valid_sex, valid_rank, age
     ):
         with pytest.raises(DomainException) as exc:
             Category(
                 id=valid_id,
                 ages=[age],
                 special_condition=False,
-                modality=valid_modality,
                 sexes=[valid_sex],
                 ranks=[valid_rank],
             )
         assert exc.value.code == TournamentError.INVALID_AGE_LIMITS.code
 
-    def test_invalid_weight_limits(
-        self, valid_id, valid_modality, valid_sex, valid_rank
-    ):
+    def test_invalid_age_list(self, valid_id, valid_sex, valid_rank):
         with pytest.raises(DomainException) as exc:
             Category(
                 id=valid_id,
-                ages=[1, 70],
+                ages=[],
                 special_condition=False,
-                modality=valid_modality,
                 sexes=[valid_sex],
                 ranks=[valid_rank],
-                initial_weight=-1,
-                final_weight=70.0,
             )
-        assert exc.value.code == TournamentError.INVALID_WEIGHT_LIMITS.code
+        assert exc.value.code == TournamentError.INVALID_AGE_LIST.code
 
-    def test_invalid_weight_range(
-        self, valid_id, valid_modality, valid_sex, valid_rank
-    ):
-        with pytest.raises(DomainException) as exc:
-            Category(
-                id=valid_id,
-                ages=[1, 70],
-                special_condition=False,
-                modality=valid_modality,
-                sexes=[valid_sex],
-                ranks=[valid_rank],
-                initial_weight=70.0,
-                final_weight=60.0,  # Initial > Final
-            )
-        assert exc.value.code == TournamentError.INVALID_WEIGHT_RANGE.code
 
-    def test_invalid_height_limits(
-        self, valid_id, valid_modality, valid_sex, valid_rank
-    ):
-        with pytest.raises(DomainException) as exc:
-            Category(
-                id=valid_id,
-                ages=[1, 70],
-                special_condition=False,
-                modality=valid_modality,
-                sexes=[valid_sex],
-                ranks=[valid_rank],
-                initial_height=-1,
-                final_height=175.0,
-            )
-        assert exc.value.code == TournamentError.INVALID_HEIGHT_LIMITS.code
-
-    def test_invalid_height_range(
-        self, valid_id, valid_modality, valid_sex, valid_rank
-    ):
-        with pytest.raises(DomainException) as exc:
-            Category(
-                id=valid_id,
-                ages=[1, 70],
-                special_condition=False,
-                modality=valid_modality,
-                sexes=[valid_sex],
-                ranks=[valid_rank],
-                initial_height=175.0,
-                final_height=165.0,
-            )
-        assert exc.value.code == TournamentError.INVALID_HEIGHT_RANGE.code
-
+class TestCategoryModality:
+    def test_valid_creation(self, valid_id, valid_modality):
+        # Create a base category
+        category = Category(
+            id=valid_id,
+            ages=[18, 35],
+            special_condition=False,
+            sexes=[],
+            ranks=[],
+        )
+        
+        cat_mod = CategoryModality(
+            id=valid_id,
+            category=category,
+            modality=valid_modality,
+        )
+        assert cat_mod.category == category
+        assert cat_mod.modality == valid_modality

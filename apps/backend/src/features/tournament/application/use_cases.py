@@ -9,6 +9,7 @@ from src.features.tournament.application.schemas import (
     CategoryRegistrationCreate,
     MassRegistrationRequest,
     CategoryBulkCreate,
+    CategoryUpdate,
 )
 from src.features.tournament.data.repository import (
     ModalityRepository,
@@ -24,6 +25,12 @@ from src.features.tournament.domain.entities import (
     PhysicalRequirement,
     CategoryRegistration,
 )
+from src.features.tournament.data.models import (
+    PhysicalRequirementModel,
+    CategoryModalityModel,
+    CategoryModel,
+)
+from src.features.registration.data.models import RankModel, SexModel
 from src.features.registration.data.repository import (
     CompetitorRepository,
     RankRepository,
@@ -67,13 +74,6 @@ class TournamentUseCases:
 
     async def register_category(self, schema: CategoryCreate) -> List[Category]:
         # 1. Fetch dependencies
-        modalities = []
-        for mid in schema.modality_ids:
-            modality = await self.modality_repo.get_by_id(mid)
-            if not modality:
-                raise ValueError(f"Modality with ID {mid} not found")
-            modalities.append(modality)
-
         ranks = []
         for rid in schema.rank_ids:
             rank = await self.rank_repo.get_by_id(rid)
@@ -88,7 +88,7 @@ class TournamentUseCases:
                 raise ValueError(f"Sex with ID {sid} not found")
             sexes.append(sex)
 
-        # 2. Create Domain Entities
+        # 2. Create Domain Entity
         category_id = uuid4()
         category = Category(
             id=category_id,
@@ -98,22 +98,28 @@ class TournamentUseCases:
             sexes=sexes,
         )
 
-        physical_requirement = None
-        if any([
-            schema.initial_weight is not None,
-            schema.final_weight is not None,
-            schema.initial_height is not None,
-            schema.final_height is not None
-        ]):
-            physical_requirement = PhysicalRequirement(
-                id=uuid4(),
-                initial_weight=schema.initial_weight,
-                final_weight=schema.final_weight,
-                initial_height=schema.initial_height,
-                final_height=schema.final_height,
-            )
+        for mod_data in schema.modalities:
+            modality = await self.modality_repo.get_by_id(mod_data.modality_id)
+            if not modality:
+                raise ValueError(f"Modality with ID {mod_data.modality_id} not found")
 
-        for modality in modalities:
+            physical_requirement = None
+            if mod_data.physical_requirement:
+                pr = mod_data.physical_requirement
+                if any([
+                    pr.initial_weight is not None,
+                    pr.final_weight is not None,
+                    pr.initial_height is not None,
+                    pr.final_height is not None
+                ]):
+                    physical_requirement = PhysicalRequirement(
+                        id=uuid4(),
+                        initial_weight=pr.initial_weight,
+                        final_weight=pr.final_weight,
+                        initial_height=pr.initial_height,
+                        final_height=pr.final_height,
+                    )
+
             cat_mod = CategoryModality(
                 id=uuid4(),
                 category=category,
@@ -124,6 +130,75 @@ class TournamentUseCases:
 
         created = await self.category_repo.create(category)
         return [created]
+
+    async def update_category(self, category_id: UUID, schema: CategoryUpdate) -> Category:
+        model = await self.category_repo.get_model_by_id(category_id)
+        if not model:
+            raise ValueError(f"Category with ID {category_id} not found")
+
+        # Update basic fields
+        if schema.ages is not None:
+            model.ages = schema.ages
+        if schema.special_condition is not None:
+            model.special_condition = schema.special_condition
+
+        # Update ranks
+        if schema.rank_ids is not None:
+            model.ranks = []
+            for rid in schema.rank_ids:
+                rank_model = await self.rank_repo.session.get(RankModel, rid)
+                if rank_model:
+                    model.ranks.append(rank_model)
+
+        # Update sexes
+        if schema.sex_ids is not None:
+            model.sexes = []
+            for sid in schema.sex_ids:
+                sex_model = await self.sex_repo.session.get(SexModel, sid)
+                if sex_model:
+                    model.sexes.append(sex_model)
+
+        # Update modalities
+        if schema.modalities is not None:
+            # Clear existing modalities (cascade delete-orphan handles the DB)
+            model.modalities = []
+            
+
+            for mod_data in schema.modalities:
+                modality = await self.modality_repo.get_by_id(mod_data.modality_id)
+                if not modality:
+                    raise ValueError(f"Modality with ID {mod_data.modality_id} not found")
+
+                phys_req_model = None
+                if mod_data.physical_requirement:
+                    pr = mod_data.physical_requirement
+                    if any([
+                        pr.initial_weight is not None,
+                        pr.final_weight is not None,
+                        pr.initial_height is not None,
+                        pr.final_height is not None
+                    ]):
+                        phys_req_model = PhysicalRequirementModel(
+                            id=uuid4(),
+                            initial_weight=pr.initial_weight,
+                            final_weight=pr.final_weight,
+                            initial_height=pr.initial_height,
+                            final_height=pr.final_height,
+                        )
+                        self.category_repo.session.add(phys_req_model)
+
+                cat_mod_model = CategoryModalityModel(
+                    id=uuid4(),
+                    category_id=model.id,
+                    modality_id=modality.id,
+                    physical_requirement_id=phys_req_model.id if phys_req_model else None,
+                )
+                model.modalities.append(cat_mod_model)
+
+        # We don't need to call repository.create because the model is already in session and tracked
+        # But we need to return the domain entity
+        await self.category_repo.session.flush() # Ensure it's in DB
+        return await self.category_repo.get_by_id(category_id)
 
     async def list_categories(self) -> List[Category]:
         return await self.category_repo.list_all()

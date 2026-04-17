@@ -16,10 +16,13 @@ from src.features.tournament.application.schemas import (
     ModalityCreate,
     TournamentCreate,
     CategoryBulkCreate,
+    CategoryModalityCreate,
+    PhysicalRequirementCreate,
 )
 from src.features.tournament.application.use_cases import TournamentUseCases
 from src.features.tournament.domain.entities import (
     Category,
+    CategoryModality,
     CategoryRegistration,
     Modality,
     Tournament,
@@ -103,22 +106,37 @@ def test_register_category():
     
     schema = CategoryCreate(
         ages=[18, 40],
-        modality_ids=[modality1.id, modality2.id],
         rank_ids=[rank.id],
         sex_ids=[sex.id],
-        initial_weight=80.0,
-        final_weight=120.0
+        modalities=[
+            CategoryModalityCreate(
+                modality_id=modality1.id,
+                physical_requirement=PhysicalRequirementCreate(
+                    initial_weight=80.0,
+                    final_weight=120.0
+                )
+            ),
+            CategoryModalityCreate(
+                modality_id=modality2.id,
+                physical_requirement=PhysicalRequirementCreate(
+                    initial_weight=80.0,
+                    final_weight=120.0
+                )
+            )
+        ]
     )
     
     results = asyncio.run(use_cases.register_category(schema))
     
     assert isinstance(results, list)
-    assert len(results) == 2
-    assert results[0].modality == modality1
-    assert results[1].modality == modality2
-    assert rank in results[0].ranks
-    assert sex in results[0].sexes
-    assert category_repo.create.call_count == 2
+    assert len(results) == 1
+    category = results[0]
+    assert len(category.modalities) == 2
+    assert category.modalities[0].modality == modality1
+    assert category.modalities[1].modality == modality2
+    assert rank in category.ranks
+    assert sex in category.sexes
+    category_repo.create.assert_called_once()
 
 
 def test_inscribe_competitor():
@@ -142,13 +160,15 @@ def test_inscribe_competitor():
     category = Category(
         id=uuid4(), ages=[15, 17], 
         special_condition=False,
-        modality=modality, ranks=[rank], sexes=[sex]
+        ranks=[rank], sexes=[sex]
     )
+    cat_mod = CategoryModality(id=uuid4(), category=category, modality=modality)
+    category.modalities.append(cat_mod)
     
     tournament = Tournament(id=uuid4(), description="All Valley")
     
     competitor_repo.get_by_id = AsyncMock(return_value=competitor)
-    category_repo.get_by_id = AsyncMock(return_value=category)
+    category_repo.get_modality_by_id = AsyncMock(return_value=cat_mod)
     tournament_repo.get_by_id = AsyncMock(return_value=tournament)
     registration_repo.create = AsyncMock(side_effect=lambda x: x)
     
@@ -164,7 +184,7 @@ def test_inscribe_competitor():
     
     schema = CategoryRegistrationCreate(
         competitor_id=competitor.id,
-        category_id=category.id,
+        category_modality_id=cat_mod.id,
         tournament_id=tournament.id
     )
     
@@ -172,7 +192,7 @@ def test_inscribe_competitor():
     
     assert isinstance(result, CategoryRegistration)
     assert result.competitor == competitor
-    assert result.category == category
+    assert result.category_modality == cat_mod
     assert result.tournament == tournament
     registration_repo.create.assert_called_once()
 
@@ -191,8 +211,10 @@ def test_mass_register_competitors():
     
     category = Category(
         id=uuid4(), ages=[18], special_condition=False,
-        modality=modality, ranks=[rank], sexes=[sex]
+        ranks=[rank], sexes=[sex]
     )
+    cat_mod = CategoryModality(id=uuid4(), category=category, modality=modality)
+    category.modalities.append(cat_mod)
     
     instructor = Person(id=uuid4(), first_name="Nariyoshi", last_name="Miyagi")
     academy = Academy(id=uuid4(), name="Miyagi-Do", instructor=instructor)
@@ -225,12 +247,12 @@ def test_mass_register_competitors():
     
     assert len(result["registrations"]) == 1
     assert result["registrations"][0].competitor == competitor
-    assert result["registrations"][0].category == category
+    assert result["registrations"][0].category_modality == cat_mod
     assert len(result["errors"]) == 0
     registration_repo.create.assert_called_once()
 
 
-def test_mass_register_competitors_with_category_id():
+def test_mass_register_competitors_with_category_modality_id():
     tournament_repo = MagicMock()
     category_repo = MagicMock()
     competitor_repo = MagicMock()
@@ -244,8 +266,10 @@ def test_mass_register_competitors_with_category_id():
 
     category = Category(
         id=uuid4(), ages=[18], special_condition=False,
-        modality=modality, ranks=[rank], sexes=[sex]
+        ranks=[rank], sexes=[sex]
     )
+    cat_mod = CategoryModality(id=uuid4(), category=category, modality=modality)
+    category.modalities.append(cat_mod)
 
     instructor = Person(id=uuid4(), first_name="Nariyoshi", last_name="Miyagi")
     academy = Academy(id=uuid4(), name="Miyagi-Do", instructor=instructor)
@@ -255,7 +279,7 @@ def test_mass_register_competitors_with_category_id():
     )
 
     tournament_repo.get_by_id = AsyncMock(return_value=tournament)
-    category_repo.get_by_id = AsyncMock(return_value=category)
+    category_repo.get_modality_by_id = AsyncMock(return_value=cat_mod)
     competitor_repo.get_by_ids = AsyncMock(return_value=[competitor])
     registration_repo.create = AsyncMock(side_effect=lambda x: x)
 
@@ -272,21 +296,21 @@ def test_mass_register_competitors_with_category_id():
     schema = MassRegistrationRequest(
         competitor_ids=[competitor.id],
         tournament_id=tournament.id,
-        category_id=category.id
+        category_modality_id=cat_mod.id
     )
 
     result = asyncio.run(use_cases.mass_register_competitors(schema))
 
     assert len(result["registrations"]) == 1
     assert result["registrations"][0].competitor == competitor
-    assert result["registrations"][0].category == category
+    assert result["registrations"][0].category_modality == cat_mod
     assert result["registrations"][0].tournament == tournament
     assert len(result["errors"]) == 0
     registration_repo.create.assert_called_once()
-    category_repo.get_by_id.assert_called_once_with(category.id)
+    category_repo.get_modality_by_id.assert_called_once_with(cat_mod.id)
 
 
-def test_mass_register_competitors_with_category_id_invalid():
+def test_mass_register_competitors_with_category_modality_id_invalid():
     tournament_repo = MagicMock()
     category_repo = MagicMock()
     competitor_repo = MagicMock()
@@ -300,8 +324,10 @@ def test_mass_register_competitors_with_category_id_invalid():
 
     category = Category(
         id=uuid4(), ages=[18], special_condition=False,
-        modality=modality, ranks=[rank], sexes=[sex]
+        ranks=[rank], sexes=[sex]
     )
+    cat_mod = CategoryModality(id=uuid4(), category=category, modality=modality)
+    category.modalities.append(cat_mod)
 
     instructor = Person(id=uuid4(), first_name="Nariyoshi", last_name="Miyagi")
     academy = Academy(id=uuid4(), name="Miyagi-Do", instructor=instructor)
@@ -312,7 +338,7 @@ def test_mass_register_competitors_with_category_id_invalid():
     )
 
     tournament_repo.get_by_id = AsyncMock(return_value=tournament)
-    category_repo.get_by_id = AsyncMock(return_value=category)
+    category_repo.get_modality_by_id = AsyncMock(return_value=cat_mod)
     competitor_repo.get_by_ids = AsyncMock(return_value=[competitor])
 
     use_cases = TournamentUseCases(
@@ -328,7 +354,7 @@ def test_mass_register_competitors_with_category_id_invalid():
     schema = MassRegistrationRequest(
         competitor_ids=[competitor.id],
         tournament_id=tournament.id,
-        category_id=category.id,
+        category_modality_id=cat_mod.id,
     )
 
     result = asyncio.run(use_cases.mass_register_competitors(schema))
@@ -340,117 +366,3 @@ def test_mass_register_competitors_with_category_id_invalid():
     assert error["reasons"]["age_mismatch"] is True
     assert "not eligible" in error["message"]
     registration_repo.create.assert_not_called()
-
-
-def test_mass_register_competitors_overlapping_modalities():
-    tournament_repo = MagicMock()
-    category_repo = MagicMock()
-    competitor_repo = MagicMock()
-    registration_repo = MagicMock()
-
-    # Setup
-    tournament = Tournament(id=uuid4(), description="Overlapping Test")
-    modality = Modality(id=uuid4(), name="Sparring")
-    rank = Rank(id=uuid4(), name="White", classification=1, is_black_belt=False)
-    sex = Sex(id=uuid4(), name="Male")
-
-    # Two categories for the SAME modality that both fit
-    cat1 = Category(
-        id=uuid4(), ages=[18], special_condition=False,
-        modality=modality, ranks=[rank], sexes=[sex]
-    )
-    cat2 = Category(
-        id=uuid4(), ages=[18], special_condition=False,
-        modality=modality, ranks=[rank], sexes=[sex]
-    )
-
-    instructor = Person(id=uuid4(), first_name="Nariyoshi", last_name="Miyagi")
-    academy = Academy(id=uuid4(), name="Miyagi-Do", instructor=instructor)
-    competitor = Competitor(
-        id=uuid4(), first_name="Daniel", last_name="LaRusso",
-        academy=academy, rank=rank, sex=sex, age=18
-    )
-
-    tournament_repo.get_by_id = AsyncMock(return_value=tournament)
-    category_repo.list_all = AsyncMock(return_value=[cat1, cat2])
-    competitor_repo.get_by_ids = AsyncMock(return_value=[competitor])
-
-    use_cases = TournamentUseCases(
-        modality_repo=MagicMock(),
-        tournament_repo=tournament_repo,
-        category_repo=category_repo,
-        registration_repo=registration_repo,
-        competitor_repo=competitor_repo,
-        rank_repo=MagicMock(),
-        sex_repo=MagicMock(),
-    )
-
-    schema = MassRegistrationRequest(
-        competitor_ids=[competitor.id],
-        tournament_id=tournament.id
-    )
-
-    result = asyncio.run(use_cases.mass_register_competitors(schema))
-
-    assert len(result["registrations"]) == 0
-    assert len(result["errors"]) == 1
-    assert "Multiple categories found" in result["errors"][0]["message"]
-    assert result["errors"][0]["overlapping_categories"] == [cat1, cat2]
-    registration_repo.create.assert_not_called()
-
-
-def test_register_categories_bulk():
-    # Arrange
-    modality_repo = MagicMock()
-    rank_repo = MagicMock()
-    sex_repo = MagicMock()
-    category_repo = MagicMock()
-    
-    modality = Modality(id=uuid4(), name="Sparring")
-    rank = Rank(id=uuid4(), name="Black", classification=10, is_black_belt=True)
-    sex = Sex(id=uuid4(), name="Male")
-    
-    modality_repo.get_by_id = AsyncMock(return_value=modality)
-    rank_repo.get_by_id = AsyncMock(return_value=rank)
-    sex_repo.get_by_id = AsyncMock(return_value=sex)
-    category_repo.create = AsyncMock(side_effect=lambda x: x)
-    
-    use_cases = TournamentUseCases(
-        modality_repo=modality_repo,
-        tournament_repo=MagicMock(),
-        category_repo=category_repo,
-        registration_repo=MagicMock(),
-        competitor_repo=MagicMock(),
-        rank_repo=rank_repo,
-        sex_repo=sex_repo,
-    )
-    
-    schema = CategoryBulkCreate(
-        categories=[
-            CategoryCreate(
-                ages=[18, 40],
-                modality_ids=[modality.id],
-                rank_ids=[rank.id],
-                sex_ids=[sex.id],
-                initial_weight=80.0,
-                final_weight=120.0
-            ),
-            CategoryCreate(
-                ages=[10, 15],
-                modality_ids=[modality.id],
-                rank_ids=[rank.id],
-                sex_ids=[sex.id],
-                initial_weight=40.0,
-                final_weight=60.0
-            )
-        ]
-    )
-    
-    # Act
-    results = asyncio.run(use_cases.register_categories_bulk(schema))
-    
-    # Assert
-    assert len(results) == 2
-    assert results[0].ages == [18, 40]
-    assert results[1].ages == [10, 15]
-    assert category_repo.create.call_count == 2

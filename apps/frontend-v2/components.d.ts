@@ -34,5 +34,6 @@ declare module 'vue' {
     Select: typeof import('primevue/select')['default']
     Tag: typeof import('primevue/tag')['default']
     Toast: typeof import('primevue/toast')['default']
+    ToggleButton: typeof import('primevue/togglebutton')['default']
   }
 }

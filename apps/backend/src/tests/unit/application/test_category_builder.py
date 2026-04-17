@@ -16,6 +16,8 @@ from src.features.registration.application.use_cases import RegistrationUseCases
 from src.features.tournament.application.schemas import (
     CategoryCreate,
     CategoryBulkCreate,
+    CategoryModalityCreate,
+    PhysicalRequirementCreate,
 )
 from src.features.tournament.application.use_cases import TournamentUseCases
 from src.features.tournament.domain.entities import (
@@ -54,19 +56,31 @@ def test_register_categories_bulk():
         categories=[
             CategoryCreate(
                 ages=[18, 40],
-                modality_ids=[modality.id],
                 rank_ids=[rank.id],
                 sex_ids=[sex.id],
-                initial_weight=80.0,
-                final_weight=120.0
+                modalities=[
+                    CategoryModalityCreate(
+                        modality_id=modality.id,
+                        physical_requirement=PhysicalRequirementCreate(
+                            initial_weight=80.0,
+                            final_weight=120.0
+                        )
+                    )
+                ]
             ),
             CategoryCreate(
                 ages=[10, 15],
-                modality_ids=[modality.id],
                 rank_ids=[rank.id],
                 sex_ids=[sex.id],
-                initial_weight=40.0,
-                final_weight=60.0
+                modalities=[
+                    CategoryModalityCreate(
+                        modality_id=modality.id,
+                        physical_requirement=PhysicalRequirementCreate(
+                            initial_weight=40.0,
+                            final_weight=60.0
+                        )
+                    )
+                ]
             )
         ]
     )

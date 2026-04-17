@@ -132,8 +132,8 @@ class TestPyramid:
                 last_name="Doe",
                 rank=valid_rank,
                 sex=valid_sex,
-                weight=valid_category.initial_weight,
-                height=valid_category.initial_height,
+                weight=60.0,
+                height=170.0,
                 special_condition=False,
             )
             for i in range(8)
@@ -174,8 +174,8 @@ class TestPyramid:
                 last_name="Doe",
                 rank=valid_rank,
                 sex=valid_sex,
-                weight=valid_category.initial_weight,
-                height=valid_category.initial_height,
+                weight=60.0,
+                height=170.0,
                 special_condition=False,
             )
             for i in range(5)
@@ -237,8 +237,8 @@ class TestPyramid:
                 last_name="Doe",
                 rank=valid_rank,
                 sex=valid_sex,
-                weight=valid_category.initial_weight,
-                height=valid_category.initial_height,
+                weight=60.0,
+                height=170.0,
                 special_condition=False,
             )
             for i in range(10)

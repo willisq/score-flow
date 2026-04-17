@@ -12,13 +12,14 @@ from src.features.registration.domain.entities import (
 from src.features.tournament.application.use_cases import TournamentUseCases
 from src.features.tournament.domain.entities import (
     Category,
+    CategoryModality,
     CategoryRegistration,
     Modality,
     Tournament,
 )
 
 
-def test_get_competitors_by_category():
+def test_get_competitors_by_category_modality():
     registration_repo = MagicMock()
     
     # Setup objects
@@ -40,13 +41,15 @@ def test_get_competitors_by_category():
     category = Category(
         id=uuid4(), ages=[15, 17], 
         special_condition=False,
-        modality=modality, ranks=[rank], sexes=[sex]
+        ranks=[rank], sexes=[sex]
     )
+    cat_mod = CategoryModality(id=uuid4(), category=category, modality=modality)
+    category.modalities.append(cat_mod)
     
     tournament = Tournament(id=uuid4(), description="All Valley")
     
-    reg1 = CategoryRegistration(id=uuid4(), competitor=competitor1, category=category, tournament=tournament)
-    reg2 = CategoryRegistration(id=uuid4(), competitor=competitor2, category=category, tournament=tournament)
+    reg1 = CategoryRegistration(id=uuid4(), competitor=competitor1, category_modality=cat_mod, tournament=tournament)
+    reg2 = CategoryRegistration(id=uuid4(), competitor=competitor2, category_modality=cat_mod, tournament=tournament)
     
     registration_repo.get_by_categories = AsyncMock(return_value=[reg1, reg2])
     
@@ -60,11 +63,10 @@ def test_get_competitors_by_category():
         sex_repo=MagicMock(),
     )
     
-    category_id = category.id
-    result = asyncio.run(use_cases.get_competitors_by_category(category_id))
+    result = asyncio.run(use_cases.get_competitors_by_category_modality(cat_mod.id))
     
     assert isinstance(result, list)
     assert len(result) == 2
     assert competitor1 in result
     assert competitor2 in result
-    registration_repo.get_by_categories.assert_called_once_with([category_id])
+    registration_repo.get_by_categories.assert_called_once_with([cat_mod.id])

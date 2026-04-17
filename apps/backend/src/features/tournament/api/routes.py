@@ -16,6 +16,7 @@ from src.features.tournament.application.schemas import (
     MassRegistrationRequest,
     CategoryBulkCreate,
     CompetitorSchema,
+    CategoryUpdate,
 )
 from src.features.tournament.application.use_cases import TournamentUseCases
 from src.features.tournament.data.repository import (
@@ -192,6 +193,26 @@ async def create_categories_bulk(
         await use_cases.category_repo.session.commit()
         # Reload to include all relationships
         return [await use_cases.category_repo.get_by_id(res.id) for res in results]
+    except ValueError as e:
+        raise HTTPException(status_code=400, detail=str(e))
+    except Exception as e:
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Internal server error: {str(e)}",
+        )
+
+
+@router.patch("/categories/{category_id}", response_model=CategorySchema)
+async def update_category(
+    category_id: UUID,
+    schema: CategoryUpdate,
+    use_cases: TournamentUseCases = Depends(get_tournament_use_cases),
+):
+    try:
+        result = await use_cases.update_category(category_id, schema)
+        await use_cases.category_repo.session.commit()
+        # Reload to ensure all relationships are fresh
+        return await use_cases.category_repo.get_by_id(result.id)
     except ValueError as e:
         raise HTTPException(status_code=400, detail=str(e))
     except Exception as e:

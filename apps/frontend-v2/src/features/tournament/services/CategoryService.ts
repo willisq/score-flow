@@ -1,5 +1,5 @@
 import { httpClient } from "@/core/api/http-client";
-import type { Category, CategoryCreate, CategoryBulkCreate } from "../types";
+import type { Category, CategoryCreate, CategoryBulkCreate, CategoryUpdate } from "../types";
 import type { Competitor } from "@/features/registration/types";
 
 export class CategoryService {
@@ -10,8 +10,13 @@ export class CategoryService {
     return data;
   }
 
-  static async create(payload: CategoryCreate): Promise<Category[]> {
-    const { data } = await httpClient.post<Category[]>(this.BASE, payload);
+  static async create(payload: CategoryCreate): Promise<Category[] | Category> {
+    const { data } = await httpClient.post<Category[] | Category>(this.BASE, payload);
+    return data;
+  }
+
+  static async update(id: string, payload: CategoryUpdate): Promise<Category> {
+    const { data } = await httpClient.patch<Category>(`${this.BASE}/${id}`, payload);
     return data;
   }
 

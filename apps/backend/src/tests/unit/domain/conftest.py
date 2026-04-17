@@ -67,12 +67,7 @@ def valid_category(valid_id, valid_modality, valid_sex, valid_rank) -> Category:
     return Category(
         id=valid_id(),
         special_condition=False,
-        modality=valid_modality,
         sexes=[valid_sex],
         ranks=[valid_rank],
-        initial_weight=65.0,
-        final_weight=70.0,
-        initial_height=165.0,
-        final_height=175.0,
         ages=[18, 35],
     )

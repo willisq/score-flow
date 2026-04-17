@@ -10,8 +10,10 @@ class Settings(BaseSettings):
 
     @field_validator("BACKEND_CORS_ORIGINS", mode="before")
     @classmethod
-    def assemble_cors_origins(cls, v: str) -> list[str]:
-        return [i.strip() for i in v.split(",")]
+    def assemble_cors_origins(cls, v: str | list[str]) -> list[str]:
+        if isinstance(v, str):
+            return [i.strip() for i in v.split(",")]
+        return v
 
     DEBUG: bool
 

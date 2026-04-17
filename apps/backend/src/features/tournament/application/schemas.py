@@ -24,16 +24,32 @@ class TournamentSchema(TunedModel):
     description: str
 
 
-class CategoryCreate(TunedModel):
-    ages: List[int]
-    special_condition: bool = False
-    modality_ids: List[UUID]
-    rank_ids: List[UUID]
-    sex_ids: List[UUID]
+class PhysicalRequirementCreate(TunedModel):
     initial_weight: Optional[float] = Field(default=None, ge=0)
     final_weight: Optional[float] = Field(default=None, ge=0)
     initial_height: Optional[float] = Field(default=None, ge=0)
     final_height: Optional[float] = Field(default=None, ge=0)
+
+
+class CategoryModalityCreate(TunedModel):
+    modality_id: UUID
+    physical_requirement: Optional[PhysicalRequirementCreate] = None
+
+
+class CategoryCreate(TunedModel):
+    ages: List[int]
+    special_condition: bool = False
+    rank_ids: List[UUID]
+    sex_ids: List[UUID]
+    modalities: List[CategoryModalityCreate]
+
+
+class CategoryUpdate(TunedModel):
+    ages: Optional[List[int]] = None
+    special_condition: Optional[bool] = None
+    rank_ids: Optional[List[UUID]] = None
+    sex_ids: Optional[List[UUID]] = None
+    modalities: Optional[List[CategoryModalityCreate]] = None
 
 
 class PhysicalRequirementSchema(TunedModel):
@@ -48,6 +64,10 @@ class CategoryModalitySchema(TunedModel):
     id: UUID
     modality: ModalitySchema
     physical_requirement: Optional[PhysicalRequirementSchema] = None
+    # Flattened from Category for easier UI access
+    ages: List[int] = []
+    sexes: List[SexSchema] = []
+    ranks: List[RankSchema] = []
 
 
 class CategorySchema(TunedModel):

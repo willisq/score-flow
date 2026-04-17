@@ -112,6 +112,20 @@ class CategoryRepository:
         self.session.add(model)
         return category
 
+    async def get_model_by_id(self, category_id: UUID) -> Optional[CategoryModel]:
+        stmt = (
+            select(CategoryModel)
+            .options(
+                selectinload(CategoryModel.ranks),
+                selectinload(CategoryModel.sexes),
+                selectinload(CategoryModel.modalities).selectinload(CategoryModalityModel.modality),
+                selectinload(CategoryModel.modalities).selectinload(CategoryModalityModel.physical_requirement),
+            )
+            .where(CategoryModel.id == category_id)
+        )
+        result = await self.session.execute(stmt)
+        return result.scalar_one_or_none()
+
     async def get_by_id(self, category_id: UUID) -> Optional[Category]:
         stmt = (
             select(CategoryModel)

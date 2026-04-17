@@ -121,6 +121,18 @@ class CategoryModality:
     modality: Modality
     physical_requirement: Optional[PhysicalRequirement] = None
 
+    @property
+    def ages(self) -> List[int]:
+        return self.category.ages
+
+    @property
+    def sexes(self) -> List[Sex]:
+        return self.category.sexes
+
+    @property
+    def ranks(self) -> List[Rank]:
+        return self.category.ranks
+
     def get_eligibility_failures(self, competitor: Competitor) -> dict:
         """Determines why a competitor is not eligible for this category-modality."""
         failures = self.category.is_eligible_base(competitor)
