@@ -96,6 +96,18 @@ function showCompetitors(categoryModality: any): void {
   });
 }
 
+function getUniqueRanks(cat: Category) {
+  const allRanks = cat.modalities.flatMap(m => 
+    m.rankGroup?.ranks || m.ranks || []
+  );
+  const seen = new Set();
+  return allRanks.filter(r => {
+    if (seen.has(r.id)) return false;
+    seen.add(r.id);
+    return true;
+  });
+}
+
 onMounted(loadCategories);
 </script>
 
@@ -158,7 +170,7 @@ onMounted(loadCategories);
                     <div class="flex items-center gap-2 flex-wrap">
                       <span class="text-sm font-semibold uppercase text-surface-400">Rangos:</span>
                       <div class="flex gap-1 flex-wrap">
-                        <Tag v-for="rank in cat.ranks" :key="rank.id" :value="rank.name" severity="secondary" class="text-[10px]" />
+                        <Tag v-for="rank in getUniqueRanks(cat)" :key="rank.id" :value="rank.name" severity="secondary" class="text-[10px]" />
                       </div>
                     </div>
                   </div>
@@ -174,7 +186,12 @@ onMounted(loadCategories);
                   <div v-for="mod in cat.modalities" :key="mod.id" 
                        class="bg-surface-0 dark:bg-surface-800 border-1 border-surface-100 dark:border-surface-700 p-3 border-round hover:border-primary-300 transition-colors shadow-sm relative group">
                     <div class="flex justify-between items-start mb-2">
-                       <Tag :value="mod.modality.name" severity="info" />
+                       <div class="flex flex-col gap-1">
+                         <Tag :value="mod.modality.name" severity="info" />
+                         <span v-if="mod.rankGroup" class="text-[10px] font-bold opacity-60">
+                           {{ mod.rankGroup.name }}
+                         </span>
+                       </div>
                     </div>
                     
                     <div class="text-xs space-y-1">

@@ -77,7 +77,6 @@ class TestCategory:
             ages=[18, 35],
             special_condition=False,
             sexes=[valid_sex],
-            ranks=[valid_rank],
         )
         assert category.ages == [18, 35]
 
@@ -91,7 +90,6 @@ class TestCategory:
                 ages=[age],
                 special_condition=False,
                 sexes=[valid_sex],
-                ranks=[valid_rank],
             )
         assert exc.value.code == TournamentError.INVALID_AGE_LIMITS.code
 
@@ -102,7 +100,6 @@ class TestCategory:
                 ages=[],
                 special_condition=False,
                 sexes=[valid_sex],
-                ranks=[valid_rank],
             )
         assert exc.value.code == TournamentError.INVALID_AGE_LIST.code
 
@@ -115,7 +112,6 @@ class TestCategoryModality:
             ages=[18, 35],
             special_condition=False,
             sexes=[],
-            ranks=[],
         )
         
         cat_mod = CategoryModality(

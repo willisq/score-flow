@@ -33,13 +33,13 @@ class PhysicalRequirementCreate(TunedModel):
 
 class CategoryModalityCreate(TunedModel):
     modality_id: UUID
+    rank_group_ids: List[UUID]
     physical_requirement: Optional[PhysicalRequirementCreate] = None
 
 
 class CategoryCreate(TunedModel):
     ages: List[int]
     special_condition: bool = False
-    rank_ids: List[UUID]
     sex_ids: List[UUID]
     modalities: List[CategoryModalityCreate]
 
@@ -47,7 +47,6 @@ class CategoryCreate(TunedModel):
 class CategoryUpdate(TunedModel):
     ages: Optional[List[int]] = None
     special_condition: Optional[bool] = None
-    rank_ids: Optional[List[UUID]] = None
     sex_ids: Optional[List[UUID]] = None
     modalities: Optional[List[CategoryModalityCreate]] = None
 
@@ -60,9 +59,26 @@ class PhysicalRequirementSchema(TunedModel):
     final_height: Optional[float] = None
 
 
+class RankGroupCreate(TunedModel):
+    name: str
+    rank_ids: List[UUID]
+
+
+class RankGroupUpdate(TunedModel):
+    name: Optional[str] = None
+    rank_ids: Optional[List[UUID]] = None
+
+
+class RankGroupSchema(TunedModel):
+    id: UUID
+    name: str
+    ranks: List[RankSchema]
+
+
 class CategoryModalitySchema(TunedModel):
     id: UUID
     modality: ModalitySchema
+    rank_group: Optional[RankGroupSchema] = None
     physical_requirement: Optional[PhysicalRequirementSchema] = None
     # Flattened from Category for easier UI access
     ages: List[int] = []
@@ -74,7 +90,6 @@ class CategorySchema(TunedModel):
     id: UUID
     ages: List[int]
     special_condition: bool
-    ranks: List[RankSchema]
     sexes: List[SexSchema]
     modalities: List[CategoryModalitySchema]
 

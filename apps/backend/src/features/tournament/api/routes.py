@@ -17,6 +17,9 @@ from src.features.tournament.application.schemas import (
     CategoryBulkCreate,
     CompetitorSchema,
     CategoryUpdate,
+    RankGroupCreate,
+    RankGroupUpdate,
+    RankGroupSchema,
 )
 from src.features.tournament.application.use_cases import TournamentUseCases
 from src.features.tournament.data.repository import (
@@ -24,6 +27,7 @@ from src.features.tournament.data.repository import (
     TournamentRepository,
     CategoryRepository,
     CategoryRegistrationRepository,
+    RankGroupRepository,
 )
 from src.features.registration.data.repository import (
     CompetitorRepository,
@@ -45,6 +49,7 @@ def get_tournament_use_cases(
         competitor_repo=CompetitorRepository(session),
         rank_repo=RankRepository(session),
         sex_repo=SexRepository(session),
+        rank_group_repo=RankGroupRepository(session),
     )
 
 
@@ -220,3 +225,63 @@ async def update_category(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail=f"Internal server error: {str(e)}",
         )
+
+
+@router.post(
+    "/rank-groups",
+    response_model=RankGroupSchema,
+    status_code=status.HTTP_201_CREATED,
+)
+async def create_rank_group(
+    schema: RankGroupCreate,
+    use_cases: TournamentUseCases = Depends(get_tournament_use_cases),
+):
+    try:
+        result = await use_cases.register_rank_group(schema)
+        await use_cases.rank_group_repo.session.commit()
+        return await use_cases.get_rank_group(result.id)
+    except ValueError as e:
+        raise HTTPException(status_code=400, detail=str(e))
+
+
+@router.get("/rank-groups", response_model=list[RankGroupSchema])
+async def list_rank_groups(
+    use_cases: TournamentUseCases = Depends(get_tournament_use_cases),
+):
+    return await use_cases.list_rank_groups()
+
+
+@router.get("/rank-groups/{id}", response_model=RankGroupSchema)
+async def get_rank_group(
+    id: UUID,
+    use_cases: TournamentUseCases = Depends(get_tournament_use_cases),
+):
+    try:
+        return await use_cases.get_rank_group(id)
+    except ValueError as e:
+        raise HTTPException(status_code=404, detail=str(e))
+
+
+@router.patch("/rank-groups/{id}", response_model=RankGroupSchema)
+async def update_rank_group(
+    id: UUID,
+    schema: RankGroupUpdate,
+    use_cases: TournamentUseCases = Depends(get_tournament_use_cases),
+):
+    try:
+        result = await use_cases.update_rank_group(id, schema)
+        await use_cases.rank_group_repo.session.commit()
+        return result
+    except ValueError as e:
+        raise HTTPException(status_code=400, detail=str(e))
+
+
+@router.delete("/rank-groups/{id}", status_code=status.HTTP_204_NO_CONTENT)
+async def delete_rank_group(
+    id: UUID,
+    use_cases: TournamentUseCases = Depends(get_tournament_use_cases),
+):
+    deleted = await use_cases.delete_rank_group(id)
+    if not deleted:
+        raise HTTPException(status_code=404, detail="Rank Group not found")
+    await use_cases.rank_group_repo.session.commit()

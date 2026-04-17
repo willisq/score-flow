@@ -41,7 +41,7 @@ def test_get_competitors_by_category_modality():
     category = Category(
         id=uuid4(), ages=[15, 17], 
         special_condition=False,
-        ranks=[rank], sexes=[sex]
+        sexes=[sex]
     )
     cat_mod = CategoryModality(id=uuid4(), category=category, modality=modality)
     category.modalities.append(cat_mod)
@@ -61,6 +61,7 @@ def test_get_competitors_by_category_modality():
         competitor_repo=MagicMock(),
         rank_repo=MagicMock(),
         sex_repo=MagicMock(),
+        rank_group_repo=MagicMock(),
     )
     
     result = asyncio.run(use_cases.get_competitors_by_category_modality(cat_mod.id))

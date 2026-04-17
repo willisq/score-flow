@@ -1,7 +1,8 @@
+from datetime import datetime
 from uuid import UUID
 from typing import List, Optional
 
-from sqlalchemy import Boolean, Float, ForeignKey, Integer, String, Table, Column
+from sqlalchemy import Boolean, Float, ForeignKey, Integer, String, Table, Column, DateTime, func
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 from sqlalchemy.dialects.postgresql import ARRAY
 
@@ -9,12 +10,12 @@ from src.core.common.models import Base
 from src.features.registration.data.models import RankModel, SexModel, CompetitorModel
 
 
-# Association tables for Category many-to-many relationships
-category_rank = Table(
-    "category_rank",
+# Association tables for Category/Rank relationships
+rank_group_item = Table(
+    "rank_group_item",
     Base.metadata,
-    Column("category_id", ForeignKey("category.id"), primary_key=True),
-    Column("rank_id", ForeignKey("rank.id"), primary_key=True),
+    Column("rank_group_id", ForeignKey("rank_group.id", ondelete="CASCADE"), primary_key=True),
+    Column("rank_id", ForeignKey("rank.id", ondelete="CASCADE"), primary_key=True),
 )
 
 category_sex = Table(
@@ -30,6 +31,16 @@ class ModalityModel(Base):
 
     id: Mapped[UUID] = mapped_column(primary_key=True)
     name: Mapped[str] = mapped_column(String(100), nullable=False)
+
+
+class RankGroupModel(Base):
+    __tablename__ = "rank_group"
+
+    id: Mapped[UUID] = mapped_column(primary_key=True)
+    name: Mapped[str] = mapped_column(String, nullable=False)
+    created_at: Mapped[datetime] = mapped_column(DateTime, server_default=func.now())
+
+    ranks: Mapped[List[RankModel]] = relationship(secondary=rank_group_item)
 
 
 class TournamentModel(Base):
@@ -60,7 +71,6 @@ class CategoryModel(Base):
     ages: Mapped[List[int]] = mapped_column(ARRAY(Integer), nullable=False)
     special_condition: Mapped[bool] = mapped_column(Boolean, default=False)
 
-    ranks: Mapped[List[RankModel]] = relationship(secondary=category_rank)
     sexes: Mapped[List[SexModel]] = relationship(secondary=category_sex)
     modalities: Mapped[List["CategoryModalityModel"]] = relationship(
         back_populates="category", cascade="all, delete-orphan"
@@ -73,12 +83,14 @@ class CategoryModalityModel(Base):
     id: Mapped[UUID] = mapped_column(primary_key=True)
     category_id: Mapped[UUID] = mapped_column(ForeignKey("category.id"), nullable=False)
     modality_id: Mapped[UUID] = mapped_column(ForeignKey("modality.id"), nullable=False)
+    rank_group_id: Mapped[Optional[UUID]] = mapped_column(ForeignKey("rank_group.id"), nullable=True)
     physical_requirement_id: Mapped[Optional[UUID]] = mapped_column(
         ForeignKey("physical_requirement.id"), nullable=True
     )
 
     category: Mapped[CategoryModel] = relationship(back_populates="modalities")
     modality: Mapped[ModalityModel] = relationship()
+    rank_group: Mapped[Optional[RankGroupModel]] = relationship()
     physical_requirement: Mapped[Optional[PhysicalRequirementModel]] = relationship()
     registrations: Mapped[List["CategoryRegistrationModel"]] = relationship(
         back_populates="category_modality"

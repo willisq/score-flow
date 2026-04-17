@@ -10,12 +10,15 @@ from src.features.tournament.application.schemas import (
     MassRegistrationRequest,
     CategoryBulkCreate,
     CategoryUpdate,
+    RankGroupCreate,
+    RankGroupUpdate,
 )
 from src.features.tournament.data.repository import (
     ModalityRepository,
     TournamentRepository,
     CategoryRepository,
     CategoryRegistrationRepository,
+    RankGroupRepository,
 )
 from src.features.tournament.domain.entities import (
     Modality,
@@ -24,11 +27,13 @@ from src.features.tournament.domain.entities import (
     CategoryModality,
     PhysicalRequirement,
     CategoryRegistration,
+    RankGroup,
 )
 from src.features.tournament.data.models import (
     PhysicalRequirementModel,
     CategoryModalityModel,
     CategoryModel,
+    RankGroupModel,
 )
 from src.features.registration.data.models import RankModel, SexModel
 from src.features.registration.data.repository import (
@@ -49,6 +54,7 @@ class TournamentUseCases:
         competitor_repo: CompetitorRepository,
         rank_repo: RankRepository,
         sex_repo: SexRepository,
+        rank_group_repo: RankGroupRepository,
     ):
         self.modality_repo = modality_repo
         self.tournament_repo = tournament_repo
@@ -57,6 +63,48 @@ class TournamentUseCases:
         self.competitor_repo = competitor_repo
         self.rank_repo = rank_repo
         self.sex_repo = sex_repo
+        self.rank_group_repo = rank_group_repo
+
+    async def register_rank_group(self, schema: RankGroupCreate) -> RankGroup:
+        ranks = []
+        for rid in schema.rank_ids:
+            rank = await self.rank_repo.get_by_id(rid)
+            if not rank:
+                raise ValueError(f"Rank with ID {rid} not found")
+            ranks.append(rank)
+        
+        group = RankGroup(id=uuid4(), name=schema.name, ranks=ranks)
+        return await self.rank_group_repo.create(group)
+
+    async def list_rank_groups(self) -> List[RankGroup]:
+        return await self.rank_group_repo.list_all()
+
+    async def get_rank_group(self, id: UUID) -> RankGroup:
+        group = await self.rank_group_repo.get_by_id(id)
+        if not group:
+            raise ValueError(f"Rank Group with ID {id} not found")
+        return group
+
+    async def update_rank_group(self, id: UUID, schema: RankGroupUpdate) -> RankGroup:
+        model = await self.rank_group_repo.session.get(RankGroupModel, id)
+        if not model:
+            raise ValueError(f"Rank Group with ID {id} not found")
+        
+        if schema.name is not None:
+            model.name = schema.name
+        
+        if schema.rank_ids is not None:
+            model.ranks = []
+            for rid in schema.rank_ids:
+                r_model = await self.rank_repo.session.get(RankModel, rid)
+                if r_model:
+                    model.ranks.append(r_model)
+        
+        await self.rank_group_repo.session.flush()
+        return await self.rank_group_repo.get_by_id(id)
+
+    async def delete_rank_group(self, id: UUID) -> bool:
+        return await self.rank_group_repo.delete(id)
 
     async def register_modality(self, schema: ModalityCreate) -> Modality:
         modality = Modality(id=uuid4(), name=schema.name)
@@ -73,14 +121,7 @@ class TournamentUseCases:
         return await self.tournament_repo.list_all()
 
     async def register_category(self, schema: CategoryCreate) -> List[Category]:
-        # 1. Fetch dependencies
-        ranks = []
-        for rid in schema.rank_ids:
-            rank = await self.rank_repo.get_by_id(rid)
-            if not rank:
-                raise ValueError(f"Rank with ID {rid} not found")
-            ranks.append(rank)
-
+        # 1. Fetch sexes
         sexes = []
         for sid in schema.sex_ids:
             sex = await self.sex_repo.get_by_id(sid)
@@ -94,7 +135,6 @@ class TournamentUseCases:
             id=category_id,
             ages=schema.ages,
             special_condition=schema.special_condition,
-            ranks=ranks,
             sexes=sexes,
         )
 
@@ -103,6 +143,7 @@ class TournamentUseCases:
             if not modality:
                 raise ValueError(f"Modality with ID {mod_data.modality_id} not found")
 
+            # Physical requirement logic (same for all rank groups in this block)
             physical_requirement = None
             if mod_data.physical_requirement:
                 pr = mod_data.physical_requirement
@@ -120,13 +161,20 @@ class TournamentUseCases:
                         final_height=pr.final_height,
                     )
 
-            cat_mod = CategoryModality(
-                id=uuid4(),
-                category=category,
-                modality=modality,
-                physical_requirement=physical_requirement,
-            )
-            category.modalities.append(cat_mod)
+            # Create a CategoryModality for EACH rank group ID
+            for rgid in mod_data.rank_group_ids:
+                rank_group = await self.rank_group_repo.get_by_id(rgid)
+                if not rank_group:
+                    raise ValueError(f"Rank Group with ID {rgid} not found")
+
+                cat_mod = CategoryModality(
+                    id=uuid4(),
+                    category=category,
+                    modality=modality,
+                    rank_group=rank_group,
+                    physical_requirement=physical_requirement,
+                )
+                category.modalities.append(cat_mod)
 
         created = await self.category_repo.create(category)
         return [created]
@@ -142,14 +190,6 @@ class TournamentUseCases:
         if schema.special_condition is not None:
             model.special_condition = schema.special_condition
 
-        # Update ranks
-        if schema.rank_ids is not None:
-            model.ranks = []
-            for rid in schema.rank_ids:
-                rank_model = await self.rank_repo.session.get(RankModel, rid)
-                if rank_model:
-                    model.ranks.append(rank_model)
-
         # Update sexes
         if schema.sex_ids is not None:
             model.sexes = []
@@ -162,7 +202,6 @@ class TournamentUseCases:
         if schema.modalities is not None:
             # Clear existing modalities (cascade delete-orphan handles the DB)
             model.modalities = []
-            
 
             for mod_data in schema.modalities:
                 modality = await self.modality_repo.get_by_id(mod_data.modality_id)
@@ -187,13 +226,20 @@ class TournamentUseCases:
                         )
                         self.category_repo.session.add(phys_req_model)
 
-                cat_mod_model = CategoryModalityModel(
-                    id=uuid4(),
-                    category_id=model.id,
-                    modality_id=modality.id,
-                    physical_requirement_id=phys_req_model.id if phys_req_model else None,
-                )
-                model.modalities.append(cat_mod_model)
+                # Create a CategoryModality record for EACH rank group ID
+                for rgid in mod_data.rank_group_ids:
+                    rank_group = await self.rank_group_repo.get_by_id(rgid)
+                    if not rank_group:
+                        raise ValueError(f"Rank Group with ID {rgid} not found")
+
+                    cat_mod_model = CategoryModalityModel(
+                        id=uuid4(),
+                        category_id=model.id,
+                        modality_id=modality.id,
+                        rank_group_id=rank_group.id,
+                        physical_requirement_id=phys_req_model.id if phys_req_model else None,
+                    )
+                    model.modalities.append(cat_mod_model)
 
         # We don't need to call repository.create because the model is already in session and tracked
         # But we need to return the domain entity

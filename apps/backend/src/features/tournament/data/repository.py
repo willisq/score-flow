@@ -12,6 +12,7 @@ from src.features.tournament.data.models import (
     CategoryModalityModel,
     PhysicalRequirementModel,
     CategoryRegistrationModel,
+    RankGroupModel,
 )
 from src.features.tournament.domain.entities import (
     Modality,
@@ -20,6 +21,7 @@ from src.features.tournament.domain.entities import (
     CategoryModality,
     PhysicalRequirement,
     CategoryRegistration,
+    RankGroup,
 )
 from src.features.registration.domain.entities import Competitor, Rank, Sex, Person, Academy
 from src.features.registration.data.models import CompetitorModel, RankModel, SexModel, AcademyModel
@@ -65,6 +67,57 @@ class TournamentRepository:
         return [Tournament(id=m.id, description=m.description) for m in result.scalars().all()]
 
 
+class RankGroupRepository:
+    def __init__(self, session: AsyncSession):
+        self.session = session
+
+    async def create(self, rank_group: RankGroup) -> RankGroup:
+        model = RankGroupModel(id=rank_group.id, name=rank_group.name)
+        for rank in rank_group.ranks:
+            r_model = await self.session.get(RankModel, rank.id)
+            if r_model:
+                model.ranks.append(r_model)
+        self.session.add(model)
+        return rank_group
+
+    async def get_by_id(self, group_id: UUID) -> Optional[RankGroup]:
+        stmt = select(RankGroupModel).options(selectinload(RankGroupModel.ranks)).where(RankGroupModel.id == group_id)
+        result = await self.session.execute(stmt)
+        model = result.scalar_one_or_none()
+        if not model:
+            return None
+        return RankGroup(
+            id=model.id,
+            name=model.name,
+            ranks=[
+                Rank(id=r.id, name=r.name, classification=r.classification, is_black_belt=r.is_black_belt)
+                for r in model.ranks
+            ]
+        )
+
+    async def list_all(self) -> List[RankGroup]:
+        stmt = select(RankGroupModel).options(selectinload(RankGroupModel.ranks))
+        result = await self.session.execute(stmt)
+        return [
+            RankGroup(
+                id=m.id,
+                name=m.name,
+                ranks=[
+                    Rank(id=r.id, name=r.name, classification=r.classification, is_black_belt=r.is_black_belt)
+                    for r in m.ranks
+                ]
+            )
+            for m in result.scalars().all()
+        ]
+
+    async def delete(self, group_id: UUID) -> bool:
+        model = await self.session.get(RankGroupModel, group_id)
+        if not model:
+            return False
+        await self.session.delete(model)
+        return True
+
+
 class CategoryRepository:
     def __init__(self, session: AsyncSession):
         self.session = session
@@ -76,19 +129,14 @@ class CategoryRepository:
             special_condition=category.special_condition,
         )
 
-        # Add ranks and sexes
-        for rank in category.ranks:
-            rank_model = await self.session.get(RankModel, rank.id)
-            if rank_model:
-                model.ranks.append(rank_model)
-
         for sex in category.sexes:
             sex_model = await self.session.get(SexModel, sex.id)
             if sex_model:
                 model.sexes.append(sex_model)
 
-        # Add modalities and their physical requirements
+        # Add modalities and their physical requirements / rank groups
         for cat_mod in category.modalities:
+            # 1. Handle Physical Requirement
             phys_req_model = None
             if cat_mod.physical_requirement:
                 phys_req = cat_mod.physical_requirement
@@ -101,10 +149,29 @@ class CategoryRepository:
                 )
                 self.session.add(phys_req_model)
 
+            # 2. Handle Rank Group
+            rank_group_id = None
+            if cat_mod.rank_group:
+                rg = cat_mod.rank_group
+                # Check if group already exists (simple check by ID if provided, 
+                # or we could implement a deep check)
+                existing_rg = await self.session.get(RankGroupModel, rg.id)
+                if not existing_rg:
+                    rg_model = RankGroupModel(id=rg.id, name=rg.name)
+                    for r in rg.ranks:
+                        r_model = await self.session.get(RankModel, r.id)
+                        if r_model:
+                            rg_model.ranks.append(r_model)
+                    self.session.add(rg_model)
+                    rank_group_id = rg_model.id
+                else:
+                    rank_group_id = existing_rg.id
+
             mod_model = CategoryModalityModel(
                 id=cat_mod.id,
                 category_id=category.id,
                 modality_id=cat_mod.modality.id,
+                rank_group_id=rank_group_id,
                 physical_requirement_id=phys_req_model.id if phys_req_model else None,
             )
             model.modalities.append(mod_model)
@@ -116,9 +183,9 @@ class CategoryRepository:
         stmt = (
             select(CategoryModel)
             .options(
-                selectinload(CategoryModel.ranks),
                 selectinload(CategoryModel.sexes),
                 selectinload(CategoryModel.modalities).selectinload(CategoryModalityModel.modality),
+                selectinload(CategoryModel.modalities).selectinload(CategoryModalityModel.rank_group).selectinload(RankGroupModel.ranks),
                 selectinload(CategoryModel.modalities).selectinload(CategoryModalityModel.physical_requirement),
             )
             .where(CategoryModel.id == category_id)
@@ -127,18 +194,7 @@ class CategoryRepository:
         return result.scalar_one_or_none()
 
     async def get_by_id(self, category_id: UUID) -> Optional[Category]:
-        stmt = (
-            select(CategoryModel)
-            .options(
-                selectinload(CategoryModel.ranks),
-                selectinload(CategoryModel.sexes),
-                selectinload(CategoryModel.modalities).selectinload(CategoryModalityModel.modality),
-                selectinload(CategoryModel.modalities).selectinload(CategoryModalityModel.physical_requirement),
-            )
-            .where(CategoryModel.id == category_id)
-        )
-        result = await self.session.execute(stmt)
-        model = result.scalar_one_or_none()
+        model = await self.get_model_by_id(category_id)
         if not model:
             return None
 
@@ -146,9 +202,9 @@ class CategoryRepository:
 
     async def list_all(self) -> List[Category]:
         stmt = select(CategoryModel).options(
-            selectinload(CategoryModel.ranks),
             selectinload(CategoryModel.sexes),
             selectinload(CategoryModel.modalities).selectinload(CategoryModalityModel.modality),
+            selectinload(CategoryModel.modalities).selectinload(CategoryModalityModel.rank_group).selectinload(RankGroupModel.ranks),
             selectinload(CategoryModel.modalities).selectinload(CategoryModalityModel.physical_requirement),
         )
         result = await self.session.execute(stmt)
@@ -159,8 +215,8 @@ class CategoryRepository:
             select(CategoryModalityModel)
             .options(
                 selectinload(CategoryModalityModel.modality),
+                selectinload(CategoryModalityModel.rank_group).selectinload(RankGroupModel.ranks),
                 selectinload(CategoryModalityModel.physical_requirement),
-                selectinload(CategoryModalityModel.category).selectinload(CategoryModel.ranks),
                 selectinload(CategoryModalityModel.category).selectinload(CategoryModel.sexes),
             )
             .where(CategoryModalityModel.id == modality_id)
@@ -175,16 +231,25 @@ class CategoryRepository:
             id=model.category.id,
             ages=model.category.ages,
             special_condition=model.category.special_condition,
-            ranks=[
-                Rank(id=r.id, name=r.name, classification=r.classification, is_black_belt=r.is_black_belt)
-                for r in model.category.ranks
-            ],
             sexes=[Sex(id=s.id, name=s.name) for s in model.category.sexes],
         )
+        
+        rank_group = None
+        if model.rank_group:
+            rank_group = RankGroup(
+                id=model.rank_group.id,
+                name=model.rank_group.name,
+                ranks=[
+                    Rank(id=r.id, name=r.name, classification=r.classification, is_black_belt=r.is_black_belt)
+                    for r in model.rank_group.ranks
+                ]
+            )
+
         return CategoryModality(
             id=model.id,
             category=category,
             modality=Modality(id=model.modality.id, name=model.modality.name),
+            rank_group=rank_group,
             physical_requirement=PhysicalRequirement(
                 id=model.physical_requirement.id,
                 initial_weight=model.physical_requirement.initial_weight,
@@ -199,15 +264,6 @@ class CategoryRepository:
             id=model.id,
             ages=model.ages,
             special_condition=model.special_condition,
-            ranks=[
-                Rank(
-                    id=r.id,
-                    name=r.name,
-                    classification=r.classification,
-                    is_black_belt=r.is_black_belt,
-                )
-                for r in model.ranks
-            ],
             sexes=[Sex(id=s.id, name=s.name) for s in model.sexes],
         )
 
@@ -216,6 +272,14 @@ class CategoryRepository:
                 id=m.id,
                 category=category,
                 modality=Modality(id=m.modality.id, name=m.modality.name),
+                rank_group=RankGroup(
+                    id=m.rank_group.id,
+                    name=m.rank_group.name,
+                    ranks=[
+                        Rank(id=r.id, name=r.name, classification=r.classification, is_black_belt=r.is_black_belt)
+                        for r in m.rank_group.ranks
+                    ]
+                ) if m.rank_group else None,
                 physical_requirement=PhysicalRequirement(
                     id=m.physical_requirement.id,
                     initial_weight=m.physical_requirement.initial_weight,
@@ -254,8 +318,8 @@ class CategoryRegistrationRepository:
                 selectinload(CategoryRegistrationModel.competitor).selectinload(CompetitorModel.sex),
                 # Load category_modality and its relations
                 selectinload(CategoryRegistrationModel.category_modality).selectinload(CategoryModalityModel.modality),
+                selectinload(CategoryRegistrationModel.category_modality).selectinload(CategoryModalityModel.rank_group).selectinload(RankGroupModel.ranks),
                 selectinload(CategoryRegistrationModel.category_modality).selectinload(CategoryModalityModel.physical_requirement),
-                selectinload(CategoryRegistrationModel.category_modality).selectinload(CategoryModalityModel.category).selectinload(CategoryModel.ranks),
                 selectinload(CategoryRegistrationModel.category_modality).selectinload(CategoryModalityModel.category).selectinload(CategoryModel.sexes),
                 # Load tournament
                 selectinload(CategoryRegistrationModel.tournament),
@@ -304,22 +368,27 @@ class CategoryRegistrationRepository:
             id=cat_model.id,
             ages=cat_model.ages,
             special_condition=cat_model.special_condition,
-            ranks=[
-                Rank(
-                    id=r.id,
-                    name=r.name,
-                    classification=r.classification,
-                    is_black_belt=r.is_black_belt
-                ) for r in cat_model.ranks
-            ],
             sexes=[Sex(id=s.id, name=s.name) for s in cat_model.sexes],
         )
 
         mod_model = model.category_modality
+        
+        rank_group = None
+        if mod_model.rank_group:
+            rank_group = RankGroup(
+                id=mod_model.rank_group.id,
+                name=mod_model.rank_group.name,
+                ranks=[
+                    Rank(id=r.id, name=r.name, classification=r.classification, is_black_belt=r.is_black_belt)
+                    for r in mod_model.rank_group.ranks
+                ]
+            )
+
         category_modality = CategoryModality(
             id=mod_model.id,
             category=category,
             modality=Modality(id=mod_model.modality.id, name=mod_model.modality.name),
+            rank_group=rank_group,
             physical_requirement=PhysicalRequirement(
                 id=mod_model.physical_requirement.id,
                 initial_weight=mod_model.physical_requirement.initial_weight,
@@ -350,8 +419,8 @@ class CategoryRegistrationRepository:
                 selectinload(CategoryRegistrationModel.competitor).selectinload(CompetitorModel.rank),
                 selectinload(CategoryRegistrationModel.competitor).selectinload(CompetitorModel.sex),
                 selectinload(CategoryRegistrationModel.category_modality).selectinload(CategoryModalityModel.modality),
+                selectinload(CategoryRegistrationModel.category_modality).selectinload(CategoryModalityModel.rank_group).selectinload(RankGroupModel.ranks),
                 selectinload(CategoryRegistrationModel.category_modality).selectinload(CategoryModalityModel.physical_requirement),
-                selectinload(CategoryRegistrationModel.category_modality).selectinload(CategoryModalityModel.category).selectinload(CategoryModel.ranks),
                 selectinload(CategoryRegistrationModel.category_modality).selectinload(CategoryModalityModel.category).selectinload(CategoryModel.sexes),
                 selectinload(CategoryRegistrationModel.tournament),
             )
@@ -402,22 +471,27 @@ class CategoryRegistrationRepository:
                 id=cat_model.id,
                 ages=cat_model.ages,
                 special_condition=cat_model.special_condition,
-                ranks=[
-                    Rank(
-                        id=r.id,
-                        name=r.name,
-                        classification=r.classification,
-                        is_black_belt=r.is_black_belt
-                    ) for r in cat_model.ranks
-                ],
                 sexes=[Sex(id=s.id, name=s.name) for s in cat_model.sexes],
             )
 
             mod_model = model.category_modality
+            
+            rank_group = None
+            if mod_model.rank_group:
+                rank_group = RankGroup(
+                    id=mod_model.rank_group.id,
+                    name=mod_model.rank_group.name,
+                    ranks=[
+                        Rank(id=r.id, name=r.name, classification=r.classification, is_black_belt=r.is_black_belt)
+                        for r in mod_model.rank_group.ranks
+                    ]
+                )
+
             category_modality = CategoryModality(
                 id=mod_model.id,
                 category=category,
                 modality=Modality(id=mod_model.modality.id, name=mod_model.modality.name),
+                rank_group=rank_group,
                 physical_requirement=PhysicalRequirement(
                     id=mod_model.physical_requirement.id,
                     initial_weight=mod_model.physical_requirement.initial_weight,

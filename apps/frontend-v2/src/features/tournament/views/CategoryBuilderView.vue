@@ -12,6 +12,7 @@ import MultiSelect from 'primevue/multiselect';
 import Select from 'primevue/select';
 import { CompetitorService } from '@/features/registration/services/CompetitorService';
 import { CategoryService } from '../services/CategoryService';
+import { RankGroupService } from '../services/RankGroupService';
 import type {
   Competitor,
   CompetitorCategoryFilters,
@@ -20,6 +21,7 @@ import type {
 import type {
   CategoryCreate,
   CategoryBulkCreate,
+  RankGroup,
 } from '../types';
 import { useTournamentData } from '../composables/useTournamentData';
 
@@ -32,6 +34,7 @@ const loading = ref(false);
 const submitting = ref(false);
 const competitors = ref<Competitor[]>([]);
 const filterOptions = ref<CompetitorFilterOptions | null>(null);
+const rankGroups = ref<RankGroup[]>([]);
 
 const filters = reactive<CompetitorCategoryFilters>({
   minAge: undefined,
@@ -53,6 +56,7 @@ const selectedEndId = ref<string | null>(null);
 const categoryQueue = ref<{ id: string; category: CategoryCreate; competitorNames: string[] }[]>([]);
 
 const selectedModalityId = ref<string | null>(null);
+const selectedRankGroupId = ref<string | null>(null);
 
 // --- Computed ---
 const selectedRange = computed(() => {
@@ -76,23 +80,22 @@ const isRangeSelected = computed(() => selectedRange.value.length > 0);
 
 const suggestedCategory = computed((): CategoryCreate | null => {
   const range = selectedRange.value;
-  if (range.length === 0 || !selectedModalityId.value) return null;
+  if (range.length === 0 || !selectedModalityId.value || !selectedRankGroupId.value) return null;
 
   const ages = range.map(c => c.age).filter((a): a is number => a !== null);
   const weights = range.map(c => c.weight).filter((w): w is number => w !== null);
   const heights = range.map(c => c.height).filter((h): h is number => h !== null);
 
-  const uniqueRanks = Array.from(new Set(range.map(c => c.rank.id)));
   const uniqueSexes = Array.from(new Set(range.map(c => c.sex.id)));
 
   return {
     ages: ages.length > 0 ? [Math.min(...ages), Math.max(...ages)] : [0, 99],
-    rankIds: uniqueRanks,
     sexIds: uniqueSexes,
     specialCondition: range.some(c => c.specialCondition),
     modalities: [
       {
         modalityId: selectedModalityId.value,
+        rankGroupIds: [selectedRankGroupId.value],
         physicalRequirement: {
           initialWeight: weights.length > 0 ? Math.min(...weights) : null,
           finalWeight: weights.length > 0 ? Math.max(...weights) : null,
@@ -108,8 +111,9 @@ const suggestedCategory = computed((): CategoryCreate | null => {
 async function loadFilterOptions() {
   try {
     filterOptions.value = await CompetitorService.getFilterOptions();
+    rankGroups.value = await RankGroupService.getAll();
   } catch (error) {
-    toast.add({ severity: 'error', summary: 'Error', detail: 'No se pudieron cargar las opciones de filtro', life: 3000 });
+    toast.add({ severity: 'error', summary: 'Error', detail: 'No se pudieron cargar las opciones de filtro o grupos de rangos', life: 3000 });
   }
 }
 
@@ -378,12 +382,18 @@ watch(filters, () => {
                     placeholder="Elige" class="w-full" fluid />
                 </div>
 
+                <div class="flex flex-col gap-1">
+                  <label class="text-[10px] font-bold uppercase text-surface-500">Grupo de Rangos</label>
+                  <Select v-model="selectedRankGroupId" :options="rankGroups" optionLabel="name" optionValue="id"
+                    placeholder="Elige grupo" class="w-full" fluid />
+                </div>
+
                 <div v-if="suggestedCategory"
                   class="text-[11px] p-2 bg-primary-50 dark:bg-primary-950 rounded border border-primary-200 dark:border-primary-800 space-y-1">
                   <p class="flex justify-between"><span>Edades:</span> <b>{{ suggestedCategory.ages[0] }}-{{
                     suggestedCategory.ages[1] }}</b></p>
-                  <p class="flex justify-between"><span>Peso:</span> <b>{{ suggestedCategory.initialWeight?.toFixed(1)
-                  }}-{{ suggestedCategory.finalWeight?.toFixed(1) }} kg</b></p>
+                  <p class="flex justify-between"><span>Peso:</span> <b>{{ suggestedCategory.modalities[0].physicalRequirement?.initialWeight?.toFixed(1)
+                  }}-{{ suggestedCategory.modalities[0].physicalRequirement?.finalWeight?.toFixed(1) }} kg</b></p>
                   <p v-if="suggestedCategory.specialCondition" class="text-amber-600 font-bold">Condición Especial
                     Detectada</p>
                 </div>

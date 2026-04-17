@@ -81,14 +81,21 @@ class PhysicalRequirement:
 
 
 @dataclass
+class RankGroup:
+    """Group of ranks that defines requirements for a category-modality."""
+    id: UUID
+    name: str
+    ranks: List[Rank]
+
+
+@dataclass
 class Category:
-    """Entity defining a competition category (Age, Sex, Rank)."""
+    """Entity defining a competition category (Age, Sex, Special Condition)."""
 
     id: UUID
     ages: List[int]
     special_condition: bool
     sexes: List[Sex]
-    ranks: List[Rank]
     modalities: List["CategoryModality"] = field(default_factory=list)
 
     def __post_init__(self):
@@ -104,21 +111,21 @@ class Category:
             )
 
     def is_eligible_base(self, competitor: Competitor) -> dict:
-        """Checks only the base requirements of the category (Age, Sex, Rank)."""
+        """Checks only the base requirements of the category (Age, Sex)."""
         return {
             "age_mismatch": competitor.age not in self.ages,
             "special_condition_mismatch": competitor.special_condition != self.special_condition,
             "sex_mismatch": competitor.sex not in self.sexes,
-            "rank_mismatch": self.ranks and competitor.rank not in self.ranks,
         }
 
 
 @dataclass
 class CategoryModality:
-    """Linking entity between Category and Modality with specific physical requirements."""
+    """Linking entity between Category and Modality with specific rank and physical requirements."""
     id: UUID
     category: Category
     modality: Modality
+    rank_group: Optional[RankGroup] = None
     physical_requirement: Optional[PhysicalRequirement] = None
 
     @property
@@ -131,12 +138,13 @@ class CategoryModality:
 
     @property
     def ranks(self) -> List[Rank]:
-        return self.category.ranks
+        return self.rank_group.ranks if self.rank_group else []
 
     def get_eligibility_failures(self, competitor: Competitor) -> dict:
         """Determines why a competitor is not eligible for this category-modality."""
         failures = self.category.is_eligible_base(competitor)
         failures.update({
+            "rank_mismatch": self.rank_group and competitor.rank not in self.ranks,
             "weight_mismatch": False,
             "height_mismatch": False,
         })

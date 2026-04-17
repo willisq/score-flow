@@ -32,15 +32,22 @@ def test_register_categories_bulk():
     rank_repo = MagicMock()
     sex_repo = MagicMock()
     category_repo = MagicMock()
+    rank_group_repo = MagicMock()
     
     modality = Modality(id=uuid4(), name="Sparring")
     rank = Rank(id=uuid4(), name="Black", classification=10, is_black_belt=True)
     sex = Sex(id=uuid4(), name="Male")
+    rank_group_id = uuid4()
     
     modality_repo.get_by_id = AsyncMock(return_value=modality)
     rank_repo.get_by_id = AsyncMock(return_value=rank)
     sex_repo.get_by_id = AsyncMock(return_value=sex)
     category_repo.create = AsyncMock(side_effect=lambda x: x)
+    
+    from src.features.tournament.domain.entities import RankGroup
+    rank_group_repo.get_by_id = AsyncMock(
+        return_value=RankGroup(id=rank_group_id, name="Avanzados", ranks=[rank])
+    )
     
     use_cases = TournamentUseCases(
         modality_repo=modality_repo,
@@ -50,17 +57,18 @@ def test_register_categories_bulk():
         competitor_repo=MagicMock(),
         rank_repo=rank_repo,
         sex_repo=sex_repo,
+        rank_group_repo=rank_group_repo,
     )
     
     schema = CategoryBulkCreate(
         categories=[
             CategoryCreate(
                 ages=[18, 40],
-                rank_ids=[rank.id],
                 sex_ids=[sex.id],
                 modalities=[
                     CategoryModalityCreate(
                         modality_id=modality.id,
+                        rank_group_ids=[rank_group_id],
                         physical_requirement=PhysicalRequirementCreate(
                             initial_weight=80.0,
                             final_weight=120.0
@@ -70,11 +78,11 @@ def test_register_categories_bulk():
             ),
             CategoryCreate(
                 ages=[10, 15],
-                rank_ids=[rank.id],
                 sex_ids=[sex.id],
                 modalities=[
                     CategoryModalityCreate(
                         modality_id=modality.id,
+                        rank_group_ids=[rank_group_id],
                         physical_requirement=PhysicalRequirementCreate(
                             initial_weight=40.0,
                             final_weight=60.0

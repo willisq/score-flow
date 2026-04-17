@@ -1,7 +1,14 @@
 import pytest
 from uuid import uuid4
-from src.features.tournament.domain.entities import Category, Modality, CategoryModality, PhysicalRequirement
+from src.features.tournament.domain.entities import (
+    Category,
+    Modality,
+    CategoryModality,
+    PhysicalRequirement,
+    RankGroup,
+)
 from src.features.registration.domain.entities import Competitor, Sex, Rank, Person, Academy
+
 
 @pytest.fixture
 def base_sex():
@@ -46,30 +53,29 @@ def valid_competitor(base_academy, base_rank, base_sex):
         age=18,
         weight=65.0,
         height=170.0,
-        special_condition=False
+        special_condition=False,
     )
+
 
 @pytest.fixture
 def base_category_modality(base_modality, base_sex, base_rank):
     category = Category(
-        id=uuid4(),
-        ages=[17, 18, 19],
-        special_condition=False,
-        sexes=[base_sex],
-        ranks=[base_rank]
+        id=uuid4(), ages=[17, 18, 19], special_condition=False, sexes=[base_sex]
     )
     phys_req = PhysicalRequirement(
         id=uuid4(),
         initial_weight=60.0,
         final_weight=70.0,
         initial_height=160.0,
-        final_height=180.0
+        final_height=180.0,
     )
+    rank_group = RankGroup(id=uuid4(), name="Grup: Test", ranks=[base_rank])
     cat_mod = CategoryModality(
         id=uuid4(),
         category=category,
         modality=base_modality,
-        physical_requirement=phys_req
+        rank_group=rank_group,
+        physical_requirement=phys_req,
     )
     category.modalities.append(cat_mod)
     return cat_mod

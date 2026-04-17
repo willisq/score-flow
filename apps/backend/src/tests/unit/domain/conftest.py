@@ -68,6 +68,5 @@ def valid_category(valid_id, valid_modality, valid_sex, valid_rank) -> Category:
         id=valid_id(),
         special_condition=False,
         sexes=[valid_sex],
-        ranks=[valid_rank],
         ages=[18, 35],
     )

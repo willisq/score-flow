@@ -2,7 +2,8 @@
 import { ref, inject, computed, onMounted } from "vue";
 import { useToast } from "primevue/usetoast";
 import { CategoryService } from "../../services/CategoryService";
-import type { CategoryCreate, CategoryUpdate } from "../../types";
+import { RankGroupService } from "../../services/RankGroupService";
+import type { CategoryCreate, CategoryUpdate, RankGroup } from "../../types";
 
 const dialogRef = inject<any>("dialogRef");
 const toast = useToast();
@@ -11,16 +12,16 @@ const isEdit = computed(() => !!dialogRef?.value?.data?.category);
 const categoryToEdit = computed(() => dialogRef?.value?.data?.category);
 
 const modalityOptions = computed(() => dialogRef?.value?.data?.modalities?.value ?? dialogRef?.value?.data?.modalities ?? []);
-const rankOptions = computed(() => dialogRef?.value?.data?.ranks?.value ?? dialogRef?.value?.data?.ranks ?? []);
 const sexOptions = computed(() => dialogRef?.value?.data?.sexes?.value ?? dialogRef?.value?.data?.sexes ?? []);
+const rankGroups = ref<RankGroup[]>([]);
 
 const form = ref({
   ages: [] as number[],
   specialCondition: false,
-  rankIds: [] as string[],
   sexIds: [] as string[],
   modalities: [] as {
     modalityId: string;
+    rankGroupIds: string[];
     usePhysicalRequirement: boolean;
     physicalRequirement: {
       initialWeight: number | null;
@@ -33,26 +34,50 @@ const form = ref({
 
 const selectedModalityIds = ref<string[]>([]);
 
-onMounted(() => {
+onMounted(async () => {
+  try {
+    rankGroups.value = await RankGroupService.getAll();
+  } catch (error) {
+    toast.add({ severity: "error", summary: "Error", detail: "No se pudieron cargar los grupos de rangos.", life: 3000 });
+  }
+
   if (isEdit.value && categoryToEdit.value) {
     const cat = categoryToEdit.value;
     form.value.ages = [...cat.ages];
     form.value.specialCondition = cat.specialCondition;
-    if (cat.ranks) form.value.rankIds = cat.ranks.map((r: any) => r.id);
     if (cat.sexes) form.value.sexIds = cat.sexes.map((s: any) => s.id);
 
     if (cat.modalities) {
-      selectedModalityIds.value = cat.modalities.map((m: any) => m.modality.id);
-      form.value.modalities = cat.modalities.map((m: any) => ({
-        modalityId: m.modality.id,
-        usePhysicalRequirement: !!m.physicalRequirement,
-        physicalRequirement: {
-          initialWeight: m.physicalRequirement?.initialWeight ?? null,
-          finalWeight: m.physicalRequirement?.finalWeight ?? null,
-          initialHeight: m.physicalRequirement?.initialHeight ?? null,
-          finalHeight: m.physicalRequirement?.finalHeight ?? null,
-        },
-      }));
+      selectedModalityIds.value = [...new Set(cat.modalities.map((m: any) => m.modality.id) as string[])];
+      
+      // Agrupar por modalidad y requerimientos físicos similares
+      const groups: Record<string, any> = {};
+      
+      cat.modalities.forEach((m: any) => {
+        const pr = m.physicalRequirement;
+        // Creamos una clave única basada en modalidad y requerimientos
+        const prKey = pr ? `${pr.initialWeight}-${pr.finalWeight}-${pr.initialHeight}-${pr.finalHeight}` : 'no-pr';
+        const key = `${m.modality.id}|${prKey}`;
+        
+        if (!groups[key]) {
+          groups[key] = {
+            modalityId: m.modality.id,
+            rankGroupIds: [],
+            usePhysicalRequirement: !!pr,
+            physicalRequirement: {
+              initialWeight: pr?.initialWeight ?? null,
+              finalWeight: pr?.finalWeight ?? null,
+              initialHeight: pr?.initialHeight ?? null,
+              finalHeight: pr?.finalHeight ?? null,
+            },
+          };
+        }
+        if (m.rankGroup?.id) {
+          groups[key].rankGroupIds.push(m.rankGroup.id);
+        }
+      });
+      
+      form.value.modalities = Object.values(groups);
     }
   }
 });
@@ -63,6 +88,7 @@ function onModalitiesChange(): void {
     if (!form.value.modalities.find((m) => m.modalityId === id)) {
       form.value.modalities.push({
         modalityId: id,
+        rankGroupIds: [],
         usePhysicalRequirement: false,
         physicalRequirement: {
           initialWeight: null,
@@ -96,14 +122,20 @@ function removeAge(age: number): void {
 }
 
 async function onSubmit(): Promise<void> {
+  // Validation: Each modality must have at least one rank group
+  if (form.value.modalities.some(m => !m.rankGroupIds || m.rankGroupIds.length === 0)) {
+    toast.add({ severity: "warn", summary: "Validación", detail: "Por favor, selecciona al menos un grupo de rangos para cada modalidad.", life: 3000 });
+    return;
+  }
+
   submitting.value = true;
   const payload: CategoryCreate = {
     ages: form.value.ages,
     specialCondition: form.value.specialCondition,
-    rankIds: form.value.rankIds,
     sexIds: form.value.sexIds,
     modalities: form.value.modalities.map((m) => ({
       modalityId: m.modalityId,
+      rankGroupIds: m.rankGroupIds,
       physicalRequirement: m.usePhysicalRequirement ? m.physicalRequirement : null,
     })),
   };
@@ -151,19 +183,7 @@ function getModalityName(id: string): string {
         </div>
       </div>
 
-      <div class="grid grid-cols-2 gap-4">
-        <div class="flex flex-col gap-2">
-          <label class="font-semibold text-sm">Rangos Globales</label>
-          <MultiSelect
-            v-model="form.rankIds"
-            :options="rankOptions"
-            optionLabel="name"
-            optionValue="id"
-            placeholder="Seleccionar rangos"
-            display="chip"
-            fluid
-          />
-        </div>
+      <div class="grid grid-cols-1 gap-4">
         <div class="flex flex-col gap-2">
           <label class="font-semibold text-sm">Sexos Globales</label>
           <MultiSelect
@@ -202,7 +222,7 @@ function getModalityName(id: string): string {
       </div>
 
       <div v-if="form.modalities.length > 0" class="flex flex-col gap-4 mt-2">
-        <div v-for="(mod, index) in form.modalities" :key="mod.modalityId" 
+        <div v-for="mod in form.modalities" :key="mod.modalityId" 
              class="border-1 border-surface-200 p-3 border-round bg-surface-50 dark:bg-surface-900">
           <div class="flex justify-between items-center mb-3">
             <span class="font-bold text-primary">{{ getModalityName(mod.modalityId) }}</span>
@@ -210,6 +230,20 @@ function getModalityName(id: string): string {
               <span class="text-xs">Requerimientos físicos</span>
               <ToggleButton v-model="mod.usePhysicalRequirement" onLabel="Si" offLabel="No" class="w-16 h-8 text-xs" />
             </div>
+          </div>
+
+          <div class="flex flex-col gap-3 mb-4">
+            <label class="text-xs font-semibold">Grupos de Rangos para esta modalidad</label>
+            <MultiSelect
+              v-model="mod.rankGroupIds"
+              :options="rankGroups"
+              optionLabel="name"
+              optionValue="id"
+              placeholder="Seleccionar grupos de rangos"
+              display="chip"
+              fluid
+              class="w-full"
+            />
           </div>
 
           <div v-if="mod.usePhysicalRequirement" class="grid grid-cols-2 gap-4 animate-fade-in">

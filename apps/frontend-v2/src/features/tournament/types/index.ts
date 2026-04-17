@@ -20,17 +20,25 @@ export interface PhysicalRequirement {
   finalHeight: number | null;
 }
 
+export interface RankGroup {
+  id: string;
+  name: string;
+  ranks: Rank[];
+}
+
 export interface CategoryModality {
   id: string;
   modality: Modality;
+  rankGroup: RankGroup | null;
   physicalRequirement: PhysicalRequirement | null;
+  // Flattened for easier UI access if needed
+  ranks?: Rank[];
 }
 
 export interface Category {
   id: string;
   ages: number[];
   specialCondition: boolean;
-  ranks: Rank[];
   sexes: Sex[];
   modalities: CategoryModality[];
 }
@@ -59,15 +67,25 @@ export interface PhysicalRequirementCreate {
   finalHeight?: number | null;
 }
 
+export interface RankGroupCreate {
+  name: string;
+  rankIds: string[];
+}
+
+export interface RankGroupUpdate {
+  name?: string;
+  rankIds?: string[];
+}
+
 export interface CategoryModalityCreate {
   modalityId: string;
+  rankGroupIds: string[];
   physicalRequirement?: PhysicalRequirementCreate | null;
 }
 
 export interface CategoryCreate {
   ages: number[];
   specialCondition?: boolean;
-  rankIds: string[];
   sexIds: string[];
   modalities: CategoryModalityCreate[];
 }
@@ -75,7 +93,6 @@ export interface CategoryCreate {
 export interface CategoryUpdate {
   ages?: number[];
   specialCondition?: boolean;
-  rankIds?: string[];
   sexIds?: string[];
   modalities?: CategoryModalityCreate[];
 }
