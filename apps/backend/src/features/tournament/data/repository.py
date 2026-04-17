@@ -110,6 +110,11 @@ class RankGroupRepository:
             for m in result.scalars().all()
         ]
 
+    async def get_model_by_id(self, group_id: UUID) -> Optional[RankGroupModel]:
+        stmt = select(RankGroupModel).options(selectinload(RankGroupModel.ranks)).where(RankGroupModel.id == group_id)
+        result = await self.session.execute(stmt)
+        return result.scalar_one_or_none()
+
     async def delete(self, group_id: UUID) -> bool:
         model = await self.session.get(RankGroupModel, group_id)
         if not model:

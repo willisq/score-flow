@@ -74,4 +74,5 @@ function isOutsideClicked(event: MouseEvent): boolean {
     <DynamicDialog />
   </div>
   <Toast />
+  <ConfirmDialog />
 </template>

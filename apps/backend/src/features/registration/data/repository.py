@@ -1,6 +1,6 @@
 from uuid import UUID
 
-from sqlalchemy import select, func, asc, desc, any_
+from sqlalchemy import select, func, asc, desc, any_, case
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
@@ -66,7 +66,18 @@ class RankRepository:
         return rank
 
     async def list_all(self) -> list[Rank]:
-        result = await self.session.execute(select(RankModel))
+        stmt = select(RankModel).order_by(
+            RankModel.is_black_belt.asc(),
+            case(
+                (RankModel.is_black_belt == False, RankModel.classification),
+                else_=None,
+            ).desc(),
+            case(
+                (RankModel.is_black_belt == True, RankModel.classification),
+                else_=None,
+            ).asc(),
+        )
+        result = await self.session.execute(stmt)
         return [
             Rank(
                 id=m.id,
@@ -409,8 +420,20 @@ class CompetitorRepository:
         ages = [r for r in ages_result.scalars().all()]
 
         # Get ranks present in competitors
-        ranks_stmt = select(RankModel).where(
-            RankModel.id.in_(select(CompetitorModel.rank_id))
+        ranks_stmt = (
+            select(RankModel)
+            .where(RankModel.id.in_(select(CompetitorModel.rank_id)))
+            .order_by(
+                RankModel.is_black_belt.asc(),
+                case(
+                    (RankModel.is_black_belt == False, RankModel.classification),
+                    else_=None,
+                ).desc(),
+                case(
+                    (RankModel.is_black_belt == True, RankModel.classification),
+                    else_=None,
+                ).asc(),
+            )
         )
         ranks_result = await self.session.execute(ranks_stmt)
         ranks = [

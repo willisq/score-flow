@@ -86,7 +86,7 @@ class TournamentUseCases:
         return group
 
     async def update_rank_group(self, id: UUID, schema: RankGroupUpdate) -> RankGroup:
-        model = await self.rank_group_repo.session.get(RankGroupModel, id)
+        model = await self.rank_group_repo.get_model_by_id(id)
         if not model:
             raise ValueError(f"Rank Group with ID {id} not found")
         

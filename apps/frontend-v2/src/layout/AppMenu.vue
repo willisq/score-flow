@@ -24,6 +24,7 @@ const menuItems = ref([
   {
     label: "Competencia",
     items: [
+      { label: "Grupos de Rangos", icon: "pi pi-fw pi-tags", to: "/rank-groups" },
       { label: "Categorías", icon: "pi pi-fw pi-users", to: "/categories" },
       { label: "Generador de Categorías", icon: "pi pi-fw pi-sliders-h", to: "/category-builder" },
       { label: "Pirámides", icon: "pi pi-fw pi-sitemap", to: "/brackets" },
