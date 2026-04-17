@@ -163,14 +163,14 @@ async def mass_register_competitors(
 
 
 @router.get(
-    "/categories/{category_id}/competitors", response_model=list[CompetitorSchema]
+    "/categories/modalities/{category_modality_id}/competitors", response_model=list[CompetitorSchema]
 )
-async def get_category_competitors(
-    category_id: UUID,
+async def get_category_modality_competitors(
+    category_modality_id: UUID,
     use_cases: TournamentUseCases = Depends(get_tournament_use_cases),
 ):
     try:
-        return await use_cases.get_competitors_by_category(category_id)
+        return await use_cases.get_competitors_by_category_modality(category_modality_id)
     except Exception as e:
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,

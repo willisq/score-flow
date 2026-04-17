@@ -1,6 +1,6 @@
 import pytest
 from uuid import uuid4
-from src.features.tournament.domain.entities import Category, Modality
+from src.features.tournament.domain.entities import Category, Modality, CategoryModality, PhysicalRequirement
 from src.features.registration.domain.entities import Competitor, Sex, Rank, Person, Academy
 
 @pytest.fixture
@@ -50,57 +50,67 @@ def valid_competitor(base_academy, base_rank, base_sex):
     )
 
 @pytest.fixture
-def base_category(base_modality, base_sex, base_rank):
-    return Category(
+def base_category_modality(base_modality, base_sex, base_rank):
+    category = Category(
         id=uuid4(),
         ages=[17, 18, 19],
         special_condition=False,
-        modality=base_modality,
         sexes=[base_sex],
-        ranks=[base_rank],
+        ranks=[base_rank]
+    )
+    phys_req = PhysicalRequirement(
+        id=uuid4(),
         initial_weight=60.0,
         final_weight=70.0,
         initial_height=160.0,
         final_height=180.0
     )
+    cat_mod = CategoryModality(
+        id=uuid4(),
+        category=category,
+        modality=base_modality,
+        physical_requirement=phys_req
+    )
+    category.modalities.append(cat_mod)
+    return cat_mod
 
 
-def test_is_eligible_success(base_category, valid_competitor):
+def test_is_eligible_success(base_category_modality, valid_competitor):
     # Todo cumple
-    assert base_category.is_eligible(valid_competitor) is True
+    assert base_category_modality.is_eligible(valid_competitor) is True
 
 
-def test_is_eligible_fails_age(base_category, valid_competitor):
+def test_is_eligible_fails_age(base_category_modality, valid_competitor):
     valid_competitor.age = 25
-    assert base_category.is_eligible(valid_competitor) is False
+    assert base_category_modality.is_eligible(valid_competitor) is False
 
 
-def test_is_eligible_fails_sex(base_category, valid_competitor, base_sex_f):
+def test_is_eligible_fails_sex(base_category_modality, valid_competitor, base_sex_f):
     valid_competitor.sex = base_sex_f
-    assert base_category.is_eligible(valid_competitor) is False
+    assert base_category_modality.is_eligible(valid_competitor) is False
 
 
-def test_is_eligible_fails_rank(base_category, valid_competitor, base_rank_2):
+def test_is_eligible_fails_rank(base_category_modality, valid_competitor, base_rank_2):
     valid_competitor.rank = base_rank_2
-    assert base_category.is_eligible(valid_competitor) is False
+    assert base_category_modality.is_eligible(valid_competitor) is False
 
 
-def test_is_eligible_fails_weight(base_category, valid_competitor):
+def test_is_eligible_fails_weight(base_category_modality, valid_competitor):
     valid_competitor.weight = 80.0
-    assert base_category.is_eligible(valid_competitor) is False
+    assert base_category_modality.is_eligible(valid_competitor) is False
 
 
-def test_is_eligible_fails_height(base_category, valid_competitor):
+def test_is_eligible_fails_height(base_category_modality, valid_competitor):
     valid_competitor.height = 190.0
-    assert base_category.is_eligible(valid_competitor) is False
+    assert base_category_modality.is_eligible(valid_competitor) is False
 
 
-def test_is_eligible_fails_special_condition(base_category, valid_competitor):
+def test_is_eligible_fails_special_condition(base_category_modality, valid_competitor):
     valid_competitor.special_condition = True
-    assert base_category.is_eligible(valid_competitor) is False
+    assert base_category_modality.is_eligible(valid_competitor) is False
 
 
-def test_is_eligible_success_special_condition(base_category, valid_competitor):
-    base_category.special_condition = True
+def test_is_eligible_success_special_condition(base_category_modality, valid_competitor):
+    base_category_modality.category.special_condition = True
     valid_competitor.special_condition = True
-    assert base_category.is_eligible(valid_competitor) is True
+    assert base_category_modality.is_eligible(valid_competitor) is True

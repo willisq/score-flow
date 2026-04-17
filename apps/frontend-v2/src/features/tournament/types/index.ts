@@ -12,23 +12,33 @@ export interface Tournament {
   description: string;
 }
 
-export interface Category {
+export interface PhysicalRequirement {
   id: string;
-  ages: number[];
-  specialCondition: boolean;
-  modality: Modality;
-  ranks: Rank[];
-  sexes: Sex[];
   initialWeight: number | null;
   finalWeight: number | null;
   initialHeight: number | null;
   finalHeight: number | null;
 }
 
+export interface CategoryModality {
+  id: string;
+  modality: Modality;
+  physicalRequirement: PhysicalRequirement | null;
+}
+
+export interface Category {
+  id: string;
+  ages: number[];
+  specialCondition: boolean;
+  ranks: Rank[];
+  sexes: Sex[];
+  modalities: CategoryModality[];
+}
+
 export interface CategoryRegistration {
   id: string;
   competitor: Competitor;
-  category: Category;
+  categoryModality: CategoryModality;
   tournament: Tournament;
 }
 
@@ -56,7 +66,7 @@ export interface CategoryCreate {
 
 export interface CategoryRegistrationCreate {
   competitorId: string;
-  categoryId: string;
+  categoryModalityId: string;
   tournamentId: string;
 }
 
@@ -65,7 +75,7 @@ export interface CategoryRegistrationCreate {
 export interface MassRegistrationRequest {
   competitorIds: string[];
   tournamentId: string;
-  categoryId?: string | null;
+  categoryModalityId?: string | null;
 }
 
 export interface RegistrationError {

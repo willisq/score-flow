@@ -5,7 +5,7 @@ from sqlalchemy import Integer, String, ForeignKey
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from src.core.common.models import Base
-from src.features.tournament.data.models import CategoryRegistrationModel, CategoryModel
+from src.features.tournament.data.models import CategoryRegistrationModel, CategoryModalityModel
 
 
 class RoundModel(Base):
@@ -25,10 +25,10 @@ class MatchModel(Base):
     second_competitor: Mapped[Optional[UUID]] = mapped_column(ForeignKey("competitor_category.id"), nullable=True)
     winner: Mapped[Optional[UUID]] = mapped_column(ForeignKey("competitor_category.id"), nullable=True)
     position: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
-    category_id: Mapped[Optional[UUID]] = mapped_column(ForeignKey("category.id"), nullable=True)
+    category_modality_id: Mapped[Optional[UUID]] = mapped_column(ForeignKey("category_modality.id"), nullable=True)
 
     round_rel: Mapped[RoundModel] = relationship()
     first_competitor_rel: Mapped[CategoryRegistrationModel] = relationship(foreign_keys=[first_competitor])
     second_competitor_rel: Mapped[Optional[CategoryRegistrationModel]] = relationship(foreign_keys=[second_competitor])
     winner_rel: Mapped[Optional[CategoryRegistrationModel]] = relationship(foreign_keys=[winner])
-    category_rel: Mapped[Optional[CategoryModel]] = relationship()
+    category_modality_rel: Mapped[Optional[CategoryModalityModel]] = relationship()

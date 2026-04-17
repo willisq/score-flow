@@ -36,29 +36,39 @@ class CategoryCreate(TunedModel):
     final_height: Optional[float] = Field(default=None, ge=0)
 
 
-class CategorySchema(TunedModel):
+class PhysicalRequirementSchema(TunedModel):
     id: UUID
-    ages: List[int]
-    special_condition: bool
-    modality: ModalitySchema
-    ranks: List[RankSchema]
-    sexes: List[SexSchema]
     initial_weight: Optional[float] = None
     final_weight: Optional[float] = None
     initial_height: Optional[float] = None
     final_height: Optional[float] = None
 
 
+class CategoryModalitySchema(TunedModel):
+    id: UUID
+    modality: ModalitySchema
+    physical_requirement: Optional[PhysicalRequirementSchema] = None
+
+
+class CategorySchema(TunedModel):
+    id: UUID
+    ages: List[int]
+    special_condition: bool
+    ranks: List[RankSchema]
+    sexes: List[SexSchema]
+    modalities: List[CategoryModalitySchema]
+
+
 class CategoryRegistrationCreate(TunedModel):
     competitor_id: UUID
-    category_id: UUID
+    category_modality_id: UUID
     tournament_id: UUID
 
 
 class CategoryRegistrationSchema(TunedModel):
     id: UUID
     competitor: CompetitorSchema
-    category: CategorySchema
+    category_modality: CategoryModalitySchema
     tournament: TournamentSchema
 
 
@@ -78,7 +88,7 @@ class MassRegistrationResponse(TunedModel):
 class MassRegistrationRequest(TunedModel):
     competitor_ids: List[UUID]
     tournament_id: UUID
-    category_id: Optional[UUID] = None
+    category_modality_id: Optional[UUID] = None
 
 
 class CategoryBulkCreate(TunedModel):

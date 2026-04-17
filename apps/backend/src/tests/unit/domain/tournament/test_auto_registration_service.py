@@ -2,7 +2,7 @@ import pytest
 from uuid import uuid4
 
 from src.features.registration.domain.entities import Competitor, Sex, Rank, Person, Academy
-from src.features.tournament.domain.entities import Category, Modality, Tournament
+from src.features.tournament.domain.entities import Category, Modality, Tournament, CategoryModality, PhysicalRequirement
 from src.features.tournament.domain.services import AutoRegistrationService
 
 @pytest.fixture
@@ -55,18 +55,28 @@ def invalid_competitor(base_academy, base_rank, base_sex):
 @pytest.fixture
 def base_category(base_sex, base_rank):
     modality = Modality(id=uuid4(), name="Kumite")
-    return Category(
+    category = Category(
         id=uuid4(),
         ages=[17, 18, 19],
         special_condition=False,
-        modality=modality,
         sexes=[base_sex],
-        ranks=[base_rank],
+        ranks=[base_rank]
+    )
+    phys_req = PhysicalRequirement(
+        id=uuid4(),
         initial_weight=60.0,
         final_weight=70.0,
         initial_height=160.0,
         final_height=180.0
     )
+    cat_mod = CategoryModality(
+        id=uuid4(),
+        category=category,
+        modality=modality,
+        physical_requirement=phys_req
+    )
+    category.modalities.append(cat_mod)
+    return category
 
 
 @pytest.fixture
@@ -82,11 +92,11 @@ def test_auto_register_competitors(valid_competitor, invalid_competitor, base_ca
         competitors, categories, base_tournament
     )
     
-    # Only valid_competitor matches base_category
+    # Only valid_competitor matches base_category.modalities[0]
     assert len(registrations) == 1
     
     registration = registrations[0]
     assert registration.competitor.id == valid_competitor.id
-    assert registration.category.id == base_category.id
+    assert registration.category_modality.id == base_category.modalities[0].id
     assert registration.tournament.id == base_tournament.id
     assert registration.id is not None

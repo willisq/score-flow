@@ -1,5 +1,5 @@
 from uuid import UUID
-from typing import List
+from typing import List, Optional
 
 from sqlalchemy import Boolean, Float, ForeignKey, Integer, String, Table, Column
 from sqlalchemy.orm import Mapped, mapped_column, relationship
@@ -31,8 +31,6 @@ class ModalityModel(Base):
     id: Mapped[UUID] = mapped_column(primary_key=True)
     name: Mapped[str] = mapped_column(String(100), nullable=False)
 
-    categories: Mapped[List["CategoryModel"]] = relationship(back_populates="modality")
-
 
 class TournamentModel(Base):
     __tablename__ = "tournament"
@@ -45,23 +43,45 @@ class TournamentModel(Base):
     )
 
 
+class PhysicalRequirementModel(Base):
+    __tablename__ = "physical_requirement"
+
+    id: Mapped[UUID] = mapped_column(primary_key=True)
+    initial_weight: Mapped[float] = mapped_column(Float, nullable=True)
+    final_weight: Mapped[float] = mapped_column(Float, nullable=True)
+    initial_height: Mapped[float] = mapped_column(Float, nullable=True)
+    final_height: Mapped[float] = mapped_column(Float, nullable=True)
+
+
 class CategoryModel(Base):
     __tablename__ = "category"
 
     id: Mapped[UUID] = mapped_column(primary_key=True)
     ages: Mapped[List[int]] = mapped_column(ARRAY(Integer), nullable=False)
     special_condition: Mapped[bool] = mapped_column(Boolean, default=False)
-    modality_id: Mapped[UUID] = mapped_column(ForeignKey("modality.id"), nullable=False)
-    initial_weight: Mapped[float] = mapped_column(Float, nullable=True)
-    final_weight: Mapped[float] = mapped_column(Float, nullable=True)
-    initial_height: Mapped[float] = mapped_column(Float, nullable=True)
-    final_height: Mapped[float] = mapped_column(Float, nullable=True)
 
-    modality: Mapped[ModalityModel] = relationship(back_populates="categories")
     ranks: Mapped[List[RankModel]] = relationship(secondary=category_rank)
     sexes: Mapped[List[SexModel]] = relationship(secondary=category_sex)
+    modalities: Mapped[List["CategoryModalityModel"]] = relationship(
+        back_populates="category", cascade="all, delete-orphan"
+    )
+
+
+class CategoryModalityModel(Base):
+    __tablename__ = "category_modality"
+
+    id: Mapped[UUID] = mapped_column(primary_key=True)
+    category_id: Mapped[UUID] = mapped_column(ForeignKey("category.id"), nullable=False)
+    modality_id: Mapped[UUID] = mapped_column(ForeignKey("modality.id"), nullable=False)
+    physical_requirement_id: Mapped[Optional[UUID]] = mapped_column(
+        ForeignKey("physical_requirement.id"), nullable=True
+    )
+
+    category: Mapped[CategoryModel] = relationship(back_populates="modalities")
+    modality: Mapped[ModalityModel] = relationship()
+    physical_requirement: Mapped[Optional[PhysicalRequirementModel]] = relationship()
     registrations: Mapped[List["CategoryRegistrationModel"]] = relationship(
-        back_populates="category"
+        back_populates="category_modality"
     )
 
 
@@ -72,11 +92,15 @@ class CategoryRegistrationModel(Base):
     competitor_id: Mapped[UUID] = mapped_column(
         ForeignKey("competitor.id"), nullable=False
     )
-    category_id: Mapped[UUID] = mapped_column(ForeignKey("category.id"), nullable=False)
+    category_modality_id: Mapped[UUID] = mapped_column(
+        ForeignKey("category_modality.id"), nullable=False
+    )
     tournament_id: Mapped[UUID] = mapped_column(
         ForeignKey("tournament.id"), nullable=False
     )
 
     competitor: Mapped[CompetitorModel] = relationship()
-    category: Mapped[CategoryModel] = relationship(back_populates="registrations")
+    category_modality: Mapped[CategoryModalityModel] = relationship(
+        back_populates="registrations"
+    )
     tournament: Mapped[TournamentModel] = relationship(back_populates="registrations")

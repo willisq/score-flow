@@ -4,6 +4,7 @@ from uuid import uuid4
 from src.features.registration.domain.entities import Competitor
 from src.features.tournament.domain.entities import (
     Category,
+    CategoryModality,
     CategoryRegistration,
     Tournament,
 )
@@ -27,13 +28,18 @@ class AutoRegistrationService:
         """
         registrations: List[CategoryRegistration] = []
 
+        # Flatten all modalities from all categories
+        all_modalities: List[CategoryModality] = []
+        for category in categories:
+            all_modalities.extend(category.modalities)
+
         for competitor in competitors:
-            for category in categories:
-                if category.is_eligible(competitor):
+            for modality in all_modalities:
+                if modality.is_eligible(competitor):
                     new_registration = CategoryRegistration(
                         id=uuid4(),
                         competitor=competitor,
-                        category=category,
+                        category_modality=modality,
                         tournament=tournament,
                     )
                     registrations.append(new_registration)

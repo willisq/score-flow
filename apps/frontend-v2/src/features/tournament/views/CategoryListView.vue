@@ -1,8 +1,8 @@
 <script setup lang="ts">
-import { ref, onMounted } from "vue";
+import { ref, onMounted, computed } from "vue";
 import { useDialog } from "primevue/usedialog";
 import { CategoryService } from "../services/CategoryService";
-import type { Category } from "../types";
+import type { Category, CategoryModality } from "../types";
 import CategoryForm from "./components/CategoryForm.vue";
 import CategoryCompetitorList from "./components/CategoryCompetitorList.vue";
 import { useRegistrationData } from "@/features/registration/composables/useRegistrationData";
@@ -14,6 +14,19 @@ const { modalities } = useTournamentData();
 
 const categories = ref<Category[]>([]);
 const loading = ref(true);
+
+const flatCategories = computed(() => {
+  return categories.value.flatMap((cat) =>
+    cat.modalities.map((mod) => ({
+      ...mod,
+      // Pass category data along with modality
+      ages: cat.ages,
+      specialCondition: cat.specialCondition,
+      ranks: cat.ranks,
+      sexes: cat.sexes,
+    }))
+  );
+});
 
 async function loadCategories(): Promise<void> {
   loading.value = true;
@@ -38,7 +51,7 @@ function openCreateDialog(): void {
   });
 }
 
-function showCompetitors(category: Category): void {
+function showCompetitors(categoryModality: any): void {
   dialog.open(CategoryCompetitorList, {
     props: {
       header: "Competidores en la Categoría",
@@ -47,7 +60,7 @@ function showCompetitors(category: Category): void {
       modal: true,
       dismissableMask: true,
     },
-    data: { category },
+    data: { categoryModality },
   });
 }
 
@@ -61,7 +74,7 @@ onMounted(loadCategories);
       <Button icon="pi pi-plus" label="Nueva Categoría" @click="openCreateDialog" />
     </div>
 
-    <DataView :value="categories" :loading="loading" paginator :rows="5">
+    <DataView :value="flatCategories" :loading="loading" paginator :rows="5">
       <template #list="slotProps">
         <div class="flex flex-col">
           <div
@@ -75,11 +88,11 @@ onMounted(loadCategories);
               <span class="text-lg font-semibold">
                 Edades: {{ Math.min(...item.ages) }} – {{ Math.max(...item.ages) }} años
               </span>
-              <span v-if="item.initialWeight != null" class="text-lg font-semibold">
-                Pesos: {{ item.initialWeight }} – {{ item.finalWeight }} Kg
+              <span v-if="item.physicalRequirement?.initialWeight != null" class="text-lg font-semibold">
+                Pesos: {{ item.physicalRequirement.initialWeight }} – {{ item.physicalRequirement.finalWeight }} Kg
               </span>
-              <span v-if="item.initialHeight != null" class="text-lg font-semibold">
-                Alturas: {{ item.initialHeight }} – {{ item.finalHeight }} cm
+              <span v-if="item.physicalRequirement?.initialHeight != null" class="text-lg font-semibold">
+                Alturas: {{ item.physicalRequirement.initialHeight }} – {{ item.physicalRequirement.finalHeight }} cm
               </span>
             </div>
 

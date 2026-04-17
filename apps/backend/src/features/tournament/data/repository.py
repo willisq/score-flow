@@ -9,12 +9,16 @@ from src.features.tournament.data.models import (
     ModalityModel,
     TournamentModel,
     CategoryModel,
+    CategoryModalityModel,
+    PhysicalRequirementModel,
     CategoryRegistrationModel,
 )
 from src.features.tournament.domain.entities import (
     Modality,
     Tournament,
     Category,
+    CategoryModality,
+    PhysicalRequirement,
     CategoryRegistration,
 )
 from src.features.registration.domain.entities import Competitor, Rank, Sex, Person, Academy
@@ -70,23 +74,40 @@ class CategoryRepository:
             id=category.id,
             ages=category.ages,
             special_condition=category.special_condition,
-            modality_id=category.modality.id,
-            initial_weight=category.initial_weight,
-            final_weight=category.final_weight,
-            initial_height=category.initial_height,
-            final_height=category.final_height,
         )
-        
-        # Add ranks and sexes (many-to-many)
+
+        # Add ranks and sexes
         for rank in category.ranks:
             rank_model = await self.session.get(RankModel, rank.id)
             if rank_model:
                 model.ranks.append(rank_model)
-        
+
         for sex in category.sexes:
             sex_model = await self.session.get(SexModel, sex.id)
             if sex_model:
                 model.sexes.append(sex_model)
+
+        # Add modalities and their physical requirements
+        for cat_mod in category.modalities:
+            phys_req_model = None
+            if cat_mod.physical_requirement:
+                phys_req = cat_mod.physical_requirement
+                phys_req_model = PhysicalRequirementModel(
+                    id=phys_req.id,
+                    initial_weight=phys_req.initial_weight,
+                    final_weight=phys_req.final_weight,
+                    initial_height=phys_req.initial_height,
+                    final_height=phys_req.final_height,
+                )
+                self.session.add(phys_req_model)
+
+            mod_model = CategoryModalityModel(
+                id=cat_mod.id,
+                category_id=category.id,
+                modality_id=cat_mod.modality.id,
+                physical_requirement_id=phys_req_model.id if phys_req_model else None,
+            )
+            model.modalities.append(mod_model)
 
         self.session.add(model)
         return category
@@ -95,9 +116,10 @@ class CategoryRepository:
         stmt = (
             select(CategoryModel)
             .options(
-                selectinload(CategoryModel.modality),
                 selectinload(CategoryModel.ranks),
                 selectinload(CategoryModel.sexes),
+                selectinload(CategoryModel.modalities).selectinload(CategoryModalityModel.modality),
+                selectinload(CategoryModel.modalities).selectinload(CategoryModalityModel.physical_requirement),
             )
             .where(CategoryModel.id == category_id)
         )
@@ -110,19 +132,59 @@ class CategoryRepository:
 
     async def list_all(self) -> List[Category]:
         stmt = select(CategoryModel).options(
-            selectinload(CategoryModel.modality),
             selectinload(CategoryModel.ranks),
             selectinload(CategoryModel.sexes),
+            selectinload(CategoryModel.modalities).selectinload(CategoryModalityModel.modality),
+            selectinload(CategoryModel.modalities).selectinload(CategoryModalityModel.physical_requirement),
         )
         result = await self.session.execute(stmt)
         return [self._to_domain(m) for m in result.scalars().all()]
 
+    async def get_modality_by_id(self, modality_id: UUID) -> Optional[CategoryModality]:
+        stmt = (
+            select(CategoryModalityModel)
+            .options(
+                selectinload(CategoryModalityModel.modality),
+                selectinload(CategoryModalityModel.physical_requirement),
+                selectinload(CategoryModalityModel.category).selectinload(CategoryModel.ranks),
+                selectinload(CategoryModalityModel.category).selectinload(CategoryModel.sexes),
+            )
+            .where(CategoryModalityModel.id == modality_id)
+        )
+        result = await self.session.execute(stmt)
+        model = result.scalar_one_or_none()
+        if not model:
+            return None
+
+        # Return domain entity
+        category = Category(
+            id=model.category.id,
+            ages=model.category.ages,
+            special_condition=model.category.special_condition,
+            ranks=[
+                Rank(id=r.id, name=r.name, classification=r.classification, is_black_belt=r.is_black_belt)
+                for r in model.category.ranks
+            ],
+            sexes=[Sex(id=s.id, name=s.name) for s in model.category.sexes],
+        )
+        return CategoryModality(
+            id=model.id,
+            category=category,
+            modality=Modality(id=model.modality.id, name=model.modality.name),
+            physical_requirement=PhysicalRequirement(
+                id=model.physical_requirement.id,
+                initial_weight=model.physical_requirement.initial_weight,
+                final_weight=model.physical_requirement.final_weight,
+                initial_height=model.physical_requirement.initial_height,
+                final_height=model.physical_requirement.final_height,
+            ) if model.physical_requirement else None
+        )
+
     def _to_domain(self, model: CategoryModel) -> Category:
-        return Category(
+        category = Category(
             id=model.id,
             ages=model.ages,
             special_condition=model.special_condition,
-            modality=Modality(id=model.modality.id, name=model.modality.name),
             ranks=[
                 Rank(
                     id=r.id,
@@ -133,11 +195,24 @@ class CategoryRepository:
                 for r in model.ranks
             ],
             sexes=[Sex(id=s.id, name=s.name) for s in model.sexes],
-            initial_weight=model.initial_weight,
-            final_weight=model.final_weight,
-            initial_height=model.initial_height,
-            final_height=model.final_height,
         )
+
+        category.modalities = [
+            CategoryModality(
+                id=m.id,
+                category=category,
+                modality=Modality(id=m.modality.id, name=m.modality.name),
+                physical_requirement=PhysicalRequirement(
+                    id=m.physical_requirement.id,
+                    initial_weight=m.physical_requirement.initial_weight,
+                    final_weight=m.physical_requirement.final_weight,
+                    initial_height=m.physical_requirement.initial_height,
+                    final_height=m.physical_requirement.final_height,
+                ) if m.physical_requirement else None
+            )
+            for m in model.modalities
+        ]
+        return category
 
 
 class CategoryRegistrationRepository:
@@ -148,7 +223,7 @@ class CategoryRegistrationRepository:
         model = CategoryRegistrationModel(
             id=registration.id,
             competitor_id=registration.competitor.id,
-            category_id=registration.category.id,
+            category_modality_id=registration.category_modality.id,
             tournament_id=registration.tournament.id,
         )
         self.session.add(model)
@@ -163,10 +238,11 @@ class CategoryRegistrationRepository:
                 selectinload(CategoryRegistrationModel.competitor).selectinload(CompetitorModel.academy).selectinload(AcademyModel.instructor),
                 selectinload(CategoryRegistrationModel.competitor).selectinload(CompetitorModel.rank),
                 selectinload(CategoryRegistrationModel.competitor).selectinload(CompetitorModel.sex),
-                # Load category and its relations
-                selectinload(CategoryRegistrationModel.category).selectinload(CategoryModel.modality),
-                selectinload(CategoryRegistrationModel.category).selectinload(CategoryModel.ranks),
-                selectinload(CategoryRegistrationModel.category).selectinload(CategoryModel.sexes),
+                # Load category_modality and its relations
+                selectinload(CategoryRegistrationModel.category_modality).selectinload(CategoryModalityModel.modality),
+                selectinload(CategoryRegistrationModel.category_modality).selectinload(CategoryModalityModel.physical_requirement),
+                selectinload(CategoryRegistrationModel.category_modality).selectinload(CategoryModalityModel.category).selectinload(CategoryModel.ranks),
+                selectinload(CategoryRegistrationModel.category_modality).selectinload(CategoryModalityModel.category).selectinload(CategoryModel.sexes),
                 # Load tournament
                 selectinload(CategoryRegistrationModel.tournament),
             )
@@ -180,7 +256,7 @@ class CategoryRegistrationRepository:
         # Deep mapping to Domain
         competitor_model = model.competitor
         academy_model = competitor_model.academy
-        
+
         academy = Academy(
             id=academy_model.id,
             name=academy_model.name,
@@ -190,7 +266,7 @@ class CategoryRegistrationRepository:
                 last_name=academy_model.instructor.last_name
             )
         )
-        
+
         competitor = Competitor(
             id=competitor_model.id,
             first_name=competitor_model.person.first_name,
@@ -208,27 +284,37 @@ class CategoryRegistrationRepository:
             age=competitor_model.age,
             special_condition=competitor_model.special_condition
         )
-        
+
+        cat_model = model.category_modality.category
         category = Category(
-            id=model.category.id,
-            ages=model.category.ages,
-            special_condition=model.category.special_condition,
-            modality=Modality(id=model.category.modality.id, name=model.category.modality.name),
+            id=cat_model.id,
+            ages=cat_model.ages,
+            special_condition=cat_model.special_condition,
             ranks=[
                 Rank(
                     id=r.id,
                     name=r.name,
                     classification=r.classification,
                     is_black_belt=r.is_black_belt
-                ) for r in model.category.ranks
+                ) for r in cat_model.ranks
             ],
-            sexes=[Sex(id=s.id, name=s.name) for s in model.category.sexes],
-            initial_weight=model.category.initial_weight,
-            final_weight=model.category.final_weight,
-            initial_height=model.category.initial_height,
-            final_height=model.category.final_height
+            sexes=[Sex(id=s.id, name=s.name) for s in cat_model.sexes],
         )
-        
+
+        mod_model = model.category_modality
+        category_modality = CategoryModality(
+            id=mod_model.id,
+            category=category,
+            modality=Modality(id=mod_model.modality.id, name=mod_model.modality.name),
+            physical_requirement=PhysicalRequirement(
+                id=mod_model.physical_requirement.id,
+                initial_weight=mod_model.physical_requirement.initial_weight,
+                final_weight=mod_model.physical_requirement.final_weight,
+                initial_height=mod_model.physical_requirement.initial_height,
+                final_height=mod_model.physical_requirement.final_height
+            ) if mod_model.physical_requirement else None
+        )
+
         tournament = Tournament(
             id=model.tournament.id,
             description=model.tournament.description
@@ -237,11 +323,11 @@ class CategoryRegistrationRepository:
         return CategoryRegistration(
             id=model.id,
             competitor=competitor,
-            category=category,
+            category_modality=category_modality,
             tournament=tournament
         )
 
-    async def get_by_categories(self, category_ids: Optional[List[UUID]] = None) -> List[CategoryRegistration]:
+    async def get_by_categories(self, category_modality_ids: Optional[List[UUID]] = None) -> List[CategoryRegistration]:
         stmt = (
             select(CategoryRegistrationModel)
             .options(
@@ -249,25 +335,26 @@ class CategoryRegistrationRepository:
                 selectinload(CategoryRegistrationModel.competitor).selectinload(CompetitorModel.academy).selectinload(AcademyModel.instructor),
                 selectinload(CategoryRegistrationModel.competitor).selectinload(CompetitorModel.rank),
                 selectinload(CategoryRegistrationModel.competitor).selectinload(CompetitorModel.sex),
-                selectinload(CategoryRegistrationModel.category).selectinload(CategoryModel.modality),
-                selectinload(CategoryRegistrationModel.category).selectinload(CategoryModel.ranks),
-                selectinload(CategoryRegistrationModel.category).selectinload(CategoryModel.sexes),
+                selectinload(CategoryRegistrationModel.category_modality).selectinload(CategoryModalityModel.modality),
+                selectinload(CategoryRegistrationModel.category_modality).selectinload(CategoryModalityModel.physical_requirement),
+                selectinload(CategoryRegistrationModel.category_modality).selectinload(CategoryModalityModel.category).selectinload(CategoryModel.ranks),
+                selectinload(CategoryRegistrationModel.category_modality).selectinload(CategoryModalityModel.category).selectinload(CategoryModel.sexes),
                 selectinload(CategoryRegistrationModel.tournament),
             )
         )
-        
-        if category_ids:
-            stmt = stmt.where(CategoryRegistrationModel.category_id.in_(category_ids))
-            
+
+        if category_modality_ids:
+            stmt = stmt.where(CategoryRegistrationModel.category_modality_id.in_(category_modality_ids))
+
         result = await self.session.execute(stmt)
         models = result.scalars().all()
-        
+
         registrations = []
         for model in models:
             # Reutilizando el mapeo de get_by_id
             competitor_model = model.competitor
             academy_model = competitor_model.academy
-            
+
             academy = Academy(
                 id=academy_model.id,
                 name=academy_model.name,
@@ -277,7 +364,7 @@ class CategoryRegistrationRepository:
                     last_name=academy_model.instructor.last_name
                 )
             )
-            
+
             competitor = Competitor(
                 id=competitor_model.id,
                 first_name=competitor_model.person.first_name,
@@ -295,37 +382,47 @@ class CategoryRegistrationRepository:
                 age=competitor_model.age,
                 special_condition=competitor_model.special_condition
             )
-            
+
+            cat_model = model.category_modality.category
             category = Category(
-                id=model.category.id,
-                ages=model.category.ages,
-                special_condition=model.category.special_condition,
-                modality=Modality(id=model.category.modality.id, name=model.category.modality.name),
+                id=cat_model.id,
+                ages=cat_model.ages,
+                special_condition=cat_model.special_condition,
                 ranks=[
                     Rank(
                         id=r.id,
                         name=r.name,
                         classification=r.classification,
                         is_black_belt=r.is_black_belt
-                    ) for r in model.category.ranks
+                    ) for r in cat_model.ranks
                 ],
-                sexes=[Sex(id=s.id, name=s.name) for s in model.category.sexes],
-                initial_weight=model.category.initial_weight,
-                final_weight=model.category.final_weight,
-                initial_height=model.category.initial_height,
-                final_height=model.category.final_height
+                sexes=[Sex(id=s.id, name=s.name) for s in cat_model.sexes],
             )
-            
+
+            mod_model = model.category_modality
+            category_modality = CategoryModality(
+                id=mod_model.id,
+                category=category,
+                modality=Modality(id=mod_model.modality.id, name=mod_model.modality.name),
+                physical_requirement=PhysicalRequirement(
+                    id=mod_model.physical_requirement.id,
+                    initial_weight=mod_model.physical_requirement.initial_weight,
+                    final_weight=mod_model.physical_requirement.final_weight,
+                    initial_height=mod_model.physical_requirement.initial_height,
+                    final_height=mod_model.physical_requirement.final_height
+                ) if mod_model.physical_requirement else None
+            )
+
             tournament = Tournament(
                 id=model.tournament.id,
                 description=model.tournament.description
             )
-            
+
             registrations.append(CategoryRegistration(
                 id=model.id,
                 competitor=competitor,
-                category=category,
+                category_modality=category_modality,
                 tournament=tournament
             ))
-            
+
         return registrations

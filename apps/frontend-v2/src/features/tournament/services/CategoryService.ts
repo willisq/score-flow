@@ -15,9 +15,9 @@ export class CategoryService {
     return data;
   }
 
-  static async getCompetitors(categoryId: string): Promise<Competitor[]> {
+  static async getCompetitors(categoryModalityId: string): Promise<Competitor[]> {
     const { data } = await httpClient.get<Competitor[]>(
-      `${this.BASE}/${categoryId}/competitors`
+      `${this.BASE}/modalities/${categoryModalityId}/competitors`
     );
     return data;
   }

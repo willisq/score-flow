@@ -20,6 +20,8 @@ from src.features.tournament.domain.entities import (
     Modality,
     Tournament,
     Category,
+    CategoryModality,
+    PhysicalRequirement,
     CategoryRegistration,
 )
 from src.features.registration.data.repository import (
@@ -87,24 +89,41 @@ class TournamentUseCases:
             sexes.append(sex)
 
         # 2. Create Domain Entities
-        created_categories = []
-        for modality in modalities:
-            category = Category(
+        category_id = uuid4()
+        category = Category(
+            id=category_id,
+            ages=schema.ages,
+            special_condition=schema.special_condition,
+            ranks=ranks,
+            sexes=sexes,
+        )
+
+        physical_requirement = None
+        if any([
+            schema.initial_weight is not None,
+            schema.final_weight is not None,
+            schema.initial_height is not None,
+            schema.final_height is not None
+        ]):
+            physical_requirement = PhysicalRequirement(
                 id=uuid4(),
-                ages=schema.ages,
-                special_condition=schema.special_condition,
-                modality=modality,
-                ranks=ranks,
-                sexes=sexes,
                 initial_weight=schema.initial_weight,
                 final_weight=schema.final_weight,
                 initial_height=schema.initial_height,
                 final_height=schema.final_height,
             )
-            created = await self.category_repo.create(category)
-            created_categories.append(created)
 
-        return created_categories
+        for modality in modalities:
+            cat_mod = CategoryModality(
+                id=uuid4(),
+                category=category,
+                modality=modality,
+                physical_requirement=physical_requirement,
+            )
+            category.modalities.append(cat_mod)
+
+        created = await self.category_repo.create(category)
+        return [created]
 
     async def list_categories(self) -> List[Category]:
         return await self.category_repo.list_all()
@@ -115,23 +134,21 @@ class TournamentUseCases:
         if not competitor:
             raise ValueError(f"Competitor with ID {schema.competitor_id} not found")
 
-        category = await self.category_repo.get_by_id(schema.category_id)
-        if not category:
-            raise ValueError(f"Category with ID {schema.category_id} not found")
+        category_modality = await self.category_repo.get_modality_by_id(schema.category_modality_id)
+        if not category_modality:
+            raise ValueError(f"Category Modality with ID {schema.category_modality_id} not found")
 
         tournament = await self.tournament_repo.get_by_id(schema.tournament_id)
         if not tournament:
             raise ValueError(f"Tournament with ID {schema.tournament_id} not found")
 
-        # 2. Create Domain Entity (Validation can be added here if needed, 
-        # e.g., checking if competitor fits the category)
+        # 2. Create Domain Entity
         registration = CategoryRegistration(
             id=uuid4(),
             competitor=competitor,
-            category=category,
+            category_modality=category_modality,
             tournament=tournament,
         )
-
 
         return await self.registration_repo.create(registration)
 
@@ -149,14 +166,14 @@ class TournamentUseCases:
         registrations: List[CategoryRegistration] = []
         errors: List[dict] = []
 
-        if schema.category_id:
-            # 3a. Manual registration for a specific category
-            category = await self.category_repo.get_by_id(schema.category_id)
-            if not category:
-                raise ValueError(f"Category with ID {schema.category_id} not found")
+        if schema.category_modality_id:
+            # 3a. Manual registration for a specific category-modality
+            category_modality = await self.category_repo.get_modality_by_id(schema.category_modality_id)
+            if not category_modality:
+                raise ValueError(f"Category Modality with ID {schema.category_modality_id} not found")
 
             for competitor in competitors:
-                failures = category.get_eligibility_failures(competitor)
+                failures = category_modality.get_eligibility_failures(competitor)
                 if any(failures.values()):
                     errors.append({
                         "competitor_id": competitor.id,
@@ -168,20 +185,25 @@ class TournamentUseCases:
                     registration = CategoryRegistration(
                         id=uuid4(),
                         competitor=competitor,
-                        category=category,
+                        category_modality=category_modality,
                         tournament=tournament,
                     )
                     registrations.append(registration)
         else:
-            # 3b. Automatic registration (enhanced logic)
+            # 3b. Automatic registration
             # Fetch all categories
-            categories = await self.category_repo.list_all()
+            all_categories = await self.category_repo.list_all()
+            
+            # Flatten to all available CategoryModality options
+            all_category_modalities: List[CategoryModality] = []
+            for cat in all_categories:
+                all_category_modalities.extend(cat.modalities)
 
             for competitor in competitors:
-                # Find all eligible categories
-                eligible_cats = [c for c in categories if c.is_eligible(competitor)]
+                # Find all eligible category-modalities
+                eligible_mods = [m for m in all_category_modalities if m.is_eligible(competitor)]
 
-                if not eligible_cats:
+                if not eligible_mods:
                     errors.append({
                         "competitor_id": competitor.id,
                         "competitor_name": f"{competitor.first_name} {competitor.last_name}",
@@ -191,29 +213,30 @@ class TournamentUseCases:
                     continue
 
                 # Group unique matches by modality
-                by_modality: dict[UUID, List[Category]] = {}
-                for cat in eligible_cats:
-                    if cat.modality.id not in by_modality:
-                        by_modality[cat.modality.id] = []
-                    by_modality[cat.modality.id].append(cat)
+                by_modality_name: dict[str, List[CategoryModality]] = {}
+                for mod in eligible_mods:
+                    name = mod.modality.name
+                    if name not in by_modality_name:
+                        by_modality_name[name] = []
+                    by_modality_name[name].append(mod)
 
-                for modality_id, cats in by_modality.items():
-                    if len(cats) == 1:
-                        # Exactly one eligible category for this modality
+                for mod_name, mods in by_modality_name.items():
+                    if len(mods) == 1:
+                        # Exactly one eligible category-modality for this modality type
                         registration = CategoryRegistration(
                             id=uuid4(),
                             competitor=competitor,
-                            category=cats[0],
+                            category_modality=mods[0],
                             tournament=tournament,
                         )
                         registrations.append(registration)
                     else:
-                        # Conflict: multiple eligible categories for same modality
+                        # Conflict: multiple eligible category-modalities for same modality type
                         errors.append({
                             "competitor_id": competitor.id,
                             "competitor_name": f"{competitor.first_name} {competitor.last_name}",
-                            "message": f"Multiple categories found for modality '{cats[0].modality.name}'. Impossible to choose automatically.",
-                            "overlapping_categories": cats,
+                            "message": f"Multiple categories found for modality '{mod_name}'. Impossible to choose automatically.",
+                            "overlapping_categories": [m.category for m in mods], # Just for info
                             "reasons": None,
                         })
 
@@ -223,8 +246,8 @@ class TournamentUseCases:
 
         return {"registrations": registrations, "errors": errors}
 
-    async def get_competitors_by_category(self, category_id: UUID) -> List[Competitor]:
-        registrations = await self.registration_repo.get_by_categories([category_id])
+    async def get_competitors_by_category_modality(self, category_modality_id: UUID) -> List[Competitor]:
+        registrations = await self.registration_repo.get_by_categories([category_modality_id])
         return [reg.competitor for reg in registrations]
 
     async def register_categories_bulk(self, schema: CategoryBulkCreate) -> List[Category]:

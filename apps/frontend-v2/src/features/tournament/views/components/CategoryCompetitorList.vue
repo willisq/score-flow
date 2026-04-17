@@ -1,22 +1,22 @@
 <script setup lang="ts">
 import { inject, onMounted, ref } from "vue";
-import type { Category } from "../../types";
+import type { CategoryModality } from "../../types";
 import type { Competitor } from "@/features/registration/types";
 import { CategoryService } from "../../services/CategoryService";
 
 const dialogRef = inject<any>("dialogRef");
-const category = dialogRef?.value?.data?.category as Category | undefined;
+const categoryModality = dialogRef?.value?.data?.categoryModality as any | undefined;
 const competitors = ref<Competitor[]>([]);
 const loading = ref(true);
 
 onMounted(async () => {
-  if (!category?.id) {
+  if (!categoryModality?.id) {
     loading.value = false;
     return;
   }
 
   try {
-    competitors.value = await CategoryService.getCompetitors(category.id);
+    competitors.value = await CategoryService.getCompetitors(categoryModality.id);
   } catch (error) {
     console.error("Error fetching competitors:", error);
   } finally {
@@ -27,14 +27,14 @@ onMounted(async () => {
 
 <template>
   <div class="flex flex-col gap-4 p-2">
-    <div v-if="category" class="flex gap-2 items-center flex-wrap">
-      <Tag :value="category.modality.name" severity="secondary" />
+    <div v-if="categoryModality" class="flex gap-2 items-center flex-wrap">
+      <Tag :value="categoryModality.modality.name" severity="secondary" />
       <span class="text-sm font-medium text-surface-600 dark:text-surface-400">
-        {{ Math.min(...category.ages) }} – {{ Math.max(...category.ages) }} años
+        {{ Math.min(...categoryModality.ages) }} – {{ Math.max(...categoryModality.ages) }} años
       </span>
       <Divider layout="vertical" class="hidden sm:block" />
       <div class="flex gap-1">
-        <Tag v-for="rank in category.ranks" :key="rank.id" :value="rank.name" severity="info"
+        <Tag v-for="rank in categoryModality.ranks" :key="rank.id" :value="rank.name" severity="info"
           pt:root:class="!text-[10px] !px-2" />
       </div>
     </div>
