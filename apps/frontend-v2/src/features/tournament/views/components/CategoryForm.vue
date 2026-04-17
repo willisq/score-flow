@@ -23,12 +23,12 @@ const form = ref({
     modalityId: string;
     rankGroupIds: string[];
     usePhysicalRequirement: boolean;
-    physicalRequirement: {
+    physicalRequirements: {
       initialWeight: number | null;
       finalWeight: number | null;
       initialHeight: number | null;
       finalHeight: number | null;
-    };
+    }[];
   }[],
 });
 
@@ -50,34 +50,51 @@ onMounted(async () => {
     if (cat.modalities) {
       selectedModalityIds.value = [...new Set(cat.modalities.map((m: any) => m.modality.id) as string[])];
       
-      // Agrupar por modalidad y requerimientos físicos similares
+      // Agrupar por modalidad
       const groups: Record<string, any> = {};
       
       cat.modalities.forEach((m: any) => {
+        const modalityId = m.modality.id;
+        const rgid = m.rankGroup?.id;
         const pr = m.physicalRequirement;
-        // Creamos una clave única basada en modalidad y requerimientos
-        const prKey = pr ? `${pr.initialWeight}-${pr.finalWeight}-${pr.initialHeight}-${pr.finalHeight}` : 'no-pr';
-        const key = `${m.modality.id}|${prKey}`;
         
-        if (!groups[key]) {
-          groups[key] = {
-            modalityId: m.modality.id,
-            rankGroupIds: [],
-            usePhysicalRequirement: !!pr,
-            physicalRequirement: {
-              initialWeight: pr?.initialWeight ?? null,
-              finalWeight: pr?.finalWeight ?? null,
-              initialHeight: pr?.initialHeight ?? null,
-              finalHeight: pr?.finalHeight ?? null,
-            },
+        if (!groups[modalityId]) {
+          groups[modalityId] = {
+            modalityId: modalityId,
+            rankGroupIds: new Set<string>(),
+            usePhysicalRequirement: false,
+            physicalRequirements: [] as any[],
           };
         }
-        if (m.rankGroup?.id) {
-          groups[key].rankGroupIds.push(m.rankGroup.id);
+        
+        if (rgid) groups[modalityId].rankGroupIds.add(rgid);
+        
+        if (pr) {
+          groups[modalityId].usePhysicalRequirement = true;
+          // Evitar duplicados si vienen de la base de datos (aunque deberían ser únicos)
+          const alreadyExists = groups[modalityId].physicalRequirements.some((existing: any) => 
+            existing.initialWeight === pr.initialWeight &&
+            existing.finalWeight === pr.finalWeight &&
+            existing.initialHeight === pr.initialHeight &&
+            existing.finalHeight === pr.finalHeight
+          );
+          if (!alreadyExists) {
+            groups[modalityId].physicalRequirements.push({
+              initialWeight: pr.initialWeight,
+              finalWeight: pr.finalWeight,
+              initialHeight: pr.initialHeight,
+              finalHeight: pr.finalHeight,
+            });
+          }
         }
       });
       
-      form.value.modalities = Object.values(groups);
+      form.value.modalities = Object.values(groups).map((g: any) => ({
+        modalityId: g.modalityId,
+        rankGroupIds: Array.from(g.rankGroupIds),
+        usePhysicalRequirement: g.usePhysicalRequirement,
+        physicalRequirements: g.physicalRequirements.length > 0 ? g.physicalRequirements : [{ initialWeight: null, finalWeight: null, initialHeight: null, finalHeight: null }]
+      }));
     }
   }
 });
@@ -90,12 +107,12 @@ function onModalitiesChange(): void {
         modalityId: id,
         rankGroupIds: [],
         usePhysicalRequirement: false,
-        physicalRequirement: {
+        physicalRequirements: [{
           initialWeight: null,
           finalWeight: null,
           initialHeight: null,
           finalHeight: null,
-        },
+        }],
       });
     }
   });
@@ -136,7 +153,10 @@ async function onSubmit(): Promise<void> {
     modalities: form.value.modalities.map((m) => ({
       modalityId: m.modalityId,
       rankGroupIds: m.rankGroupIds,
-      physicalRequirement: m.usePhysicalRequirement ? m.physicalRequirement : null,
+      physicalRequirements: m.usePhysicalRequirement ? m.physicalRequirements.filter(pr => 
+        pr.initialWeight !== null || pr.finalWeight !== null || 
+        pr.initialHeight !== null || pr.finalHeight !== null
+      ) : [],
     })),
   };
 
@@ -163,6 +183,22 @@ async function onSubmit(): Promise<void> {
 
 function getModalityName(id: string): string {
   return modalityOptions.value.find((m: any) => m.id === id)?.name || "Desconocida";
+}
+
+function addPhysicalRequirement(modIndex: number): void {
+  form.value.modalities[modIndex].physicalRequirements.push({
+    initialWeight: null,
+    finalWeight: null,
+    initialHeight: null,
+    finalHeight: null,
+  });
+}
+
+function removePhysicalRequirement(modIndex: number, reqIndex: number): void {
+  form.value.modalities[modIndex].physicalRequirements.splice(reqIndex, 1);
+  if (form.value.modalities[modIndex].physicalRequirements.length === 0) {
+    addPhysicalRequirement(modIndex);
+  }
 }
 </script>
 
@@ -246,20 +282,32 @@ function getModalityName(id: string): string {
             />
           </div>
 
-          <div v-if="mod.usePhysicalRequirement" class="grid grid-cols-2 gap-4 animate-fade-in">
-            <div class="flex flex-col gap-1">
-              <label class="text-xs font-semibold">Peso (Kg)</label>
-              <div class="flex items-center gap-1">
-                <InputNumber v-model="mod.physicalRequirement.initialWeight" :minFractionDigits="1" placeholder="Min" fluid />
-                <InputNumber v-model="mod.physicalRequirement.finalWeight" :minFractionDigits="1" placeholder="Max" fluid />
-              </div>
+          <div v-if="mod.usePhysicalRequirement" class="flex flex-col gap-3 animate-fade-in border-t-1 border-surface-200 mt-2 pt-3">
+            <div class="flex justify-between items-center px-1">
+              <label class="text-xs font-bold uppercase text-surface-500">Rangos Físicos</label>
+              <Button icon="pi pi-plus" label="Añadir Rango" @click="addPhysicalRequirement(form.modalities.indexOf(mod))" 
+                      class="p-button-text p-button-sm text-xs h-8" />
             </div>
-            <div class="flex flex-col gap-1">
-              <label class="text-xs font-semibold">Altura (cm)</label>
-              <div class="flex items-center gap-1">
-                <InputNumber v-model="mod.physicalRequirement.initialHeight" :minFractionDigits="1" placeholder="Min" fluid />
-                <InputNumber v-model="mod.physicalRequirement.finalHeight" :minFractionDigits="1" placeholder="Max" fluid />
+
+            <div v-for="(pr, reqIdx) in mod.physicalRequirements" :key="reqIdx" 
+                 class="grid grid-cols-[1fr,1fr,auto] gap-3 items-end p-2 border-round bg-surface-100 dark:bg-surface-800 relative">
+              <div class="flex flex-col gap-1">
+                <label class="text-[10px] font-semibold text-surface-500">Peso (Kg)</label>
+                <div class="flex items-center gap-1">
+                  <InputNumber v-model="pr.initialWeight" :minFractionDigits="1" placeholder="Min" fluid inputClass="p-inputtext-sm" />
+                  <InputNumber v-model="pr.finalWeight" :minFractionDigits="1" placeholder="Max" fluid inputClass="p-inputtext-sm" />
+                </div>
               </div>
+              <div class="flex flex-col gap-1">
+                <label class="text-[10px] font-semibold text-surface-500">Altura (cm)</label>
+                <div class="flex items-center gap-1">
+                  <InputNumber v-model="pr.initialHeight" :minFractionDigits="1" placeholder="Min" fluid inputClass="p-inputtext-sm" />
+                  <InputNumber v-model="pr.finalHeight" :minFractionDigits="1" placeholder="Max" fluid inputClass="p-inputtext-sm" />
+                </div>
+              </div>
+              <Button icon="pi pi-times" severity="danger" text rounded 
+                      @click="removePhysicalRequirement(form.modalities.indexOf(mod), reqIdx)" 
+                      class="h-8 w-8" v-if="mod.physicalRequirements.length > 1" />
             </div>
           </div>
         </div>

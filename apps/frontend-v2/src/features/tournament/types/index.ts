@@ -80,7 +80,7 @@ export interface RankGroupUpdate {
 export interface CategoryModalityCreate {
   modalityId: string;
   rankGroupIds: string[];
-  physicalRequirement?: PhysicalRequirementCreate | null;
+  physicalRequirements: PhysicalRequirementCreate[];
 }
 
 export interface CategoryCreate {

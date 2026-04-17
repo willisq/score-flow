@@ -140,19 +140,23 @@ class CategoryRepository:
                 model.sexes.append(sex_model)
 
         # Add modalities and their physical requirements / rank groups
+        processed_phys_req_ids = set()
         for cat_mod in category.modalities:
             # 1. Handle Physical Requirement
-            phys_req_model = None
+            pr_id = None
             if cat_mod.physical_requirement:
-                phys_req = cat_mod.physical_requirement
-                phys_req_model = PhysicalRequirementModel(
-                    id=phys_req.id,
-                    initial_weight=phys_req.initial_weight,
-                    final_weight=phys_req.final_weight,
-                    initial_height=phys_req.initial_height,
-                    final_height=phys_req.final_height,
-                )
-                self.session.add(phys_req_model)
+                pr = cat_mod.physical_requirement
+                pr_id = pr.id
+                if pr_id not in processed_phys_req_ids:
+                    phys_req_model = PhysicalRequirementModel(
+                        id=pr.id,
+                        initial_weight=pr.initial_weight,
+                        final_weight=pr.final_weight,
+                        initial_height=pr.initial_height,
+                        final_height=pr.final_height,
+                    )
+                    self.session.add(phys_req_model)
+                    processed_phys_req_ids.add(pr_id)
 
             # 2. Handle Rank Group
             rank_group_id = None
@@ -177,7 +181,7 @@ class CategoryRepository:
                 category_id=category.id,
                 modality_id=cat_mod.modality.id,
                 rank_group_id=rank_group_id,
-                physical_requirement_id=phys_req_model.id if phys_req_model else None,
+                physical_requirement_id=pr_id,
             )
             model.modalities.append(mod_model)
 

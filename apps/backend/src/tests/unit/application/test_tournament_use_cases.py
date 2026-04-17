@@ -119,18 +119,22 @@ def test_register_category():
             CategoryModalityCreate(
                 modality_id=modality1.id,
                 rank_group_ids=[rank_group.id],
-                physical_requirement=PhysicalRequirementCreate(
-                    initial_weight=80.0,
-                    final_weight=120.0
-                )
+                physical_requirements=[
+                    PhysicalRequirementCreate(
+                        initial_weight=80.0,
+                        final_weight=120.0
+                    )
+                ]
             ),
             CategoryModalityCreate(
                 modality_id=modality2.id,
                 rank_group_ids=[rank_group.id],
-                physical_requirement=PhysicalRequirementCreate(
-                    initial_weight=80.0,
-                    final_weight=120.0
-                )
+                physical_requirements=[
+                    PhysicalRequirementCreate(
+                        initial_weight=80.0,
+                        final_weight=120.0
+                    )
+                ]
             )
         ]
     )
@@ -384,3 +388,57 @@ def test_mass_register_competitors_with_category_modality_id_invalid():
     assert error["reasons"]["age_mismatch"] is True
     assert "not eligible" in error["message"]
     registration_repo.create.assert_not_called()
+
+
+def test_register_category_deduplicates_physical_requirements():
+    modality_repo = MagicMock()
+    rank_repo = MagicMock()
+    sex_repo = MagicMock()
+    category_repo = MagicMock()
+    rank_group_repo = MagicMock()
+    
+    modality = Modality(id=uuid4(), name="Deduplication Test")
+    rank = Rank(id=uuid4(), name="Black", classification=10, is_black_belt=True)
+    sex = Sex(id=uuid4(), name="Female")
+    rank_group = RankGroup(id=uuid4(), name="Group A", ranks=[rank])
+    
+    modality_repo.get_by_id = AsyncMock(return_value=modality)
+    rank_repo.get_by_id = AsyncMock(return_value=rank)
+    rank_group_repo.get_by_id = AsyncMock(return_value=rank_group)
+    sex_repo.get_by_id = AsyncMock(return_value=sex)
+    category_repo.create = AsyncMock(side_effect=lambda x: x)
+    
+    use_cases = TournamentUseCases(
+        modality_repo=modality_repo,
+        tournament_repo=MagicMock(),
+        category_repo=category_repo,
+        registration_repo=MagicMock(),
+        competitor_repo=MagicMock(),
+        rank_repo=rank_repo,
+        sex_repo=sex_repo,
+        rank_group_repo=rank_group_repo,
+    )
+    
+    # Request with 2 physical requirements that are IDENTICAL
+    schema = CategoryCreate(
+        ages=[20],
+        sex_ids=[sex.id],
+        modalities=[
+            CategoryModalityCreate(
+                modality_id=modality.id,
+                rank_group_ids=[rank_group.id],
+                physical_requirements=[
+                    PhysicalRequirementCreate(initial_weight=60.0, final_weight=70.0),
+                    PhysicalRequirementCreate(initial_weight=60.0, final_weight=70.0)
+                ]
+            )
+        ]
+    )
+    
+    results = asyncio.run(use_cases.register_category(schema))
+    category = results[0]
+    
+    # Should have 2 modality records
+    assert len(category.modalities) == 2
+    # BUT they should share the same PhysicalRequirement object instance
+    assert category.modalities[0].physical_requirement is category.modalities[1].physical_requirement

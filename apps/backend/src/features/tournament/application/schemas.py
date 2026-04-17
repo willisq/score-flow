@@ -34,7 +34,7 @@ class PhysicalRequirementCreate(TunedModel):
 class CategoryModalityCreate(TunedModel):
     modality_id: UUID
     rank_group_ids: List[UUID]
-    physical_requirement: Optional[PhysicalRequirementCreate] = None
+    physical_requirements: List[PhysicalRequirementCreate] = []
 
 
 class CategoryCreate(TunedModel):

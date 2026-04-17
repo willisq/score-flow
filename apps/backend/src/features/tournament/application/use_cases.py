@@ -138,43 +138,57 @@ class TournamentUseCases:
             sexes=sexes,
         )
 
+        # Cache for deduplicating physical requirements within the same request
+        phys_req_cache: dict[tuple, PhysicalRequirement] = {}
+
         for mod_data in schema.modalities:
             modality = await self.modality_repo.get_by_id(mod_data.modality_id)
             if not modality:
                 raise ValueError(f"Modality with ID {mod_data.modality_id} not found")
 
-            # Physical requirement logic (same for all rank groups in this block)
-            physical_requirement = None
-            if mod_data.physical_requirement:
-                pr = mod_data.physical_requirement
-                if any([
-                    pr.initial_weight is not None,
-                    pr.final_weight is not None,
-                    pr.initial_height is not None,
-                    pr.final_height is not None
-                ]):
-                    physical_requirement = PhysicalRequirement(
-                        id=uuid4(),
-                        initial_weight=pr.initial_weight,
-                        final_weight=pr.final_weight,
-                        initial_height=pr.initial_height,
-                        final_height=pr.final_height,
-                    )
-
-            # Create a CategoryModality for EACH rank group ID
-            for rgid in mod_data.rank_group_ids:
-                rank_group = await self.rank_group_repo.get_by_id(rgid)
-                if not rank_group:
-                    raise ValueError(f"Rank Group with ID {rgid} not found")
-
-                cat_mod = CategoryModality(
-                    id=uuid4(),
-                    category=category,
-                    modality=modality,
-                    rank_group=rank_group,
-                    physical_requirement=physical_requirement,
+            # Collect physical requirement entities
+            phys_req_entities = []
+            for pr_schema in mod_data.physical_requirements:
+                pr_key = (
+                    pr_schema.initial_weight,
+                    pr_schema.final_weight,
+                    pr_schema.initial_height,
+                    pr_schema.final_height,
                 )
-                category.modalities.append(cat_mod)
+                if any(v is not None for v in pr_key):
+                    if pr_key in phys_req_cache:
+                        phys_req_entities.append(phys_req_cache[pr_key])
+                    else:
+                        new_pr = PhysicalRequirement(
+                            id=uuid4(),
+                            initial_weight=pr_schema.initial_weight,
+                            final_weight=pr_schema.final_weight,
+                            initial_height=pr_schema.initial_height,
+                            final_height=pr_schema.final_height,
+                        )
+                        phys_req_cache[pr_key] = new_pr
+                        phys_req_entities.append(new_pr)
+
+            # If no physical requirements were provided (or all were empty),
+            # we still need to create the category-modalities (one for each rank group)
+            # but with physical_requirement=None.
+            if not phys_req_entities:
+                phys_req_entities = [None]
+
+            for pr_entity in phys_req_entities:
+                for rgid in mod_data.rank_group_ids:
+                    rank_group = await self.rank_group_repo.get_by_id(rgid)
+                    if not rank_group:
+                        raise ValueError(f"Rank Group with ID {rgid} not found")
+
+                    cat_mod = CategoryModality(
+                        id=uuid4(),
+                        category=category,
+                        modality=modality,
+                        rank_group=rank_group,
+                        physical_requirement=pr_entity,
+                    )
+                    category.modalities.append(cat_mod)
 
         created = await self.category_repo.create(category)
         return [created]
@@ -202,44 +216,58 @@ class TournamentUseCases:
         if schema.modalities is not None:
             # Clear existing modalities (cascade delete-orphan handles the DB)
             model.modalities = []
+            
+            # Cache for deduplicating physical requirement models
+            phys_req_model_cache: dict[tuple, PhysicalRequirementModel] = {}
 
             for mod_data in schema.modalities:
                 modality = await self.modality_repo.get_by_id(mod_data.modality_id)
                 if not modality:
                     raise ValueError(f"Modality with ID {mod_data.modality_id} not found")
 
-                phys_req_model = None
-                if mod_data.physical_requirement:
-                    pr = mod_data.physical_requirement
-                    if any([
-                        pr.initial_weight is not None,
-                        pr.final_weight is not None,
-                        pr.initial_height is not None,
-                        pr.final_height is not None
-                    ]):
-                        phys_req_model = PhysicalRequirementModel(
-                            id=uuid4(),
-                            initial_weight=pr.initial_weight,
-                            final_weight=pr.final_weight,
-                            initial_height=pr.initial_height,
-                            final_height=pr.final_height,
-                        )
-                        self.category_repo.session.add(phys_req_model)
-
-                # Create a CategoryModality record for EACH rank group ID
-                for rgid in mod_data.rank_group_ids:
-                    rank_group = await self.rank_group_repo.get_by_id(rgid)
-                    if not rank_group:
-                        raise ValueError(f"Rank Group with ID {rgid} not found")
-
-                    cat_mod_model = CategoryModalityModel(
-                        id=uuid4(),
-                        category_id=model.id,
-                        modality_id=modality.id,
-                        rank_group_id=rank_group.id,
-                        physical_requirement_id=phys_req_model.id if phys_req_model else None,
+                # Collect physical requirement models
+                phys_req_models = []
+                for pr_schema in mod_data.physical_requirements:
+                    pr_key = (
+                        pr_schema.initial_weight,
+                        pr_schema.final_weight,
+                        pr_schema.initial_height,
+                        pr_schema.final_height,
                     )
-                    model.modalities.append(cat_mod_model)
+                    if any(v is not None for v in pr_key):
+                        if pr_key in phys_req_model_cache:
+                            phys_req_models.append(phys_req_model_cache[pr_key])
+                        else:
+                            new_pr_model = PhysicalRequirementModel(
+                                id=uuid4(),
+                                initial_weight=pr_schema.initial_weight,
+                                final_weight=pr_schema.final_weight,
+                                initial_height=pr_schema.initial_height,
+                                final_height=pr_schema.final_height,
+                            )
+                            self.category_repo.session.add(new_pr_model)
+                            phys_req_model_cache[pr_key] = new_pr_model
+                            phys_req_models.append(new_pr_model)
+
+                # Case: no physical requirements
+                if not phys_req_models:
+                    phys_req_models = [None]
+
+                for pr_model in phys_req_models:
+                    # Create a CategoryModality record for EACH rank group ID
+                    for rgid in mod_data.rank_group_ids:
+                        rank_group = await self.rank_group_repo.get_by_id(rgid)
+                        if not rank_group:
+                            raise ValueError(f"Rank Group with ID {rgid} not found")
+
+                        cat_mod_model = CategoryModalityModel(
+                            id=uuid4(),
+                            category_id=model.id,
+                            modality_id=modality.id,
+                            rank_group_id=rank_group.id,
+                            physical_requirement_id=pr_model.id if pr_model else None,
+                        )
+                        model.modalities.append(cat_mod_model)
 
         # We don't need to call repository.create because the model is already in session and tracked
         # But we need to return the domain entity
