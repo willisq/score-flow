@@ -24,40 +24,40 @@ class BracketUseCases:
 
     async def generate_initial_brackets(self, request: GenerateBracketsRequest) -> List[GeneratedCategoryResult]:
         # 1. Obtener inscripciones
-        registrations = await self.registration_repo.get_by_categories(request.categories)
+        registrations = await self.registration_repo.get_by_categories(request.category_modality_ids)
         if not registrations:
             return []
 
-        # 2. Agrupar por categoría
+        # 2. Agrupar por category_modality
         grouped_competitors = defaultdict(list)
         grouped_category_entities = {}
         registration_maps = defaultdict(dict)
 
         for reg in registrations:
-            cat_id = reg.category.id
+            cm_id = reg.category_modality.id
             comp_id = reg.competitor.id
             
-            grouped_competitors[cat_id].append(reg.competitor)
-            grouped_category_entities[cat_id] = reg.category
+            grouped_competitors[cm_id].append(reg.competitor)
+            grouped_category_entities[cm_id] = reg.category_modality.category
             
             # Map para Foreign Keys de la base de datos (competitor.id -> category_registration.id)
-            registration_maps[cat_id][comp_id] = reg.id
+            registration_maps[cm_id][comp_id] = reg.id
 
-        # 3. Limpiar las pirámides previas para las categorías detectadas
-        actual_category_ids = list(grouped_competitors.keys())
-        await self.bracket_repo.clear_category_brackets(actual_category_ids)
+        # 3. Limpiar las pirámides previas para las category_modalities detectadas
+        actual_cm_ids = list(grouped_competitors.keys())
+        await self.bracket_repo.clear_category_modality_brackets(actual_cm_ids)
 
         # 4. Generar pares y guardar en base de datos
         pairing_strategy = AcademyAwarePairingStrategy()
         results = []
 
-        for cat_id, competitors in grouped_competitors.items():
+        for cm_id, competitors in grouped_competitors.items():
             num_competitors = len(competitors)
             if num_competitors == 0:
                 continue
 
             first_round = await self.round_repo.get_initial_round(num_competitors)
-            category = grouped_category_entities[cat_id]
+            category = grouped_category_entities[cm_id]
             pyramid = Pyramid(id=uuid.uuid4(), category=category)
             
             matches = pyramid.generate_initial_round(
@@ -66,8 +66,8 @@ class BracketUseCases:
                 pairing_strategy=pairing_strategy
             )
             
-            await self.bracket_repo.save_matches(cat_id, matches, registration_maps[cat_id])
-            results.append(GeneratedCategoryResult(category_id=cat_id, matches_generated=len(matches)))
+            await self.bracket_repo.save_matches(cm_id, matches, registration_maps[cm_id])
+            results.append(GeneratedCategoryResult(category_modality_id=cm_id, matches_generated=len(matches)))
 
         return results
 
@@ -110,7 +110,7 @@ class BracketUseCases:
                 id=m.id,
                 round=RoundSchema(id=m.round_rel.id, description=m.round_rel.description),
                 position=m.position,
-                category_id=m.category_id,
+                category_modality_id=m.category_modality_id,
                 first_competitor=map_competitor(m.first_competitor_rel),
                 second_competitor=map_competitor(m.second_competitor_rel),
                 winner=map_competitor(m.winner_rel)

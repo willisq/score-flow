@@ -47,12 +47,12 @@ async def generate_brackets(
     response_model=List[MatchSchema]
 )
 async def get_brackets(
-    categories: Optional[List[UUID]] = Query(None, description="Filtrar por IDs de categorías"),
+    category_modality_ids: Optional[List[UUID]] = Query(None, description="Filtrar por IDs de category_modality"),
     rounds: Optional[List[UUID]] = Query(None, description="Filtrar por IDs de rondas"),
     use_cases: BracketUseCases = Depends(get_bracket_use_cases)
 ):
     try:
-        return await use_cases.get_brackets(categories, rounds)
+        return await use_cases.get_brackets(category_modality_ids, rounds)
     except Exception as e:
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,

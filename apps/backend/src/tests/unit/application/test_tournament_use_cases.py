@@ -26,6 +26,8 @@ from src.features.tournament.domain.entities import (
     CategoryRegistration,
     Modality,
     Tournament,
+    PhysicalRequirement,
+    RankGroup,
 )
 
 
@@ -41,6 +43,7 @@ def test_register_modality():
         competitor_repo=MagicMock(),
         rank_repo=MagicMock(),
         sex_repo=MagicMock(),
+        rank_group_repo=MagicMock(),
     )
     
     schema = ModalityCreate(name="Kyorugi")
@@ -63,6 +66,7 @@ def test_register_tournament():
         competitor_repo=MagicMock(),
         rank_repo=MagicMock(),
         sex_repo=MagicMock(),
+        rank_group_repo=MagicMock(),
     )
     
     schema = TournamentCreate(description="Open Panamericano")
@@ -78,11 +82,13 @@ def test_register_category():
     rank_repo = MagicMock()
     sex_repo = MagicMock()
     category_repo = MagicMock()
+    rank_group_repo = MagicMock()
     
     modality1 = Modality(id=uuid4(), name="Sparring")
     modality2 = Modality(id=uuid4(), name="Poomsae")
     rank = Rank(id=uuid4(), name="Black", classification=10, is_black_belt=True)
     sex = Sex(id=uuid4(), name="Male")
+    rank_group = RankGroup(id=uuid4(), name="Principiantes", ranks=[rank])
     
     async def get_modality_by_id(mid):
         if mid == modality1.id: return modality1
@@ -91,6 +97,7 @@ def test_register_category():
         
     modality_repo.get_by_id = AsyncMock(side_effect=get_modality_by_id)
     rank_repo.get_by_id = AsyncMock(return_value=rank)
+    rank_group_repo.get_by_id = AsyncMock(return_value=rank_group)
     sex_repo.get_by_id = AsyncMock(return_value=sex)
     category_repo.create = AsyncMock(side_effect=lambda x: x)
     
@@ -102,15 +109,16 @@ def test_register_category():
         competitor_repo=MagicMock(),
         rank_repo=rank_repo,
         sex_repo=sex_repo,
+        rank_group_repo=rank_group_repo,
     )
     
     schema = CategoryCreate(
-        ages=[18, 40],
-        rank_ids=[rank.id],
+        ages=[10, 12],
         sex_ids=[sex.id],
         modalities=[
             CategoryModalityCreate(
                 modality_id=modality1.id,
+                rank_group_ids=[rank_group.id],
                 physical_requirement=PhysicalRequirementCreate(
                     initial_weight=80.0,
                     final_weight=120.0
@@ -118,6 +126,7 @@ def test_register_category():
             ),
             CategoryModalityCreate(
                 modality_id=modality2.id,
+                rank_group_ids=[rank_group.id],
                 physical_requirement=PhysicalRequirementCreate(
                     initial_weight=80.0,
                     final_weight=120.0
@@ -134,7 +143,8 @@ def test_register_category():
     assert len(category.modalities) == 2
     assert category.modalities[0].modality == modality1
     assert category.modalities[1].modality == modality2
-    assert rank in category.ranks
+    # Ranks are now on modality level
+    assert rank in category.modalities[0].ranks
     assert sex in category.sexes
     category_repo.create.assert_called_once()
 
@@ -160,9 +170,10 @@ def test_inscribe_competitor():
     category = Category(
         id=uuid4(), ages=[15, 17], 
         special_condition=False,
-        ranks=[rank], sexes=[sex]
+        sexes=[sex]
     )
-    cat_mod = CategoryModality(id=uuid4(), category=category, modality=modality)
+    rank_group = RankGroup(id=uuid4(), name="Grup: Test", ranks=[rank])
+    cat_mod = CategoryModality(id=uuid4(), category=category, modality=modality, rank_group=rank_group)
     category.modalities.append(cat_mod)
     
     tournament = Tournament(id=uuid4(), description="All Valley")
@@ -180,6 +191,7 @@ def test_inscribe_competitor():
         competitor_repo=competitor_repo,
         rank_repo=MagicMock(),
         sex_repo=MagicMock(),
+        rank_group_repo=MagicMock(),
     )
     
     schema = CategoryRegistrationCreate(
@@ -211,9 +223,10 @@ def test_mass_register_competitors():
     
     category = Category(
         id=uuid4(), ages=[18], special_condition=False,
-        ranks=[rank], sexes=[sex]
+        sexes=[sex]
     )
-    cat_mod = CategoryModality(id=uuid4(), category=category, modality=modality)
+    rank_group = RankGroup(id=uuid4(), name="Grup: Test", ranks=[rank])
+    cat_mod = CategoryModality(id=uuid4(), category=category, modality=modality, rank_group=rank_group)
     category.modalities.append(cat_mod)
     
     instructor = Person(id=uuid4(), first_name="Nariyoshi", last_name="Miyagi")
@@ -236,6 +249,7 @@ def test_mass_register_competitors():
         competitor_repo=competitor_repo,
         rank_repo=MagicMock(),
         sex_repo=MagicMock(),
+        rank_group_repo=MagicMock(),
     )
     
     schema = MassRegistrationRequest(
@@ -266,9 +280,10 @@ def test_mass_register_competitors_with_category_modality_id():
 
     category = Category(
         id=uuid4(), ages=[18], special_condition=False,
-        ranks=[rank], sexes=[sex]
+        sexes=[sex]
     )
-    cat_mod = CategoryModality(id=uuid4(), category=category, modality=modality)
+    rank_group = RankGroup(id=uuid4(), name="Grup: Test", ranks=[rank])
+    cat_mod = CategoryModality(id=uuid4(), category=category, modality=modality, rank_group=rank_group)
     category.modalities.append(cat_mod)
 
     instructor = Person(id=uuid4(), first_name="Nariyoshi", last_name="Miyagi")
@@ -291,6 +306,7 @@ def test_mass_register_competitors_with_category_modality_id():
         competitor_repo=competitor_repo,
         rank_repo=MagicMock(),
         sex_repo=MagicMock(),
+        rank_group_repo=MagicMock(),
     )
 
     schema = MassRegistrationRequest(
@@ -324,9 +340,10 @@ def test_mass_register_competitors_with_category_modality_id_invalid():
 
     category = Category(
         id=uuid4(), ages=[18], special_condition=False,
-        ranks=[rank], sexes=[sex]
+        sexes=[sex]
     )
-    cat_mod = CategoryModality(id=uuid4(), category=category, modality=modality)
+    rank_group = RankGroup(id=uuid4(), name="Grup: Test", ranks=[rank])
+    cat_mod = CategoryModality(id=uuid4(), category=category, modality=modality, rank_group=rank_group)
     category.modalities.append(cat_mod)
 
     instructor = Person(id=uuid4(), first_name="Nariyoshi", last_name="Miyagi")
@@ -349,6 +366,7 @@ def test_mass_register_competitors_with_category_modality_id_invalid():
         competitor_repo=competitor_repo,
         rank_repo=MagicMock(),
         sex_repo=MagicMock(),
+        rank_group_repo=MagicMock(),
     )
 
     schema = MassRegistrationRequest(

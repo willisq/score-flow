@@ -39,15 +39,15 @@ class BracketRepository:
     def __init__(self, session: AsyncSession):
         self.session = session
 
-    async def clear_category_brackets(self, category_ids: List[UUID]) -> None:
-        """Elimina todos los brackets existentes de las categorías especificadas."""
-        if not category_ids:
+    async def clear_category_modality_brackets(self, category_modality_ids: List[UUID]) -> None:
+        """Elimina todos los brackets existentes de las category-modalities especificadas."""
+        if not category_modality_ids:
             return
             
-        stmt = delete(MatchModel).where(MatchModel.category_id.in_(category_ids))
+        stmt = delete(MatchModel).where(MatchModel.category_modality_id.in_(category_modality_ids))
         await self.session.execute(stmt)
 
-    async def save_matches(self, category_id: UUID, matches: List[Match], registration_map: Dict[UUID, UUID]) -> None:
+    async def save_matches(self, category_modality_id: UUID, matches: List[Match], registration_map: Dict[UUID, UUID]) -> None:
         """
         Guarda los emparejamientos en la Base de Datos.
         `registration_map` es un diccionario `{competitor_id: category_registration_id}`
@@ -71,7 +71,7 @@ class BracketRepository:
                 second_competitor=second_reg_id,
                 winner=winner_reg_id,
                 position=match.position,
-                category_id=category_id
+                category_modality_id=category_modality_id
             )
             models_to_insert.append(model)
             
@@ -113,7 +113,7 @@ class BracketRepository:
         )
         
         if categories:
-            stmt = stmt.where(MatchModel.category_id.in_(categories))
+            stmt = stmt.where(MatchModel.category_modality_id.in_(categories))
         if rounds:
             stmt = stmt.where(MatchModel.round.in_(rounds))
             

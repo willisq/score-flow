@@ -60,7 +60,6 @@ def base_category(base_sex, base_rank):
         ages=[17, 18, 19],
         special_condition=False,
         sexes=[base_sex],
-        ranks=[base_rank]
     )
     phys_req = PhysicalRequirement(
         id=uuid4(),
