@@ -238,14 +238,12 @@ class TournamentUseCases:
                         if pr_key in phys_req_model_cache:
                             phys_req_models.append(phys_req_model_cache[pr_key])
                         else:
-                            new_pr_id = await self.category_repo.get_or_create_physical_requirement(
+                            new_pr_model = await self.category_repo.get_or_create_physical_requirement(
                                 pr_schema.initial_weight,
                                 pr_schema.final_weight,
                                 pr_schema.initial_height,
                                 pr_schema.final_height
                             )
-                            # Fetch the model to add to the cache/list (since we need the object)
-                            new_pr_model = await self.category_repo.session.get(PhysicalRequirementModel, new_pr_id)
                             phys_req_model_cache[pr_key] = new_pr_model
                             phys_req_models.append(new_pr_model)
 
@@ -292,13 +290,13 @@ class TournamentUseCases:
         # Update physical requirement
         if schema.physical_requirement is not None:
             pr_schema = schema.physical_requirement
-            new_pr_id = await self._get_or_create_physical_requirement(
+            new_pr_model = await self._get_or_create_physical_requirement(
                 pr_schema.initial_weight,
                 pr_schema.final_weight,
                 pr_schema.initial_height,
                 pr_schema.final_height
             )
-            model.physical_requirement_id = new_pr_id
+            model.physical_requirement_id = new_pr_model.id if new_pr_model else None
 
         await self.category_repo.session.flush()
         return await self.category_repo.get_modality_by_id(modality_id)
@@ -309,7 +307,7 @@ class TournamentUseCases:
         final_weight: float | None,
         initial_height: float | None,
         final_height: float | None,
-    ) -> UUID | None:
+    ) -> PhysicalRequirementModel | None:
         if all(v is None for v in (initial_weight, final_weight, initial_height, final_height)):
             return None
 

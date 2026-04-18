@@ -462,11 +462,16 @@ def test_update_category_modality():
     )
     
     # Mocking session.get for CategoryModalityModel
-    category_repo.session.get = AsyncMock(return_value=MagicMock(sexes=[sex1]))
+    mock_model = MagicMock(sexes=[sex1])
+    category_repo.get_modality_model_by_id = AsyncMock(return_value=mock_model)
+    category_repo.session.get = AsyncMock(return_value=mock_model)
     category_repo.session.flush = AsyncMock()
     sex_repo.session.get = AsyncMock(return_value=MagicMock(id=sex2.id, name="Female"))
     category_repo.get_modality_by_id = AsyncMock(return_value=cat_mod)
     category_repo.session.execute = AsyncMock(return_value=MagicMock(scalar_one_or_none=MagicMock(return_value=None)))
+    category_repo.get_or_create_physical_requirement = AsyncMock(
+        return_value=MagicMock(id=uuid4(), initial_weight=50.0, final_weight=60.0)
+    )
     
     use_cases = TournamentUseCases(
         modality_repo=MagicMock(),

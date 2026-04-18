@@ -15,10 +15,13 @@ const modalityOptions = computed(() => dialogRef?.value?.data?.modalities?.value
 const sexOptions = computed(() => dialogRef?.value?.data?.sexes?.value ?? dialogRef?.value?.data?.sexes ?? []);
 const rankGroups = ref<RankGroup[]>([]);
 
+let nextUiId = 1;
+
 const form = ref({
   ages: [] as number[],
   specialCondition: false,
   modalities: [] as {
+    _uiId: number;
     modalityId: string;
     sexIds: string[];
     rankGroupIds: string[];
@@ -32,8 +35,6 @@ const form = ref({
   }[],
 });
 
-const selectedModalityIds = ref<string[]>([]);
-
 onMounted(async () => {
   try {
     rankGroups.value = await RankGroupService.getAll();
@@ -46,87 +47,89 @@ onMounted(async () => {
     form.value.ages = [...cat.ages];
     form.value.specialCondition = cat.specialCondition;
 
-    if (cat.modalities) {
-      selectedModalityIds.value = [...new Set(cat.modalities.map((m: any) => m.modality.id) as string[])];
-      
-      // Agrupar por modalidad
-      const groups: Record<string, any> = {};
-      
-      cat.modalities.forEach((m: any) => {
-        const modalityId = m.modality.id;
-        const rgid = m.rankGroup?.id;
-        const pr = m.physicalRequirement;
-        const modSexIds = m.sexes?.map((s: any) => s.id) || [];
-        
-        if (!groups[modalityId]) {
-          groups[modalityId] = {
-            modalityId: modalityId,
-            sexIds: new Set<string>(modSexIds),
-            rankGroupIds: new Set<string>(),
-            usePhysicalRequirement: false,
-            physicalRequirements: [] as any[],
-          };
-        }
-        
-        // Unir sexos (en teoría deberían ser los mismos para la misma modalidad en la misma categoría, 
-        // pero el modelo ahora permite granularidad absoluta)
-        modSexIds.forEach((sid: string) => groups[modalityId].sexIds.add(sid));
+    if (cat.modalities && cat.modalities.length > 0) {
+      const flatList = cat.modalities.map((m: any) => ({
+        modalityId: m.modality.id,
+        sexIds: (m.sexes?.map((s: any) => s.id) || []).sort(),
+        rankGroupId: m.rankGroup?.id,
+        pr: m.physicalRequirement
+      }));
 
-        if (rgid) groups[modalityId].rankGroupIds.add(rgid);
+      // Paso 1: Agrupar por modalidad + sexos + requerimiento fisico
+      const step1Groups = new Map<string, any>();
+      flatList.forEach((item: any) => {
+        const prKey = item.pr ? `${item.pr.initialWeight}-${item.pr.finalWeight}-${item.pr.initialHeight}-${item.pr.finalHeight}` : 'none';
+        const key = `${item.modalityId}|${item.sexIds.join(',')}|${prKey}`;
         
-        if (pr) {
-          groups[modalityId].usePhysicalRequirement = true;
-          // Evitar duplicados si vienen de la base de datos (aunque deberían ser únicos)
-          const alreadyExists = groups[modalityId].physicalRequirements.some((existing: any) => 
-            existing.initialWeight === pr.initialWeight &&
-            existing.finalWeight === pr.finalWeight &&
-            existing.initialHeight === pr.initialHeight &&
-            existing.finalHeight === pr.finalHeight
-          );
-          if (!alreadyExists) {
-            groups[modalityId].physicalRequirements.push({
-              initialWeight: pr.initialWeight,
-              finalWeight: pr.finalWeight,
-              initialHeight: pr.initialHeight,
-              finalHeight: pr.finalHeight,
-            });
-          }
+        if (!step1Groups.has(key)) {
+          step1Groups.set(key, {
+            modalityId: item.modalityId,
+            sexIds: item.sexIds,
+            pr: item.pr,
+            rankGroupIds: new Set<string>()
+          });
+        }
+        if (item.rankGroupId) {
+          step1Groups.get(key).rankGroupIds.add(item.rankGroupId);
         }
       });
-      
-      form.value.modalities = Object.values(groups).map((g: any) => ({
-        modalityId: g.modalityId,
-        sexIds: Array.from(g.sexIds),
-        rankGroupIds: Array.from(g.rankGroupIds),
-        usePhysicalRequirement: g.usePhysicalRequirement,
-        physicalRequirements: g.physicalRequirements.length > 0 ? g.physicalRequirements : [{ initialWeight: null, finalWeight: null, initialHeight: null, finalHeight: null }]
-      }));
+
+      // Paso 2: Agrupar por modalidad + sexos + arreglos exactos de grupos de rango combinados
+      const finalGroups = new Map<string, any>();
+      step1Groups.forEach((group: any) => {
+        const rgKey = Array.from(group.rankGroupIds).sort().join(',');
+        const key = `${group.modalityId}|${group.sexIds.join(',')}|${rgKey}`;
+        
+        if (!finalGroups.has(key)) {
+          finalGroups.set(key, {
+            _uiId: nextUiId++,
+            modalityId: group.modalityId,
+            sexIds: group.sexIds,
+            rankGroupIds: Array.from(group.rankGroupIds),
+            usePhysicalRequirement: false,
+            physicalRequirements: [] as any[]
+          });
+        }
+        
+        if (group.pr) {
+          finalGroups.get(key).usePhysicalRequirement = true;
+          finalGroups.get(key).physicalRequirements.push({
+            initialWeight: group.pr.initialWeight,
+            finalWeight: group.pr.finalWeight,
+            initialHeight: group.pr.initialHeight,
+            finalHeight: group.pr.finalHeight,
+          });
+        }
+      });
+
+      form.value.modalities = Array.from(finalGroups.values()).map(g => {
+        if (g.physicalRequirements.length === 0) {
+          g.physicalRequirements.push({ initialWeight: null, finalWeight: null, initialHeight: null, finalHeight: null });
+        }
+        return g;
+      });
     }
   }
 });
 
-function onModalitiesChange(): void {
-  // Add new modalities
-  selectedModalityIds.value.forEach((id) => {
-    if (!form.value.modalities.find((m) => m.modalityId === id)) {
-      form.value.modalities.push({
-        modalityId: id,
-        sexIds: [],
-        rankGroupIds: [],
-        usePhysicalRequirement: false,
-        physicalRequirements: [{
-          initialWeight: null,
-          finalWeight: null,
-          initialHeight: null,
-          finalHeight: null,
-        }],
-      });
-    }
+function addModalityBlock(): void {
+  form.value.modalities.push({
+    _uiId: nextUiId++,
+    modalityId: "",
+    sexIds: [],
+    rankGroupIds: [],
+    usePhysicalRequirement: false,
+    physicalRequirements: [{
+      initialWeight: null,
+      finalWeight: null,
+      initialHeight: null,
+      finalHeight: null,
+    }],
   });
-  // Remove unselected
-  form.value.modalities = form.value.modalities.filter((m) =>
-    selectedModalityIds.value.includes(m.modalityId)
-  );
+}
+
+function removeModalityBlock(index: number): void {
+  form.value.modalities.splice(index, 1);
 }
 
 const submitting = ref(false);
@@ -146,14 +149,34 @@ function removeAge(age: number): void {
 }
 
 async function onSubmit(): Promise<void> {
-  // Validation: Each modality must have at least one rank group and at least one sex
-  if (form.value.modalities.some(m => !m.rankGroupIds || m.rankGroupIds.length === 0)) {
-    toast.add({ severity: "warn", summary: "Validación", detail: "Por favor, selecciona al menos un grupo de rangos para cada modalidad.", life: 3000 });
+  if (form.value.modalities.length === 0) {
+    toast.add({ severity: "warn", summary: "Validación", detail: "Añade al menos una subcategoría/modalidad.", life: 3000 });
     return;
   }
-  if (form.value.modalities.some(m => !m.sexIds || m.sexIds.length === 0)) {
-    toast.add({ severity: "warn", summary: "Validación", detail: "Por favor, selecciona al menos un sexo para cada modalidad.", life: 3000 });
-    return;
+  for (let i = 0; i < form.value.modalities.length; i++) {
+    const m = form.value.modalities[i];
+    if (!m.modalityId) {
+      toast.add({ severity: "warn", summary: "Validación", detail: `Selecciona una modalidad para la subcategoría ${i + 1}.`, life: 3000 });
+      return;
+    }
+    if (!m.rankGroupIds || m.rankGroupIds.length === 0) {
+      toast.add({ severity: "warn", summary: "Validación", detail: `Selecciona al menos un grupo de rangos para la subcategoría ${i + 1}.`, life: 3000 });
+      return;
+    }
+    if (!m.sexIds || m.sexIds.length === 0) {
+      toast.add({ severity: "warn", summary: "Validación", detail: `Selecciona al menos un sexo para la subcategoría ${i + 1}.`, life: 3000 });
+      return;
+    }
+    if (m.usePhysicalRequirement) {
+      const hasValidPr = m.physicalRequirements.some(pr => 
+        pr.initialWeight !== null || pr.finalWeight !== null || 
+        pr.initialHeight !== null || pr.finalHeight !== null
+      );
+      if (!hasValidPr) {
+        toast.add({ severity: "warn", summary: "Validación", detail: `Llene al menos un límite de peso o altura para los requerimientos físicos en la subcategoría ${i + 1}, o desactive la opción.`, life: 5000 });
+        return;
+      }
+    }
   }
 
   submitting.value = true;
@@ -238,28 +261,34 @@ function removePhysicalRequirement(modIndex: number, reqIndex: number): void {
 
     <!-- Modalidades y Requerimientos -->
     <div class="surface-card p-4 border-round shadow-1 flex flex-col gap-4">
-      <h3 class="text-xl font-bold mb-2">Modalidades y Requerimientos</h3>
-      
-      <div class="flex flex-col gap-2">
-        <label class="font-semibold text-sm">Seleccionar Modalidades</label>
-        <MultiSelect
-          v-model="selectedModalityIds"
-          :options="modalityOptions"
-          optionLabel="name"
-          optionValue="id"
-          placeholder="Añadir modalidades a esta categoría"
-          @change="onModalitiesChange"
-          fluid
-        />
+      <div class="flex justify-between items-center mb-0">
+        <h3 class="text-xl font-bold m-0">Modalidades y Requerimientos</h3>
+        <Button label="Añadir Subcategoría" icon="pi pi-plus" size="small" @click="addModalityBlock" />
       </div>
 
       <div v-if="form.modalities.length > 0" class="flex flex-col gap-4 mt-2">
-        <div v-for="mod in form.modalities" :key="mod.modalityId" 
-             class="border-1 border-surface-200 p-3 border-round bg-surface-50 dark:bg-surface-900">
-          <div class="flex justify-between items-center mb-3">
-            <span class="font-bold text-primary">{{ getModalityName(mod.modalityId) }}</span>
-            <div class="flex items-center gap-2">
-              <span class="text-xs">Requerimientos físicos</span>
+        <div v-for="(mod, modIndex) in form.modalities" :key="mod._uiId" 
+             class="border-1 border-surface-200 p-3 border-round bg-surface-50 dark:bg-surface-900 border-l-4 border-l-primary relative">
+          
+          <Button icon="pi pi-trash" severity="danger" text rounded 
+                  class="absolute top-1 right-1" 
+                  @click="removeModalityBlock(modIndex)" />
+
+          <div class="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4 pr-8">
+            <div class="flex flex-col gap-2">
+              <label class="text-xs font-semibold">Seleccionar Modalidad</label>
+              <Dropdown
+                v-model="mod.modalityId"
+                :options="modalityOptions"
+                optionLabel="name"
+                optionValue="id"
+                placeholder="Elegir una modalidad"
+                fluid
+                class="p-inputtext-sm"
+              />
+            </div>
+            <div class="flex items-center gap-2 justify-end self-end h-[38px]">
+              <span class="text-xs font-semibold">Usar Requerimientos físicos</span>
               <ToggleButton v-model="mod.usePhysicalRequirement" onLabel="Si" offLabel="No" class="w-16 h-8 text-xs" />
             </div>
           </div>

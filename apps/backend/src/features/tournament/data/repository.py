@@ -134,7 +134,7 @@ class CategoryRepository:
         initial_height: Optional[float],
         final_height: Optional[float],
         preferred_id: Optional[UUID] = None
-    ) -> UUID:
+    ) -> PhysicalRequirementModel:
         # Try to find existing
         stmt = select(PhysicalRequirementModel).where(
             PhysicalRequirementModel.initial_weight == initial_weight,
@@ -146,7 +146,7 @@ class CategoryRepository:
         existing = result.scalars().first()
         
         if existing:
-            return existing.id
+            return existing
             
         # Create new
         new_pr = PhysicalRequirementModel(
@@ -157,7 +157,7 @@ class CategoryRepository:
             final_height=final_height,
         )
         self.session.add(new_pr)
-        return new_pr.id
+        return new_pr
 
     async def create(self, category: Category) -> Category:
         model = CategoryModel(
@@ -172,13 +172,14 @@ class CategoryRepository:
             pr_id = None
             if cat_mod.physical_requirement:
                 pr = cat_mod.physical_requirement
-                pr_id = await self.get_or_create_physical_requirement(
+                pr_model = await self.get_or_create_physical_requirement(
                     pr.initial_weight,
                     pr.final_weight,
                     pr.initial_height,
                     pr.final_height,
                     preferred_id=pr.id
                 )
+                pr_id = pr_model.id
 
             # 2. Handle Rank Group
             rank_group_id = None

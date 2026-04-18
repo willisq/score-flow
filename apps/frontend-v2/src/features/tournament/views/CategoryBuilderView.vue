@@ -96,12 +96,12 @@ const suggestedCategory = computed((): CategoryCreate | null => {
       {
         modalityId: selectedModalityId.value,
         rankGroupIds: [selectedRankGroupId.value],
-        physicalRequirement: {
+        physicalRequirements: [{
           initialWeight: weights.length > 0 ? Math.min(...weights) : null,
           finalWeight: weights.length > 0 ? Math.max(...weights) : null,
           initialHeight: heights.length > 0 ? Math.min(...heights) : null,
           finalHeight: heights.length > 0 ? Math.max(...heights) : null,
-        }
+        }]
       }
     ]
   };
@@ -208,7 +208,7 @@ async function submitBulk() {
 function getCategoryInfo(cat: CategoryCreate) {
   const modData = cat.modalities[0];
   const modalityName = modalities.value.find(m => m.id === modData.modalityId)?.name || '';
-  const pr = modData.physicalRequirement;
+  const pr = modData.physicalRequirements?.[0];
   return `${modalityName} | ${cat.ages[0]}-${cat.ages[1]} años | ${pr?.initialWeight?.toFixed(1) || '?'} - ${pr?.finalWeight?.toFixed(1) || '?'} kg`;
 }
 
@@ -392,8 +392,8 @@ watch(filters, () => {
                   class="text-[11px] p-2 bg-primary-50 dark:bg-primary-950 rounded border border-primary-200 dark:border-primary-800 space-y-1">
                   <p class="flex justify-between"><span>Edades:</span> <b>{{ suggestedCategory.ages[0] }}-{{
                     suggestedCategory.ages[1] }}</b></p>
-                  <p class="flex justify-between"><span>Peso:</span> <b>{{ suggestedCategory.modalities[0].physicalRequirement?.initialWeight?.toFixed(1)
-                  }}-{{ suggestedCategory.modalities[0].physicalRequirement?.finalWeight?.toFixed(1) }} kg</b></p>
+                  <p class="flex justify-between"><span>Peso:</span> <b>{{ suggestedCategory.modalities[0].physicalRequirements?.[0]?.initialWeight?.toFixed(1)
+                  }}-{{ suggestedCategory.modalities[0].physicalRequirements?.[0]?.finalWeight?.toFixed(1) }} kg</b></p>
                   <p v-if="suggestedCategory.specialCondition" class="text-amber-600 font-bold">Condición Especial
                     Detectada</p>
                 </div>
@@ -437,7 +437,7 @@ watch(filters, () => {
                         class="text-xs font-normal opacity-60">años</span>
                     </div>
                     <div class="text-xs opacity-70">
-                      {{ item.category.modalities[0].physicalRequirement?.initialWeight?.toFixed(1) }} - {{ item.category.modalities[0].physicalRequirement?.finalWeight?.toFixed(1) }} kg
+                      {{ item.category.modalities[0].physicalRequirements?.[0]?.initialWeight?.toFixed(1) }} - {{ item.category.modalities[0].physicalRequirements?.[0]?.finalWeight?.toFixed(1) }} kg
                     </div>
                     <div class="mt-2 flex flex-wrap gap-1">
                       <Tag v-if="item.category.specialCondition" icon="pi pi-star" value="CE" severity="warn"
