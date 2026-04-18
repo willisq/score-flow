@@ -90,12 +90,11 @@ class RankGroup:
 
 @dataclass
 class Category:
-    """Entity defining a competition category (Age, Sex, Special Condition)."""
+    """Entity defining a competition category (Age, Special Condition)."""
 
     id: UUID
     ages: List[int]
     special_condition: bool
-    sexes: List[Sex]
     modalities: List["CategoryModality"] = field(default_factory=list)
 
     def __post_init__(self):
@@ -111,20 +110,20 @@ class Category:
             )
 
     def is_eligible_base(self, competitor: Competitor) -> dict:
-        """Checks only the base requirements of the category (Age, Sex)."""
+        """Checks only the base requirements of the category (Age, SC)."""
         return {
             "age_mismatch": competitor.age not in self.ages,
             "special_condition_mismatch": competitor.special_condition != self.special_condition,
-            "sex_mismatch": competitor.sex not in self.sexes,
         }
 
 
 @dataclass
 class CategoryModality:
-    """Linking entity between Category and Modality with specific rank and physical requirements."""
+    """Linking entity between Category and Modality with specific rank, sex and physical requirements."""
     id: UUID
     category: Category
     modality: Modality
+    sexes: List[Sex]
     rank_group: Optional[RankGroup] = None
     physical_requirement: Optional[PhysicalRequirement] = None
 
@@ -132,9 +131,7 @@ class CategoryModality:
     def ages(self) -> List[int]:
         return self.category.ages
 
-    @property
-    def sexes(self) -> List[Sex]:
-        return self.category.sexes
+    # Removed property since it is now a direct attribute
 
     @property
     def ranks(self) -> List[Rank]:
@@ -144,6 +141,7 @@ class CategoryModality:
         """Determines why a competitor is not eligible for this category-modality."""
         failures = self.category.is_eligible_base(competitor)
         failures.update({
+            "sex_mismatch": competitor.sex not in self.sexes,
             "rank_mismatch": self.rank_group and competitor.rank not in self.ranks,
             "weight_mismatch": False,
             "height_mismatch": False,

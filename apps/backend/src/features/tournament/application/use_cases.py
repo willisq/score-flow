@@ -10,6 +10,7 @@ from src.features.tournament.application.schemas import (
     MassRegistrationRequest,
     CategoryBulkCreate,
     CategoryUpdate,
+    CategoryModalityUpdate,
     RankGroupCreate,
     RankGroupUpdate,
 )
@@ -35,7 +36,7 @@ from src.features.tournament.data.models import (
     CategoryModel,
     RankGroupModel,
 )
-from src.features.registration.data.models import RankModel, SexModel
+from src.features.registration.data.models import RankModel, SexModel, CompetitorModel
 from src.features.registration.data.repository import (
     CompetitorRepository,
     RankRepository,
@@ -121,21 +122,12 @@ class TournamentUseCases:
         return await self.tournament_repo.list_all()
 
     async def register_category(self, schema: CategoryCreate) -> List[Category]:
-        # 1. Fetch sexes
-        sexes = []
-        for sid in schema.sex_ids:
-            sex = await self.sex_repo.get_by_id(sid)
-            if not sex:
-                raise ValueError(f"Sex with ID {sid} not found")
-            sexes.append(sex)
-
         # 2. Create Domain Entity
         category_id = uuid4()
         category = Category(
             id=category_id,
             ages=schema.ages,
             special_condition=schema.special_condition,
-            sexes=sexes,
         )
 
         # Cache for deduplicating physical requirements within the same request
@@ -145,6 +137,14 @@ class TournamentUseCases:
             modality = await self.modality_repo.get_by_id(mod_data.modality_id)
             if not modality:
                 raise ValueError(f"Modality with ID {mod_data.modality_id} not found")
+
+            # Fetch sexes for this specific modality configuration
+            mod_sexes = []
+            for sid in mod_data.sex_ids:
+                sex = await self.sex_repo.get_by_id(sid)
+                if not sex:
+                    raise ValueError(f"Sex with ID {sid} not found")
+                mod_sexes.append(sex)
 
             # Collect physical requirement entities
             phys_req_entities = []
@@ -185,6 +185,7 @@ class TournamentUseCases:
                         id=uuid4(),
                         category=category,
                         modality=modality,
+                        sexes=mod_sexes,
                         rank_group=rank_group,
                         physical_requirement=pr_entity,
                     )
@@ -204,14 +205,6 @@ class TournamentUseCases:
         if schema.special_condition is not None:
             model.special_condition = schema.special_condition
 
-        # Update sexes
-        if schema.sex_ids is not None:
-            model.sexes = []
-            for sid in schema.sex_ids:
-                sex_model = await self.sex_repo.session.get(SexModel, sid)
-                if sex_model:
-                    model.sexes.append(sex_model)
-
         # Update modalities
         if schema.modalities is not None:
             # Clear existing modalities (cascade delete-orphan handles the DB)
@@ -224,6 +217,13 @@ class TournamentUseCases:
                 modality = await self.modality_repo.get_by_id(mod_data.modality_id)
                 if not modality:
                     raise ValueError(f"Modality with ID {mod_data.modality_id} not found")
+
+                # Fetch sexes for this configuration
+                sex_models = []
+                for sid in mod_data.sex_ids:
+                    sex_model = await self.sex_repo.session.get(SexModel, sid)
+                    if sex_model:
+                        sex_models.append(sex_model)
 
                 # Collect physical requirement models
                 phys_req_models = []
@@ -238,14 +238,14 @@ class TournamentUseCases:
                         if pr_key in phys_req_model_cache:
                             phys_req_models.append(phys_req_model_cache[pr_key])
                         else:
-                            new_pr_model = PhysicalRequirementModel(
-                                id=uuid4(),
-                                initial_weight=pr_schema.initial_weight,
-                                final_weight=pr_schema.final_weight,
-                                initial_height=pr_schema.initial_height,
-                                final_height=pr_schema.final_height,
+                            new_pr_id = await self.category_repo.get_or_create_physical_requirement(
+                                pr_schema.initial_weight,
+                                pr_schema.final_weight,
+                                pr_schema.initial_height,
+                                pr_schema.final_height
                             )
-                            self.category_repo.session.add(new_pr_model)
+                            # Fetch the model to add to the cache/list (since we need the object)
+                            new_pr_model = await self.category_repo.session.get(PhysicalRequirementModel, new_pr_id)
                             phys_req_model_cache[pr_key] = new_pr_model
                             phys_req_models.append(new_pr_model)
 
@@ -264,6 +264,7 @@ class TournamentUseCases:
                             id=uuid4(),
                             category_id=model.id,
                             modality_id=modality.id,
+                            sexes=sex_models,
                             rank_group_id=rank_group.id,
                             physical_requirement_id=pr_model.id if pr_model else None,
                         )
@@ -273,6 +274,51 @@ class TournamentUseCases:
         # But we need to return the domain entity
         await self.category_repo.session.flush() # Ensure it's in DB
         return await self.category_repo.get_by_id(category_id)
+
+    async def update_category_modality(self, modality_id: UUID, schema: CategoryModalityUpdate) -> CategoryModality:
+        model = await self.category_repo.get_modality_model_by_id(modality_id)
+        if not model:
+            raise ValueError(f"Category Modality with ID {modality_id} not found")
+
+        # Update sexes
+        if schema.sex_ids is not None:
+            sex_models = []
+            for sid in schema.sex_ids:
+                sex_model = await self.sex_repo.session.get(SexModel, sid)
+                if sex_model:
+                    sex_models.append(sex_model)
+            model.sexes = sex_models
+
+        # Update physical requirement
+        if schema.physical_requirement is not None:
+            pr_schema = schema.physical_requirement
+            new_pr_id = await self._get_or_create_physical_requirement(
+                pr_schema.initial_weight,
+                pr_schema.final_weight,
+                pr_schema.initial_height,
+                pr_schema.final_height
+            )
+            model.physical_requirement_id = new_pr_id
+
+        await self.category_repo.session.flush()
+        return await self.category_repo.get_modality_by_id(modality_id)
+
+    async def _get_or_create_physical_requirement(
+        self,
+        initial_weight: float | None,
+        final_weight: float | None,
+        initial_height: float | None,
+        final_height: float | None,
+    ) -> UUID | None:
+        if all(v is None for v in (initial_weight, final_weight, initial_height, final_height)):
+            return None
+
+        return await self.category_repo.get_or_create_physical_requirement(
+            initial_weight,
+            final_weight,
+            initial_height,
+            final_height
+        )
 
     async def list_categories(self) -> List[Category]:
         return await self.category_repo.list_all()

@@ -76,7 +76,6 @@ class TestCategory:
             id=valid_id,
             ages=[18, 35],
             special_condition=False,
-            sexes=[valid_sex],
         )
         assert category.ages == [18, 35]
 
@@ -89,7 +88,6 @@ class TestCategory:
                 id=valid_id,
                 ages=[age],
                 special_condition=False,
-                sexes=[valid_sex],
             )
         assert exc.value.code == TournamentError.INVALID_AGE_LIMITS.code
 
@@ -99,25 +97,24 @@ class TestCategory:
                 id=valid_id,
                 ages=[],
                 special_condition=False,
-                sexes=[valid_sex],
             )
         assert exc.value.code == TournamentError.INVALID_AGE_LIST.code
 
 
 class TestCategoryModality:
-    def test_valid_creation(self, valid_id, valid_modality):
+    def test_valid_creation(self, valid_id, valid_modality, valid_sex):
         # Create a base category
         category = Category(
             id=valid_id,
             ages=[18, 35],
             special_condition=False,
-            sexes=[],
         )
         
         cat_mod = CategoryModality(
             id=valid_id,
             category=category,
             modality=valid_modality,
+            sexes=[valid_sex],
         )
         assert cat_mod.category == category
         assert cat_mod.modality == valid_modality

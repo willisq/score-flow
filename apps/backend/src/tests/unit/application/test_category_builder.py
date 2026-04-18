@@ -64,29 +64,33 @@ def test_register_categories_bulk():
         categories=[
             CategoryCreate(
                 ages=[18, 40],
-                sex_ids=[sex.id],
                 modalities=[
                     CategoryModalityCreate(
                         modality_id=modality.id,
+                        sex_ids=[sex.id],
                         rank_group_ids=[rank_group_id],
-                        physical_requirement=PhysicalRequirementCreate(
-                            initial_weight=80.0,
-                            final_weight=120.0
-                        )
+                        physical_requirements=[
+                            PhysicalRequirementCreate(
+                                initial_weight=80.0,
+                                final_weight=120.0
+                            )
+                        ]
                     )
                 ]
             ),
             CategoryCreate(
                 ages=[10, 15],
-                sex_ids=[sex.id],
                 modalities=[
                     CategoryModalityCreate(
                         modality_id=modality.id,
+                        sex_ids=[sex.id],
                         rank_group_ids=[rank_group_id],
-                        physical_requirement=PhysicalRequirementCreate(
-                            initial_weight=40.0,
-                            final_weight=60.0
-                        )
+                        physical_requirements=[
+                            PhysicalRequirementCreate(
+                                initial_weight=40.0,
+                                final_weight=60.0
+                            )
+                        ]
                     )
                 ]
             )

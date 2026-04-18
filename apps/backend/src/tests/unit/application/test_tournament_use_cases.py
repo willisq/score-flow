@@ -18,6 +18,7 @@ from src.features.tournament.application.schemas import (
     CategoryBulkCreate,
     CategoryModalityCreate,
     PhysicalRequirementCreate,
+    CategoryModalityUpdate,
 )
 from src.features.tournament.application.use_cases import TournamentUseCases
 from src.features.tournament.domain.entities import (
@@ -114,10 +115,10 @@ def test_register_category():
     
     schema = CategoryCreate(
         ages=[10, 12],
-        sex_ids=[sex.id],
         modalities=[
             CategoryModalityCreate(
                 modality_id=modality1.id,
+                sex_ids=[sex.id],
                 rank_group_ids=[rank_group.id],
                 physical_requirements=[
                     PhysicalRequirementCreate(
@@ -128,6 +129,7 @@ def test_register_category():
             ),
             CategoryModalityCreate(
                 modality_id=modality2.id,
+                sex_ids=[sex.id],
                 rank_group_ids=[rank_group.id],
                 physical_requirements=[
                     PhysicalRequirementCreate(
@@ -149,7 +151,7 @@ def test_register_category():
     assert category.modalities[1].modality == modality2
     # Ranks are now on modality level
     assert rank in category.modalities[0].ranks
-    assert sex in category.sexes
+    assert sex in category.modalities[0].sexes
     category_repo.create.assert_called_once()
 
 
@@ -174,10 +176,9 @@ def test_inscribe_competitor():
     category = Category(
         id=uuid4(), ages=[15, 17], 
         special_condition=False,
-        sexes=[sex]
     )
     rank_group = RankGroup(id=uuid4(), name="Grup: Test", ranks=[rank])
-    cat_mod = CategoryModality(id=uuid4(), category=category, modality=modality, rank_group=rank_group)
+    cat_mod = CategoryModality(id=uuid4(), category=category, modality=modality, sexes=[sex], rank_group=rank_group)
     category.modalities.append(cat_mod)
     
     tournament = Tournament(id=uuid4(), description="All Valley")
@@ -227,10 +228,9 @@ def test_mass_register_competitors():
     
     category = Category(
         id=uuid4(), ages=[18], special_condition=False,
-        sexes=[sex]
     )
     rank_group = RankGroup(id=uuid4(), name="Grup: Test", ranks=[rank])
-    cat_mod = CategoryModality(id=uuid4(), category=category, modality=modality, rank_group=rank_group)
+    cat_mod = CategoryModality(id=uuid4(), category=category, modality=modality, sexes=[sex], rank_group=rank_group)
     category.modalities.append(cat_mod)
     
     instructor = Person(id=uuid4(), first_name="Nariyoshi", last_name="Miyagi")
@@ -284,10 +284,9 @@ def test_mass_register_competitors_with_category_modality_id():
 
     category = Category(
         id=uuid4(), ages=[18], special_condition=False,
-        sexes=[sex]
     )
     rank_group = RankGroup(id=uuid4(), name="Grup: Test", ranks=[rank])
-    cat_mod = CategoryModality(id=uuid4(), category=category, modality=modality, rank_group=rank_group)
+    cat_mod = CategoryModality(id=uuid4(), category=category, modality=modality, sexes=[sex], rank_group=rank_group)
     category.modalities.append(cat_mod)
 
     instructor = Person(id=uuid4(), first_name="Nariyoshi", last_name="Miyagi")
@@ -344,10 +343,9 @@ def test_mass_register_competitors_with_category_modality_id_invalid():
 
     category = Category(
         id=uuid4(), ages=[18], special_condition=False,
-        sexes=[sex]
     )
     rank_group = RankGroup(id=uuid4(), name="Grup: Test", ranks=[rank])
-    cat_mod = CategoryModality(id=uuid4(), category=category, modality=modality, rank_group=rank_group)
+    cat_mod = CategoryModality(id=uuid4(), category=category, modality=modality, sexes=[sex], rank_group=rank_group)
     category.modalities.append(cat_mod)
 
     instructor = Person(id=uuid4(), first_name="Nariyoshi", last_name="Miyagi")
@@ -422,10 +420,10 @@ def test_register_category_deduplicates_physical_requirements():
     # Request with 2 physical requirements that are IDENTICAL
     schema = CategoryCreate(
         ages=[20],
-        sex_ids=[sex.id],
         modalities=[
             CategoryModalityCreate(
                 modality_id=modality.id,
+                sex_ids=[sex.id],
                 rank_group_ids=[rank_group.id],
                 physical_requirements=[
                     PhysicalRequirementCreate(initial_weight=60.0, final_weight=70.0),
@@ -442,3 +440,57 @@ def test_register_category_deduplicates_physical_requirements():
     assert len(category.modalities) == 2
     # BUT they should share the same PhysicalRequirement object instance
     assert category.modalities[0].physical_requirement is category.modalities[1].physical_requirement
+
+
+def test_update_category_modality():
+    category_repo = MagicMock()
+    sex_repo = MagicMock()
+    
+    # Setup
+    category = Category(id=uuid4(), ages=[10, 12], special_condition=False)
+    modality = Modality(id=uuid4(), name="Sparring")
+    sex1 = Sex(id=uuid4(), name="Male")
+    sex2 = Sex(id=uuid4(), name="Female")
+    rank_group = RankGroup(id=uuid4(), name="Group A", ranks=[])
+    
+    cat_mod = CategoryModality(
+        id=uuid4(), 
+        category=category, 
+        modality=modality, 
+        sexes=[sex1], 
+        rank_group=rank_group
+    )
+    
+    # Mocking session.get for CategoryModalityModel
+    category_repo.session.get = AsyncMock(return_value=MagicMock(sexes=[sex1]))
+    category_repo.session.flush = AsyncMock()
+    sex_repo.session.get = AsyncMock(return_value=MagicMock(id=sex2.id, name="Female"))
+    category_repo.get_modality_by_id = AsyncMock(return_value=cat_mod)
+    category_repo.session.execute = AsyncMock(return_value=MagicMock(scalar_one_or_none=MagicMock(return_value=None)))
+    
+    use_cases = TournamentUseCases(
+        modality_repo=MagicMock(),
+        tournament_repo=MagicMock(),
+        category_repo=category_repo,
+        registration_repo=MagicMock(),
+        competitor_repo=MagicMock(),
+        rank_repo=MagicMock(),
+        sex_repo=sex_repo,
+        rank_group_repo=MagicMock(),
+    )
+    
+    schema = CategoryModalityUpdate(
+        sex_ids=[sex2.id],
+        physical_requirement=PhysicalRequirementCreate(initial_weight=50.0, final_weight=60.0)
+    )
+    
+    # We update cat_mod manually for the mock return to reflect changes in the test
+    cat_mod.sexes = [sex2]
+    cat_mod.physical_requirement = PhysicalRequirement(id=uuid4(), initial_weight=50.0, final_weight=60.0)
+    
+    result = asyncio.run(use_cases.update_category_modality(cat_mod.id, schema))
+    
+    assert isinstance(result, CategoryModality)
+    assert sex2 in result.sexes
+    assert result.physical_requirement.initial_weight == 50.0
+    category_repo.session.flush.assert_called()

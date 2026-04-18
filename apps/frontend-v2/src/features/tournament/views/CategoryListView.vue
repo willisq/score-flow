@@ -4,6 +4,7 @@ import { useDialog } from "primevue/usedialog";
 import { CategoryService } from "../services/CategoryService";
 import type { Category } from "../types";
 import CategoryForm from "./components/CategoryForm.vue";
+import ModalityForm from "./components/ModalityForm.vue";
 import CategoryCompetitorList from "./components/CategoryCompetitorList.vue";
 import { useRegistrationData } from "@/features/registration/composables/useRegistrationData";
 import { useTournamentData } from "../composables/useTournamentData";
@@ -20,18 +21,18 @@ const loading = ref(true);
 
 // Grouping logic: Root = Age Range + Special Condition
 const groupedCategories = computed(() => {
-  const groups: Record<string, { 
-    id: string; 
-    ages: number[]; 
-    specialCondition: boolean; 
-    items: Category[] 
+  const groups: Record<string, {
+    id: string;
+    ages: number[];
+    specialCondition: boolean;
+    items: Category[]
   }> = {};
 
   categories.value.forEach((cat) => {
     const min = Math.min(...cat.ages);
     const max = Math.max(...cat.ages);
     const key = `${min}-${max}-${cat.specialCondition}`;
-    
+
     if (!groups[key]) {
       groups[key] = {
         id: key,
@@ -83,6 +84,24 @@ function openEditDialog(category: Category): void {
   });
 }
 
+function openModalityEditDialog(modality: any): void {
+  dialog.open(ModalityForm, {
+    props: {
+      header: `Editar ${modality.modality.name}`,
+      style: { width: "30vw" },
+      breakpoints: { "960px": "50vw", "640px": "90vw" },
+      modal: true,
+      dismissableMask: true,
+    },
+    data: { modality, sexes },
+    onClose: (options) => {
+      if (options?.data) {
+        loadCategories();
+      }
+    },
+  });
+}
+
 function showCompetitors(categoryModality: any): void {
   dialog.open(CategoryCompetitorList, {
     props: {
@@ -97,7 +116,7 @@ function showCompetitors(categoryModality: any): void {
 }
 
 function getUniqueRanks(cat: Category) {
-  const allRanks = cat.modalities.flatMap(m => 
+  const allRanks = cat.modalities.flatMap(m =>
     m.rankGroup?.ranks || m.ranks || []
   );
   const seen = new Set();
@@ -126,15 +145,14 @@ onMounted(loadCategories);
     <DataView :value="groupedCategories" :loading="loading" paginator :rows="10">
       <template #list="slotProps">
         <div class="flex flex-col gap-4">
-          <div
-            v-for="group in slotProps.items"
-            :key="group.id"
-            class="surface-card border-1 border-surface-200 dark:border-surface-700 border-round overflow-hidden shadow-1"
-          >
+          <div v-for="group in slotProps.items" :key="group.id"
+            class="surface-card border-1 border-surface-200 dark:border-surface-700 border-round overflow-hidden shadow-1">
             <!-- Header del Grupo (Elemento Padre) -->
-            <div class="bg-surface-50 dark:bg-surface-900 p-4 border-b-1 border-surface-200 dark:border-surface-700 flex justify-between items-center">
+            <div
+              class="bg-surface-50 dark:bg-surface-900 p-4 border-b-1 border-surface-200 dark:border-surface-700 flex justify-between items-center">
               <div class="flex items-center gap-3">
-                <div class="bg-primary-500 text-white w-10 h-10 border-round flex items-center justify-center font-bold shadow-2">
+                <div
+                  class="bg-primary-500 text-white w-10 h-10 border-round flex items-center justify-center font-bold shadow-2">
                   {{ Math.min(...group.ages) }}+
                 </div>
                 <div>
@@ -151,64 +169,65 @@ onMounted(loadCategories);
 
             <!-- Lista de Subcategorías (Hijos) -->
             <div class="p-0">
-              <div v-for="(cat, idx) in group.items" :key="cat.id" 
-                   class="flex flex-col p-4"
-                   :class="{ 'border-t-1 border-surface-100 dark:border-surface-800': idx !== 0 }">
-                
+              <div v-for="(cat, idx) in group.items" :key="cat.id" class="flex flex-col p-4"
+                :class="{ 'border-t-1 border-surface-100 dark:border-surface-800': idx !== 0 }">
+
                 <div class="flex flex-col md:flex-row justify-between gap-4">
                   <!-- Detalles de Sexo y Rangos -->
                   <div class="flex-1 flex flex-col gap-3">
                     <div class="flex items-center gap-2 flex-wrap">
-                      <span class="text-sm font-semibold uppercase text-surface-400">Géneros:</span>
-                      <div class="flex gap-1">
-                        <i v-for="sex in cat.sexes" :key="sex.id" 
-                           :class="['pi text-lg', sex.name.toLowerCase().includes('masc') ? 'pi-mars text-blue-500' : 'pi-venus text-pink-500']"
-                           :title="sex.name"></i>
-                      </div>
-                    </div>
-                    
-                    <div class="flex items-center gap-2 flex-wrap">
                       <span class="text-sm font-semibold uppercase text-surface-400">Rangos:</span>
                       <div class="flex gap-1 flex-wrap">
-                        <Tag v-for="rank in getUniqueRanks(cat)" :key="rank.id" :value="rank.name" severity="secondary" class="text-[10px]" />
+                        <Tag v-for="rank in getUniqueRanks(cat)" :key="rank.id" :value="rank.name" severity="secondary"
+                          class="text-[10px]" />
                       </div>
                     </div>
                   </div>
 
                   <!-- Botón de Acción de la Categoría -->
                   <div class="flex items-start">
-                    <Button icon="pi pi-pencil" severity="secondary" text rounded @click="openEditDialog(cat)" title="Editar Categoría" />
+                    <Button icon="pi pi-pencil" severity="secondary" text rounded @click="openEditDialog(cat)"
+                      title="Editar Categoría" />
                   </div>
                 </div>
 
                 <!-- Modalidades específicas de esta combinación -->
                 <div class="mt-4 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
-                  <div v-for="mod in cat.modalities" :key="mod.id" 
-                       class="bg-surface-0 dark:bg-surface-800 border-1 border-surface-100 dark:border-surface-700 p-3 border-round hover:border-primary-300 transition-colors shadow-sm relative group">
+                  <div v-for="mod in cat.modalities" :key="mod.id"
+                    class="bg-surface-0 dark:bg-surface-800 border-1 border-surface-100 dark:border-surface-700 p-3 border-round hover:border-primary-300 transition-colors shadow-sm relative group">
                     <div class="flex justify-between items-start mb-2">
-                       <div class="flex flex-col gap-1">
-                         <Tag :value="mod.modality.name" severity="info" />
-                         <span v-if="mod.rankGroup" class="text-[10px] font-bold opacity-60">
-                           {{ mod.rankGroup.name }}
-                         </span>
-                       </div>
+                      <div class="flex flex-col gap-1">
+                        <Tag :value="mod.modality.name" severity="info" />
+                        <div class="flex gap-1 mt-1">
+                          <i v-for="sex in mod.sexes" :key="sex.id"
+                            :class="['pi text-xs', sex.name.toLowerCase().includes('masc') ? 'pi-mars text-blue-500' : 'pi-venus text-pink-500']"
+                            :title="sex.name"></i>
+                          <Button icon="pi pi-pencil" severity="secondary" text rounded size="small"
+                            class="opacity-0 group-hover:opacity-100 transition-opacity"
+                            @click.stop="openModalityEditDialog(mod)" title="Editar Subcategoría" />
+                        </div>
+                        <span v-if="mod.rankGroup" class="text-[10px] font-bold opacity-60">
+                          {{ mod.rankGroup.name }}
+                        </span>
+                      </div>
                     </div>
-                    
+
                     <div class="text-xs space-y-1">
                       <div v-if="mod.physicalRequirement?.initialWeight != null" class="flex justify-between">
-                         <span class="opacity-60">Peso:</span>
-                         <span class="font-bold">{{ mod.physicalRequirement.initialWeight }}–{{ mod.physicalRequirement.finalWeight }} Kg</span>
+                        <span class="opacity-60">Peso:</span>
+                        <span class="font-bold">{{ mod.physicalRequirement.initialWeight }}–{{
+                          mod.physicalRequirement.finalWeight }} Kg</span>
                       </div>
                       <div v-if="mod.physicalRequirement?.initialHeight != null" class="flex justify-between">
-                         <span class="opacity-60">Altura:</span>
-                         <span class="font-bold">{{ mod.physicalRequirement.initialHeight }}–{{ mod.physicalRequirement.finalHeight }} cm</span>
+                        <span class="opacity-60">Altura:</span>
+                        <span class="font-bold">{{ mod.physicalRequirement.initialHeight }}–{{
+                          mod.physicalRequirement.finalHeight }} cm</span>
                       </div>
                     </div>
 
                     <div class="mt-3 flex gap-2">
-                      <Button icon="pi pi-users" label="Ver Atletas" 
-                              class="text-[10px] py-1 px-2 h-8 w-full" 
-                              @click="showCompetitors(mod)" />
+                      <Button icon="pi pi-users" label="Ver Atletas" class="text-[10px] py-1 px-2 h-8 w-full"
+                        @click="showCompetitors(mod)" />
                     </div>
                   </div>
                 </div>
@@ -217,12 +236,12 @@ onMounted(loadCategories);
           </div>
         </div>
       </template>
-      
+
       <template #empty>
         <div class="flex flex-col items-center justify-center p-20 text-surface-400">
-           <i class="pi pi-search text-6xl mb-4"></i>
-           <p class="text-xl">No se han definido categorías aún.</p>
-           <Button label="Crear la Primera" icon="pi pi-plus" @click="openCreateDialog" class="mt-4" />
+          <i class="pi pi-search text-6xl mb-4"></i>
+          <p class="text-xl">No se han definido categorías aún.</p>
+          <Button label="Crear la Primera" icon="pi pi-plus" @click="openCreateDialog" class="mt-4" />
         </div>
       </template>
     </DataView>
@@ -233,6 +252,7 @@ onMounted(loadCategories);
 .surface-card {
   transition: transform 0.2s;
 }
+
 .surface-card:hover {
   transform: translateY(-2px);
 }

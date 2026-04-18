@@ -18,10 +18,10 @@ rank_group_item = Table(
     Column("rank_id", ForeignKey("rank.id", ondelete="CASCADE"), primary_key=True),
 )
 
-category_sex = Table(
-    "category_sex",
+category_modality_sex = Table(
+    "category_modality_sex",
     Base.metadata,
-    Column("category_id", ForeignKey("category.id"), primary_key=True),
+    Column("category_modality_id", ForeignKey("category_modality.id"), primary_key=True),
     Column("sex_id", ForeignKey("sex.id"), primary_key=True),
 )
 
@@ -71,7 +71,6 @@ class CategoryModel(Base):
     ages: Mapped[List[int]] = mapped_column(ARRAY(Integer), nullable=False)
     special_condition: Mapped[bool] = mapped_column(Boolean, default=False)
 
-    sexes: Mapped[List[SexModel]] = relationship(secondary=category_sex)
     modalities: Mapped[List["CategoryModalityModel"]] = relationship(
         back_populates="category", cascade="all, delete-orphan"
     )
@@ -89,6 +88,7 @@ class CategoryModalityModel(Base):
     )
 
     category: Mapped[CategoryModel] = relationship(back_populates="modalities")
+    sexes: Mapped[List[SexModel]] = relationship(secondary=category_modality_sex)
     modality: Mapped[ModalityModel] = relationship()
     rank_group: Mapped[Optional[RankGroupModel]] = relationship()
     physical_requirement: Mapped[Optional[PhysicalRequirementModel]] = relationship()

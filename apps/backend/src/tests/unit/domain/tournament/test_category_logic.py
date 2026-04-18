@@ -60,7 +60,7 @@ def valid_competitor(base_academy, base_rank, base_sex):
 @pytest.fixture
 def base_category_modality(base_modality, base_sex, base_rank):
     category = Category(
-        id=uuid4(), ages=[17, 18, 19], special_condition=False, sexes=[base_sex]
+        id=uuid4(), ages=[17, 18, 19], special_condition=False
     )
     phys_req = PhysicalRequirement(
         id=uuid4(),
@@ -74,6 +74,7 @@ def base_category_modality(base_modality, base_sex, base_rank):
         id=uuid4(),
         category=category,
         modality=base_modality,
+        sexes=[base_sex],
         rank_group=rank_group,
         physical_requirement=phys_req,
     )

@@ -17,6 +17,8 @@ from src.features.tournament.application.schemas import (
     CategoryBulkCreate,
     CompetitorSchema,
     CategoryUpdate,
+    CategoryModalityUpdate,
+    CategoryModalitySchema,
     RankGroupCreate,
     RankGroupUpdate,
     RankGroupSchema,
@@ -218,6 +220,26 @@ async def update_category(
         await use_cases.category_repo.session.commit()
         # Reload to ensure all relationships are fresh
         return await use_cases.category_repo.get_by_id(result.id)
+    except ValueError as e:
+        raise HTTPException(status_code=400, detail=str(e))
+    except Exception as e:
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Internal server error: {str(e)}",
+        )
+
+
+@router.patch("/categories/modalities/{category_modality_id}", response_model=CategoryModalitySchema)
+async def update_category_modality(
+    category_modality_id: UUID,
+    schema: CategoryModalityUpdate,
+    use_cases: TournamentUseCases = Depends(get_tournament_use_cases),
+):
+    try:
+        result = await use_cases.update_category_modality(category_modality_id, schema)
+        await use_cases.category_repo.session.commit()
+        # Reload to ensure all relationships are fresh
+        return await use_cases.category_repo.get_modality_by_id(result.id)
     except ValueError as e:
         raise HTTPException(status_code=400, detail=str(e))
     except Exception as e:

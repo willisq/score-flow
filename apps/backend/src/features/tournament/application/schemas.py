@@ -33,6 +33,7 @@ class PhysicalRequirementCreate(TunedModel):
 
 class CategoryModalityCreate(TunedModel):
     modality_id: UUID
+    sex_ids: List[UUID]
     rank_group_ids: List[UUID]
     physical_requirements: List[PhysicalRequirementCreate] = []
 
@@ -40,14 +41,12 @@ class CategoryModalityCreate(TunedModel):
 class CategoryCreate(TunedModel):
     ages: List[int]
     special_condition: bool = False
-    sex_ids: List[UUID]
     modalities: List[CategoryModalityCreate]
 
 
 class CategoryUpdate(TunedModel):
     ages: Optional[List[int]] = None
     special_condition: Optional[bool] = None
-    sex_ids: Optional[List[UUID]] = None
     modalities: Optional[List[CategoryModalityCreate]] = None
 
 
@@ -57,6 +56,11 @@ class PhysicalRequirementSchema(TunedModel):
     final_weight: Optional[float] = None
     initial_height: Optional[float] = None
     final_height: Optional[float] = None
+
+
+class CategoryModalityUpdate(TunedModel):
+    sex_ids: Optional[List[UUID]] = None
+    physical_requirement: Optional[PhysicalRequirementCreate] = None
 
 
 class RankGroupCreate(TunedModel):
@@ -90,7 +94,6 @@ class CategorySchema(TunedModel):
     id: UUID
     ages: List[int]
     special_condition: bool
-    sexes: List[SexSchema]
     modalities: List[CategoryModalitySchema]
 
 

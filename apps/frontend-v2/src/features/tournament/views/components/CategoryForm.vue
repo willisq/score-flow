@@ -18,9 +18,9 @@ const rankGroups = ref<RankGroup[]>([]);
 const form = ref({
   ages: [] as number[],
   specialCondition: false,
-  sexIds: [] as string[],
   modalities: [] as {
     modalityId: string;
+    sexIds: string[];
     rankGroupIds: string[];
     usePhysicalRequirement: boolean;
     physicalRequirements: {
@@ -45,7 +45,6 @@ onMounted(async () => {
     const cat = categoryToEdit.value;
     form.value.ages = [...cat.ages];
     form.value.specialCondition = cat.specialCondition;
-    if (cat.sexes) form.value.sexIds = cat.sexes.map((s: any) => s.id);
 
     if (cat.modalities) {
       selectedModalityIds.value = [...new Set(cat.modalities.map((m: any) => m.modality.id) as string[])];
@@ -57,16 +56,22 @@ onMounted(async () => {
         const modalityId = m.modality.id;
         const rgid = m.rankGroup?.id;
         const pr = m.physicalRequirement;
+        const modSexIds = m.sexes?.map((s: any) => s.id) || [];
         
         if (!groups[modalityId]) {
           groups[modalityId] = {
             modalityId: modalityId,
+            sexIds: new Set<string>(modSexIds),
             rankGroupIds: new Set<string>(),
             usePhysicalRequirement: false,
             physicalRequirements: [] as any[],
           };
         }
         
+        // Unir sexos (en teoría deberían ser los mismos para la misma modalidad en la misma categoría, 
+        // pero el modelo ahora permite granularidad absoluta)
+        modSexIds.forEach((sid: string) => groups[modalityId].sexIds.add(sid));
+
         if (rgid) groups[modalityId].rankGroupIds.add(rgid);
         
         if (pr) {
@@ -91,6 +96,7 @@ onMounted(async () => {
       
       form.value.modalities = Object.values(groups).map((g: any) => ({
         modalityId: g.modalityId,
+        sexIds: Array.from(g.sexIds),
         rankGroupIds: Array.from(g.rankGroupIds),
         usePhysicalRequirement: g.usePhysicalRequirement,
         physicalRequirements: g.physicalRequirements.length > 0 ? g.physicalRequirements : [{ initialWeight: null, finalWeight: null, initialHeight: null, finalHeight: null }]
@@ -105,6 +111,7 @@ function onModalitiesChange(): void {
     if (!form.value.modalities.find((m) => m.modalityId === id)) {
       form.value.modalities.push({
         modalityId: id,
+        sexIds: [],
         rankGroupIds: [],
         usePhysicalRequirement: false,
         physicalRequirements: [{
@@ -139,9 +146,13 @@ function removeAge(age: number): void {
 }
 
 async function onSubmit(): Promise<void> {
-  // Validation: Each modality must have at least one rank group
+  // Validation: Each modality must have at least one rank group and at least one sex
   if (form.value.modalities.some(m => !m.rankGroupIds || m.rankGroupIds.length === 0)) {
     toast.add({ severity: "warn", summary: "Validación", detail: "Por favor, selecciona al menos un grupo de rangos para cada modalidad.", life: 3000 });
+    return;
+  }
+  if (form.value.modalities.some(m => !m.sexIds || m.sexIds.length === 0)) {
+    toast.add({ severity: "warn", summary: "Validación", detail: "Por favor, selecciona al menos un sexo para cada modalidad.", life: 3000 });
     return;
   }
 
@@ -149,9 +160,9 @@ async function onSubmit(): Promise<void> {
   const payload: CategoryCreate = {
     ages: form.value.ages,
     specialCondition: form.value.specialCondition,
-    sexIds: form.value.sexIds,
     modalities: form.value.modalities.map((m) => ({
       modalityId: m.modalityId,
+      sexIds: m.sexIds,
       rankGroupIds: m.rankGroupIds,
       physicalRequirements: m.usePhysicalRequirement ? m.physicalRequirements.filter(pr => 
         pr.initialWeight !== null || pr.finalWeight !== null || 
@@ -219,24 +230,9 @@ function removePhysicalRequirement(modIndex: number, reqIndex: number): void {
         </div>
       </div>
 
-      <div class="grid grid-cols-1 gap-4">
-        <div class="flex flex-col gap-2">
-          <label class="font-semibold text-sm">Sexos Globales</label>
-          <MultiSelect
-            v-model="form.sexIds"
-            :options="sexOptions"
-            optionLabel="name"
-            optionValue="id"
-            placeholder="Seleccionar sexos"
-            display="chip"
-            fluid
-          />
-        </div>
-      </div>
-
       <div class="flex items-center gap-2">
         <Checkbox v-model="form.specialCondition" :binary="true" inputId="sc-check" />
-        <label for="sc-check" class="text-sm font-medium">Condición Especial</label>
+        <label for="sc-check" class="text-sm font-medium">Condición Especial (Ej. Discapacidad)</label>
       </div>
     </div>
 
@@ -268,18 +264,33 @@ function removePhysicalRequirement(modIndex: number, reqIndex: number): void {
             </div>
           </div>
 
-          <div class="flex flex-col gap-3 mb-4">
-            <label class="text-xs font-semibold">Grupos de Rangos para esta modalidad</label>
-            <MultiSelect
-              v-model="mod.rankGroupIds"
-              :options="rankGroups"
-              optionLabel="name"
-              optionValue="id"
-              placeholder="Seleccionar grupos de rangos"
-              display="chip"
-              fluid
-              class="w-full"
-            />
+          <div class="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
+            <div class="flex flex-col gap-2">
+              <label class="text-xs font-semibold">Sexos permitidos</label>
+              <MultiSelect
+                v-model="mod.sexIds"
+                :options="sexOptions"
+                optionLabel="name"
+                optionValue="id"
+                placeholder="Genders"
+                display="chip"
+                fluid
+                class="p-inputtext-sm"
+              />
+            </div>
+            <div class="flex flex-col gap-2">
+              <label class="text-xs font-semibold">Grupos de Rangos</label>
+              <MultiSelect
+                v-model="mod.rankGroupIds"
+                :options="rankGroups"
+                optionLabel="name"
+                optionValue="id"
+                placeholder="Ranks"
+                display="chip"
+                fluid
+                class="p-inputtext-sm"
+              />
+            </div>
           </div>
 
           <div v-if="mod.usePhysicalRequirement" class="flex flex-col gap-3 animate-fade-in border-t-1 border-surface-200 mt-2 pt-3">

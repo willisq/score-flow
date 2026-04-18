@@ -41,9 +41,8 @@ def test_get_competitors_by_category_modality():
     category = Category(
         id=uuid4(), ages=[15, 17], 
         special_condition=False,
-        sexes=[sex]
     )
-    cat_mod = CategoryModality(id=uuid4(), category=category, modality=modality)
+    cat_mod = CategoryModality(id=uuid4(), category=category, modality=modality, sexes=[sex])
     category.modalities.append(cat_mod)
     
     tournament = Tournament(id=uuid4(), description="All Valley")

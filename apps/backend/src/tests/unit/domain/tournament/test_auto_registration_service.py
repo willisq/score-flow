@@ -59,7 +59,6 @@ def base_category(base_sex, base_rank):
         id=uuid4(),
         ages=[17, 18, 19],
         special_condition=False,
-        sexes=[base_sex],
     )
     phys_req = PhysicalRequirement(
         id=uuid4(),
@@ -72,6 +71,7 @@ def base_category(base_sex, base_rank):
         id=uuid4(),
         category=category,
         modality=modality,
+        sexes=[base_sex],
         physical_requirement=phys_req
     )
     category.modalities.append(cat_mod)

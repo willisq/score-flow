@@ -1,4 +1,4 @@
-from uuid import UUID
+from uuid import UUID, uuid4
 from typing import List, Optional
 
 from sqlalchemy import select
@@ -127,6 +127,38 @@ class CategoryRepository:
     def __init__(self, session: AsyncSession):
         self.session = session
 
+    async def get_or_create_physical_requirement(
+        self,
+        initial_weight: Optional[float],
+        final_weight: Optional[float],
+        initial_height: Optional[float],
+        final_height: Optional[float],
+        preferred_id: Optional[UUID] = None
+    ) -> UUID:
+        # Try to find existing
+        stmt = select(PhysicalRequirementModel).where(
+            PhysicalRequirementModel.initial_weight == initial_weight,
+            PhysicalRequirementModel.final_weight == final_weight,
+            PhysicalRequirementModel.initial_height == initial_height,
+            PhysicalRequirementModel.final_height == final_height,
+        )
+        result = await self.session.execute(stmt)
+        existing = result.scalars().first()
+        
+        if existing:
+            return existing.id
+            
+        # Create new
+        new_pr = PhysicalRequirementModel(
+            id=preferred_id or uuid4(),
+            initial_weight=initial_weight,
+            final_weight=final_weight,
+            initial_height=initial_height,
+            final_height=final_height,
+        )
+        self.session.add(new_pr)
+        return new_pr.id
+
     async def create(self, category: Category) -> Category:
         model = CategoryModel(
             id=category.id,
@@ -134,29 +166,19 @@ class CategoryRepository:
             special_condition=category.special_condition,
         )
 
-        for sex in category.sexes:
-            sex_model = await self.session.get(SexModel, sex.id)
-            if sex_model:
-                model.sexes.append(sex_model)
-
         # Add modalities and their physical requirements / rank groups
-        processed_phys_req_ids = set()
         for cat_mod in category.modalities:
             # 1. Handle Physical Requirement
             pr_id = None
             if cat_mod.physical_requirement:
                 pr = cat_mod.physical_requirement
-                pr_id = pr.id
-                if pr_id not in processed_phys_req_ids:
-                    phys_req_model = PhysicalRequirementModel(
-                        id=pr.id,
-                        initial_weight=pr.initial_weight,
-                        final_weight=pr.final_weight,
-                        initial_height=pr.initial_height,
-                        final_height=pr.final_height,
-                    )
-                    self.session.add(phys_req_model)
-                    processed_phys_req_ids.add(pr_id)
+                pr_id = await self.get_or_create_physical_requirement(
+                    pr.initial_weight,
+                    pr.final_weight,
+                    pr.initial_height,
+                    pr.final_height,
+                    preferred_id=pr.id
+                )
 
             # 2. Handle Rank Group
             rank_group_id = None
@@ -183,6 +205,10 @@ class CategoryRepository:
                 rank_group_id=rank_group_id,
                 physical_requirement_id=pr_id,
             )
+            for sex in cat_mod.sexes:
+                sex_model = await self.session.get(SexModel, sex.id)
+                if sex_model:
+                    mod_model.sexes.append(sex_model)
             model.modalities.append(mod_model)
 
         self.session.add(model)
@@ -192,8 +218,8 @@ class CategoryRepository:
         stmt = (
             select(CategoryModel)
             .options(
-                selectinload(CategoryModel.sexes),
                 selectinload(CategoryModel.modalities).selectinload(CategoryModalityModel.modality),
+                selectinload(CategoryModel.modalities).selectinload(CategoryModalityModel.sexes),
                 selectinload(CategoryModel.modalities).selectinload(CategoryModalityModel.rank_group).selectinload(RankGroupModel.ranks),
                 selectinload(CategoryModel.modalities).selectinload(CategoryModalityModel.physical_requirement),
             )
@@ -211,27 +237,31 @@ class CategoryRepository:
 
     async def list_all(self) -> List[Category]:
         stmt = select(CategoryModel).options(
-            selectinload(CategoryModel.sexes),
             selectinload(CategoryModel.modalities).selectinload(CategoryModalityModel.modality),
+            selectinload(CategoryModel.modalities).selectinload(CategoryModalityModel.sexes),
             selectinload(CategoryModel.modalities).selectinload(CategoryModalityModel.rank_group).selectinload(RankGroupModel.ranks),
             selectinload(CategoryModel.modalities).selectinload(CategoryModalityModel.physical_requirement),
         )
         result = await self.session.execute(stmt)
         return [self._to_domain(m) for m in result.scalars().all()]
 
-    async def get_modality_by_id(self, modality_id: UUID) -> Optional[CategoryModality]:
+    async def get_modality_model_by_id(self, modality_id: UUID) -> Optional[CategoryModalityModel]:
         stmt = (
             select(CategoryModalityModel)
             .options(
                 selectinload(CategoryModalityModel.modality),
+                selectinload(CategoryModalityModel.sexes),
                 selectinload(CategoryModalityModel.rank_group).selectinload(RankGroupModel.ranks),
                 selectinload(CategoryModalityModel.physical_requirement),
-                selectinload(CategoryModalityModel.category).selectinload(CategoryModel.sexes),
+                selectinload(CategoryModalityModel.category),
             )
             .where(CategoryModalityModel.id == modality_id)
         )
         result = await self.session.execute(stmt)
-        model = result.scalar_one_or_none()
+        return result.scalar_one_or_none()
+
+    async def get_modality_by_id(self, modality_id: UUID) -> Optional[CategoryModality]:
+        model = await self.get_modality_model_by_id(modality_id)
         if not model:
             return None
 
@@ -240,7 +270,6 @@ class CategoryRepository:
             id=model.category.id,
             ages=model.category.ages,
             special_condition=model.category.special_condition,
-            sexes=[Sex(id=s.id, name=s.name) for s in model.category.sexes],
         )
         
         rank_group = None
@@ -258,6 +287,7 @@ class CategoryRepository:
             id=model.id,
             category=category,
             modality=Modality(id=model.modality.id, name=model.modality.name),
+            sexes=[Sex(id=s.id, name=s.name) for s in model.sexes],
             rank_group=rank_group,
             physical_requirement=PhysicalRequirement(
                 id=model.physical_requirement.id,
@@ -273,7 +303,6 @@ class CategoryRepository:
             id=model.id,
             ages=model.ages,
             special_condition=model.special_condition,
-            sexes=[Sex(id=s.id, name=s.name) for s in model.sexes],
         )
 
         category.modalities = [
@@ -281,6 +310,7 @@ class CategoryRepository:
                 id=m.id,
                 category=category,
                 modality=Modality(id=m.modality.id, name=m.modality.name),
+                sexes=[Sex(id=s.id, name=s.name) for s in m.sexes],
                 rank_group=RankGroup(
                     id=m.rank_group.id,
                     name=m.rank_group.name,
@@ -327,9 +357,10 @@ class CategoryRegistrationRepository:
                 selectinload(CategoryRegistrationModel.competitor).selectinload(CompetitorModel.sex),
                 # Load category_modality and its relations
                 selectinload(CategoryRegistrationModel.category_modality).selectinload(CategoryModalityModel.modality),
+                selectinload(CategoryRegistrationModel.category_modality).selectinload(CategoryModalityModel.sexes),
                 selectinload(CategoryRegistrationModel.category_modality).selectinload(CategoryModalityModel.rank_group).selectinload(RankGroupModel.ranks),
                 selectinload(CategoryRegistrationModel.category_modality).selectinload(CategoryModalityModel.physical_requirement),
-                selectinload(CategoryRegistrationModel.category_modality).selectinload(CategoryModalityModel.category).selectinload(CategoryModel.sexes),
+                selectinload(CategoryRegistrationModel.category_modality).selectinload(CategoryModalityModel.category),
                 # Load tournament
                 selectinload(CategoryRegistrationModel.tournament),
             )
@@ -377,7 +408,6 @@ class CategoryRegistrationRepository:
             id=cat_model.id,
             ages=cat_model.ages,
             special_condition=cat_model.special_condition,
-            sexes=[Sex(id=s.id, name=s.name) for s in cat_model.sexes],
         )
 
         mod_model = model.category_modality
@@ -397,6 +427,7 @@ class CategoryRegistrationRepository:
             id=mod_model.id,
             category=category,
             modality=Modality(id=mod_model.modality.id, name=mod_model.modality.name),
+            sexes=[Sex(id=s.id, name=s.name) for s in mod_model.sexes],
             rank_group=rank_group,
             physical_requirement=PhysicalRequirement(
                 id=mod_model.physical_requirement.id,
@@ -428,9 +459,10 @@ class CategoryRegistrationRepository:
                 selectinload(CategoryRegistrationModel.competitor).selectinload(CompetitorModel.rank),
                 selectinload(CategoryRegistrationModel.competitor).selectinload(CompetitorModel.sex),
                 selectinload(CategoryRegistrationModel.category_modality).selectinload(CategoryModalityModel.modality),
+                selectinload(CategoryRegistrationModel.category_modality).selectinload(CategoryModalityModel.sexes),
                 selectinload(CategoryRegistrationModel.category_modality).selectinload(CategoryModalityModel.rank_group).selectinload(RankGroupModel.ranks),
                 selectinload(CategoryRegistrationModel.category_modality).selectinload(CategoryModalityModel.physical_requirement),
-                selectinload(CategoryRegistrationModel.category_modality).selectinload(CategoryModalityModel.category).selectinload(CategoryModel.sexes),
+                selectinload(CategoryRegistrationModel.category_modality).selectinload(CategoryModalityModel.category),
                 selectinload(CategoryRegistrationModel.tournament),
             )
         )
@@ -480,7 +512,6 @@ class CategoryRegistrationRepository:
                 id=cat_model.id,
                 ages=cat_model.ages,
                 special_condition=cat_model.special_condition,
-                sexes=[Sex(id=s.id, name=s.name) for s in cat_model.sexes],
             )
 
             mod_model = model.category_modality
@@ -500,6 +531,7 @@ class CategoryRegistrationRepository:
                 id=mod_model.id,
                 category=category,
                 modality=Modality(id=mod_model.modality.id, name=mod_model.modality.name),
+                sexes=[Sex(id=s.id, name=s.name) for s in mod_model.sexes],
                 rank_group=rank_group,
                 physical_requirement=PhysicalRequirement(
                     id=mod_model.physical_requirement.id,

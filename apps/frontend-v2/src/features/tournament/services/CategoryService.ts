@@ -20,6 +20,11 @@ export class CategoryService {
     return data;
   }
 
+  static async updateModality(id: string, payload: any): Promise<any> {
+    const { data } = await httpClient.patch<any>(`${this.BASE}/modalities/${id}`, payload);
+    return data;
+  }
+
   static async getCompetitors(categoryModalityId: string): Promise<Competitor[]> {
     const { data } = await httpClient.get<Competitor[]>(
       `${this.BASE}/modalities/${categoryModalityId}/competitors`

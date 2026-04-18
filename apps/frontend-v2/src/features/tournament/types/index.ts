@@ -29,6 +29,7 @@ export interface RankGroup {
 export interface CategoryModality {
   id: string;
   modality: Modality;
+  sexes: Sex[];
   rankGroup: RankGroup | null;
   physicalRequirement: PhysicalRequirement | null;
   // Flattened for easier UI access if needed
@@ -39,7 +40,6 @@ export interface Category {
   id: string;
   ages: number[];
   specialCondition: boolean;
-  sexes: Sex[];
   modalities: CategoryModality[];
 }
 
@@ -79,6 +79,7 @@ export interface RankGroupUpdate {
 
 export interface CategoryModalityCreate {
   modalityId: string;
+  sexIds: string[];
   rankGroupIds: string[];
   physicalRequirements: PhysicalRequirementCreate[];
 }
@@ -86,14 +87,12 @@ export interface CategoryModalityCreate {
 export interface CategoryCreate {
   ages: number[];
   specialCondition?: boolean;
-  sexIds: string[];
   modalities: CategoryModalityCreate[];
 }
 
 export interface CategoryUpdate {
   ages?: number[];
   specialCondition?: boolean;
-  sexIds?: string[];
   modalities?: CategoryModalityCreate[];
 }
 
@@ -101,6 +100,11 @@ export interface CategoryRegistrationCreate {
   competitorId: string;
   categoryModalityId: string;
   tournamentId: string;
+}
+
+export interface CategoryModalityUpdate {
+  sexIds?: string[];
+  physicalRequirement?: PhysicalRequirementCreate;
 }
 
 // --- Mass Registration ---
