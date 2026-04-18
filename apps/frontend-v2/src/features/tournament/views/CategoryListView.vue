@@ -11,6 +11,10 @@ import { useTournamentData } from "../composables/useTournamentData";
 import Button from "primevue/button";
 import Tag from "primevue/tag";
 import DataView from "primevue/dataview";
+import Accordion from 'primevue/accordion';
+import AccordionPanel from 'primevue/accordionpanel';
+import AccordionHeader from 'primevue/accordionheader';
+import AccordionContent from 'primevue/accordioncontent';
 
 const dialog = useDialog();
 const { ranks, sexes } = useRegistrationData();
@@ -25,7 +29,8 @@ const groupedCategories = computed(() => {
     id: string;
     ages: number[];
     specialCondition: boolean;
-    items: Category[]
+    categories: Category[];
+    rankGroups: { id: string, name: string, modalities: any[], categoryIds: string[] }[]
   }> = {};
 
   categories.value.forEach((cat) => {
@@ -36,15 +41,37 @@ const groupedCategories = computed(() => {
     if (!groups[key]) {
       groups[key] = {
         id: key,
-        ages: cat.ages,
+        ages: [min, max],
         specialCondition: cat.specialCondition,
-        items: [],
+        categories: [],
+        rankGroups: []
       };
     }
-    groups[key].items.push(cat);
+    groups[key].categories.push(cat);
   });
 
-  return Object.values(groups).sort((a, b) => Math.min(...a.ages) - Math.min(...b.ages));
+  // Calculate nested rank groups
+  Object.values(groups).forEach(group => {
+    const rgMap = new Map();
+    group.categories.forEach(cat => {
+      cat.modalities.forEach(mod => {
+        const rgId = mod.rankGroup?.id || 'no-rank';
+        const rgName = mod.rankGroup?.name || 'Varios / Sin Grupo';
+        if (!rgMap.has(rgId)) {
+          rgMap.set(rgId, { id: rgId, name: rgName, modalities: [], categoryIds: new Set() });
+        }
+        // Add modality but inject parent category for editing context if needed
+        rgMap.get(rgId).modalities.push({ ...mod, _categoryId: cat.id });
+        rgMap.get(rgId).categoryIds.add(cat.id);
+      });
+    });
+    group.rankGroups = Array.from(rgMap.values()).map(rg => ({
+      ...rg,
+      categoryIds: Array.from(rg.categoryIds)
+    }));
+  });
+
+  return Object.values(groups).sort((a, b) => a.ages[0] - b.ages[0]);
 });
 
 async function loadCategories(): Promise<void> {
@@ -115,18 +142,6 @@ function showCompetitors(categoryModality: any): void {
   });
 }
 
-function getUniqueRanks(cat: Category) {
-  const allRanks = cat.modalities.flatMap(m =>
-    m.rankGroup?.ranks || m.ranks || []
-  );
-  const seen = new Set();
-  return allRanks.filter(r => {
-    if (seen.has(r.id)) return false;
-    seen.add(r.id);
-    return true;
-  });
-}
-
 onMounted(loadCategories);
 </script>
 
@@ -144,96 +159,90 @@ onMounted(loadCategories);
 
     <DataView :value="groupedCategories" :loading="loading" paginator :rows="10">
       <template #list="slotProps">
-        <div class="flex flex-col gap-4">
-          <div v-for="group in slotProps.items" :key="group.id"
-            class="surface-card border-1 border-surface-200 dark:border-surface-700 border-round overflow-hidden shadow-1">
-            <!-- Header del Grupo (Elemento Padre) -->
-            <div
-              class="bg-surface-50 dark:bg-surface-900 p-4 border-b-1 border-surface-200 dark:border-surface-700 flex justify-between items-center">
-              <div class="flex items-center gap-3">
-                <div
-                  class="bg-primary-500 text-white w-10 h-10 border-round flex items-center justify-center font-bold shadow-2">
-                  {{ Math.min(...group.ages) }}+
-                </div>
-                <div>
-                  <div class="text-xl font-bold">
-                    Rango: {{ Math.min(...group.ages) }} – {{ Math.max(...group.ages) }} años
-                  </div>
-                  <Tag v-if="group.specialCondition" value="Condición Especial" severity="warn" class="text-xs" />
-                </div>
-              </div>
-              <div class="text-surface-400 text-sm italic">
-                {{ group.items.length }} subcategorías definidas
-              </div>
-            </div>
+        <div class="flex flex-col gap-4 mt-2">
+          <Accordion :value="slotProps.items[0]?.id">
+            <AccordionPanel v-for="group in slotProps.items" :key="group.id" :value="group.id">
 
-            <!-- Lista de Subcategorías (Hijos) -->
-            <div class="p-0">
-              <div v-for="(cat, idx) in group.items" :key="cat.id" class="flex flex-col p-4"
-                :class="{ 'border-t-1 border-surface-100 dark:border-surface-800': idx !== 0 }">
-
-                <div class="flex flex-col md:flex-row justify-between gap-4">
-                  <!-- Detalles de Sexo y Rangos -->
-                  <div class="flex-1 flex flex-col gap-3">
-                    <div class="flex items-center gap-2 flex-wrap">
-                      <span class="text-sm font-semibold uppercase text-surface-400">Rangos:</span>
-                      <div class="flex gap-1 flex-wrap">
-                        <Tag v-for="rank in getUniqueRanks(cat)" :key="rank.id" :value="rank.name" severity="secondary"
-                          class="text-[10px]" />
-                      </div>
+              <!-- Header del Grupo (Nivel 1: Edades) -->
+              <AccordionHeader>
+                <div class="flex justify-between items-center w-full pr-4">
+                  <div class="flex items-center gap-3">
+                    <div class="text-xl font-bold text-surface-900 dark:text-surface-0">
+                      Edades: {{ group.ages[0] }} – {{ group.ages[1] }} años
                     </div>
+                    <Tag v-if="group.specialCondition" value="Condición Especial" severity="warn" class="text-xs" />
                   </div>
-
-                  <!-- Botón de Acción de la Categoría -->
-                  <div class="flex items-start">
-                    <Button icon="pi pi-pencil" severity="secondary" text rounded @click="openEditDialog(cat)"
-                      title="Editar Categoría" />
+                  <div class="text-surface-500 text-sm whitespace-nowrap">
+                    {{ group.rankGroups.length }} rangos definidos
                   </div>
                 </div>
+              </AccordionHeader>
 
-                <!-- Modalidades específicas de esta combinación -->
-                <div class="mt-4 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
-                  <div v-for="mod in cat.modalities" :key="mod.id"
-                    class="bg-surface-0 dark:bg-surface-800 border-1 border-surface-100 dark:border-surface-700 p-3 border-round hover:border-primary-300 transition-colors shadow-sm relative group">
-                    <div class="flex justify-between items-start mb-2">
-                      <div class="flex flex-col gap-1">
-                        <Tag :value="mod.modality.name" severity="info" />
-                        <div class="flex gap-1 mt-1">
-                          <i v-for="sex in mod.sexes" :key="sex.id"
-                            :class="['pi text-xs', sex.name.toLowerCase().includes('masc') ? 'pi-mars text-blue-500' : 'pi-venus text-pink-500']"
-                            :title="sex.name"></i>
-                          <Button icon="pi pi-pencil" severity="secondary" text rounded size="small"
-                            class="opacity-0 group-hover:opacity-100 transition-opacity"
-                            @click.stop="openModalityEditDialog(mod)" title="Editar Subcategoría" />
+              <!-- Content de la Edad (Segundo Nivel de Agrupamiento) -->
+              <AccordionContent>
+                <div class="p-2 bg-surface-50 dark:bg-surface-900/50 rounded-b-lg">
+                  <Accordion :value="group.rankGroups[0]?.id">
+                    <AccordionPanel v-for="rg in group.rankGroups" :key="rg.id" :value="rg.id">
+
+                      <AccordionHeader>
+                        <div class="flex justify-between items-center w-full pr-4">
+                          <div class="flex items-center gap-2">
+                            <i class="pi pi-shield text-orange-500"></i>
+                            <span class="font-bold text-surface-700 dark:text-surface-200 uppercase tracking-tighter">{{
+                              rg.name }}</span>
+                          </div>
+                          <!-- Botón para editar la categoría raíz asociada a este rango en esta edad -->
+                          <Button v-if="rg.categoryIds.length === 1" icon="pi pi-pencil" severity="secondary" text
+                            rounded size="small"
+                            @click.stop="openEditDialog(group.categories.find((c: Category) => c.id === rg.categoryIds[0])!)"
+                            v-tooltip.top="'Editar Categoría Completa'" />
                         </div>
-                        <span v-if="mod.rankGroup" class="text-[10px] font-bold opacity-60">
-                          {{ mod.rankGroup.name }}
-                        </span>
-                      </div>
-                    </div>
+                      </AccordionHeader>
 
-                    <div class="text-xs space-y-1">
-                      <div v-if="mod.physicalRequirement?.initialWeight != null" class="flex justify-between">
-                        <span class="opacity-60">Peso:</span>
-                        <span class="font-bold">{{ mod.physicalRequirement.initialWeight }}–{{
-                          mod.physicalRequirement.finalWeight }} Kg</span>
-                      </div>
-                      <div v-if="mod.physicalRequirement?.initialHeight != null" class="flex justify-between">
-                        <span class="opacity-60">Altura:</span>
-                        <span class="font-bold">{{ mod.physicalRequirement.initialHeight }}–{{
-                          mod.physicalRequirement.finalHeight }} cm</span>
-                      </div>
-                    </div>
+                      <AccordionContent>
+                        <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-3 p-1">
+                          <div v-for="mod in rg.modalities" :key="mod.id"
+                            class="bg-surface-0 dark:bg-surface-800 p-4 border-round hover:border-primary-400 hover:shadow-lg transition-all shadow-sm relative group border border-surface-100 dark:border-surface-700">
 
-                    <div class="mt-3 flex gap-2">
-                      <Button icon="pi pi-users" label="Ver Atletas" class="text-[10px] py-1 px-2 h-8 w-full"
-                        @click="showCompetitors(mod)" />
-                    </div>
-                  </div>
+                            <div class="flex justify-between items-start mb-3">
+                              <div class="flex flex-col gap-1">
+                                <Tag :value="mod.modality.name" severity="info" class="font-bold" />
+                                <div class="flex gap-2 mt-1 items-center">
+                                  <div class="flex gap-1">
+                                    <i v-for="sex in mod.sexes" :key="sex.id"
+                                      :class="['pi text-xs', sex.name.toLowerCase().includes('masc') ? 'pi-mars text-blue-500' : 'pi-venus text-pink-500']"
+                                      v-tooltip.top="sex.name"></i>
+                                  </div>
+                                  <Button icon="pi pi-cog" severity="secondary" text rounded size="small"
+                                    class="opacity-0 group-hover:opacity-100 transition-opacity !p-0 h-5 w-5"
+                                    @click.stop="openModalityEditDialog(mod)"
+                                    v-tooltip.top="'Configurar Subcategoría'" />
+                                </div>
+                              </div>
+                            </div>
+
+                            <div class="text-xs space-y-2 mb-4">
+                              <div v-if="mod.physicalRequirement?.initialWeight != null"
+                                class="flex justify-between items-center text-surface-600 dark:text-surface-400">
+                                <span>Peso:</span>
+                                <span class="font-bold text-surface-900 dark:text-surface-100">{{
+                                  mod.physicalRequirement.initialWeight }}–{{ mod.physicalRequirement.finalWeight }}
+                                  Kg</span>
+                              </div>
+                            </div>
+
+                            <Button icon="pi pi-users" label="Ver Atletas"
+                              class="text-[10px] py-1.5 px-3 h-9 w-full shadow-sm" severity="primary"
+                              @click="showCompetitors(mod)" />
+                          </div>
+                        </div>
+                      </AccordionContent>
+                    </AccordionPanel>
+                  </Accordion>
                 </div>
-              </div>
-            </div>
-          </div>
+              </AccordionContent>
+            </AccordionPanel>
+          </Accordion>
         </div>
       </template>
 

@@ -159,12 +159,21 @@ class TournamentUseCases:
                     if pr_key in phys_req_cache:
                         phys_req_entities.append(phys_req_cache[pr_key])
                     else:
+                        # Try to find in DB through repository first!
+                        # This prevents generating a NEW ID for data that already exists
+                        existing_pr_model = await self.category_repo.get_or_create_physical_requirement(
+                            pr_schema.initial_weight,
+                            pr_schema.final_weight,
+                            pr_schema.initial_height,
+                            pr_schema.final_height
+                        )
+                        
                         new_pr = PhysicalRequirement(
-                            id=uuid4(),
-                            initial_weight=pr_schema.initial_weight,
-                            final_weight=pr_schema.final_weight,
-                            initial_height=pr_schema.initial_height,
-                            final_height=pr_schema.final_height,
+                            id=existing_pr_model.id,
+                            initial_weight=existing_pr_model.initial_weight,
+                            final_weight=existing_pr_model.final_weight,
+                            initial_height=existing_pr_model.initial_height,
+                            final_height=existing_pr_model.final_height,
                         )
                         phys_req_cache[pr_key] = new_pr
                         phys_req_entities.append(new_pr)

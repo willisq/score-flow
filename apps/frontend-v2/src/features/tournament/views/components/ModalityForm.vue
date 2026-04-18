@@ -17,8 +17,8 @@ const form = ref<CategoryModalityUpdate>({
   physicalRequirement: {
     initialWeight: null,
     finalWeight: null,
-    initialHeight: null,
-    finalHeight: null,
+    initialHeight: 0,
+    finalHeight: 200,
   }
 });
 
@@ -33,8 +33,8 @@ onMounted(() => {
       form.value.physicalRequirement = {
         initialWeight: modality.value.physicalRequirement?.initialWeight ?? null,
         finalWeight: modality.value.physicalRequirement?.finalWeight ?? null,
-        initialHeight: modality.value.physicalRequirement?.initialHeight ?? null,
-        finalHeight: modality.value.physicalRequirement?.finalHeight ?? null,
+        initialHeight: 0,
+        finalHeight: 200,
       };
     }
   }
@@ -52,7 +52,14 @@ async function handleSave() {
   loading.value = true;
   errorMsg.value = '';
   try {
-    await CategoryService.updateModality(modality.value.id, form.value);
+    await CategoryService.updateModality(modality.value.id, {
+      ...form.value,
+      physicalRequirement: {
+        ...form.value.physicalRequirement!,
+        initialHeight: 0,
+        finalHeight: 200,
+      }
+    });
     dialogRef.value.close(true);
   } catch (err: any) {
     errorMsg.value = err.response?.data?.detail || 'Error al actualizar la subcategoría';
@@ -91,17 +98,7 @@ function cancel() {
       </div>
     </div>
 
-    <!-- Requerimientos de Altura -->
-    <div class="flex flex-col gap-2">
-      <label class="font-bold text-surface-700 dark:text-surface-0/80">Altura Inicial (cm)</label>
-      <InputNumber v-model="form.physicalRequirement!.initialHeight" :min="0" :maxFractionDigits="1"
-        placeholder="Ej: 150" class="w-full" />
-    </div>
-    <div class="flex flex-col gap-2">
-      <label class="font-bold text-surface-700 dark:text-surface-0/80">Altura Final (cm)</label>
-      <InputNumber v-model="form.physicalRequirement!.finalHeight" :min="0" :maxFractionDigits="1" placeholder="Ej: 165"
-        class="w-full" />
-    </div>
+    <!-- Requerimientos de Altura eliminados por lógica de negocio -->
 
     <div class="flex justify-end gap-2 mt-4">
       <Button label="Cancelar" icon="pi pi-times" text @click="cancel" />

@@ -101,6 +101,15 @@ def test_register_category():
     rank_group_repo.get_by_id = AsyncMock(return_value=rank_group)
     sex_repo.get_by_id = AsyncMock(return_value=sex)
     category_repo.create = AsyncMock(side_effect=lambda x: x)
+    category_repo.get_or_create_physical_requirement = AsyncMock(
+        side_effect=lambda iw, fw, ih, fh, preferred_id=None: MagicMock(
+            id=preferred_id or uuid4(),
+            initial_weight=iw,
+            final_weight=fw,
+            initial_height=ih,
+            final_height=fh
+        )
+    )
     
     use_cases = TournamentUseCases(
         modality_repo=modality_repo,
@@ -405,6 +414,15 @@ def test_register_category_deduplicates_physical_requirements():
     rank_group_repo.get_by_id = AsyncMock(return_value=rank_group)
     sex_repo.get_by_id = AsyncMock(return_value=sex)
     category_repo.create = AsyncMock(side_effect=lambda x: x)
+    category_repo.get_or_create_physical_requirement = AsyncMock(
+        side_effect=lambda iw, fw, ih, fh, preferred_id=None: MagicMock(
+            id=preferred_id or uuid4(),
+            initial_weight=iw,
+            final_weight=fw,
+            initial_height=ih,
+            final_height=fh
+        )
+    )
     
     use_cases = TournamentUseCases(
         modality_repo=modality_repo,

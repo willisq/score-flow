@@ -135,7 +135,35 @@ class CategoryRepository:
         final_height: Optional[float],
         preferred_id: Optional[UUID] = None
     ) -> PhysicalRequirementModel:
-        # Try to find existing
+        # Normalize/Round for comparison (4 decimal places)
+        iw = round(initial_weight, 4) if initial_weight is not None else None
+        fw = round(final_weight, 4) if final_weight is not None else None
+        ih = round(initial_height, 4) if initial_height is not None else None
+        fh = round(final_height, 4) if final_height is not None else None
+
+        # 1. Check ID in Session (Identity Map and New objects)
+        if preferred_id:
+            # First, check 'new' objects (not yet flused to identity_map in some states)
+            for obj in self.session.new:
+                if isinstance(obj, PhysicalRequirementModel) and obj.id == preferred_id:
+                    return obj
+            
+            # Then check identity map/DB
+            existing_by_id = await self.session.get(PhysicalRequirementModel, preferred_id)
+            if existing_by_id:
+                return existing_by_id
+
+        # 2. Check by coordinates in the current session (Identity Map and New)
+        # This prevents creating duplicates with different IDs for the same physical data
+        for obj in list(self.session.new) + list(self.session.identity_map.values()):
+            if isinstance(obj, PhysicalRequirementModel):
+                if (round(obj.initial_weight or 0, 4) == (iw or 0) and 
+                    round(obj.final_weight or 0, 4) == (fw or 0) and
+                    round(obj.initial_height or 0, 4) == (ih or 0) and
+                    round(obj.final_height or 0, 4) == (fh or 0)):
+                    return obj
+
+        # 3. Try to find existing by data in the database
         stmt = select(PhysicalRequirementModel).where(
             PhysicalRequirementModel.initial_weight == initial_weight,
             PhysicalRequirementModel.final_weight == final_weight,
@@ -143,12 +171,13 @@ class CategoryRepository:
             PhysicalRequirementModel.final_height == final_height,
         )
         result = await self.session.execute(stmt)
+        # Use first() to avoid MultipleResultsFound if some slipped in before
         existing = result.scalars().first()
         
         if existing:
             return existing
             
-        # Create new
+        # 4. Create new
         new_pr = PhysicalRequirementModel(
             id=preferred_id or uuid4(),
             initial_weight=initial_weight,
@@ -166,38 +195,47 @@ class CategoryRepository:
             special_condition=category.special_condition,
         )
 
+        # Local cache for this creation call to avoid redundant repo method calls
+        # for the exact same domain objects
+        pr_cache: dict[UUID, PhysicalRequirementModel] = {}
+        rg_cache: dict[UUID, UUID] = {}
+
         # Add modalities and their physical requirements / rank groups
         for cat_mod in category.modalities:
             # 1. Handle Physical Requirement
             pr_id = None
             if cat_mod.physical_requirement:
                 pr = cat_mod.physical_requirement
-                pr_model = await self.get_or_create_physical_requirement(
-                    pr.initial_weight,
-                    pr.final_weight,
-                    pr.initial_height,
-                    pr.final_height,
-                    preferred_id=pr.id
-                )
+                if pr.id not in pr_cache:
+                    pr_cache[pr.id] = await self.get_or_create_physical_requirement(
+                        pr.initial_weight,
+                        pr.final_weight,
+                        pr.initial_height,
+                        pr.final_height,
+                        preferred_id=pr.id
+                    )
+                pr_model = pr_cache[pr.id]
                 pr_id = pr_model.id
 
             # 2. Handle Rank Group
             rank_group_id = None
             if cat_mod.rank_group:
                 rg = cat_mod.rank_group
-                # Check if group already exists (simple check by ID if provided, 
-                # or we could implement a deep check)
-                existing_rg = await self.session.get(RankGroupModel, rg.id)
-                if not existing_rg:
-                    rg_model = RankGroupModel(id=rg.id, name=rg.name)
-                    for r in rg.ranks:
-                        r_model = await self.session.get(RankModel, r.id)
-                        if r_model:
-                            rg_model.ranks.append(r_model)
-                    self.session.add(rg_model)
-                    rank_group_id = rg_model.id
+                if rg.id not in rg_cache:
+                    existing_rg = await self.session.get(RankGroupModel, rg.id)
+                    if not existing_rg:
+                        rg_model = RankGroupModel(id=rg.id, name=rg.name)
+                        for r in rg.ranks:
+                            r_model = await self.session.get(RankModel, r.id)
+                            if r_model:
+                                rg_model.ranks.append(r_model)
+                        self.session.add(rg_model)
+                        rank_group_id = rg_model.id
+                    else:
+                        rank_group_id = existing_rg.id
+                    rg_cache[rg.id] = rank_group_id
                 else:
-                    rank_group_id = existing_rg.id
+                    rank_group_id = rg_cache[rg.id]
 
             mod_model = CategoryModalityModel(
                 id=cat_mod.id,

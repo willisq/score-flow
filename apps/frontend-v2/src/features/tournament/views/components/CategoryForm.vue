@@ -4,6 +4,10 @@ import { useToast } from "primevue/usetoast";
 import { CategoryService } from "../../services/CategoryService";
 import { RankGroupService } from "../../services/RankGroupService";
 import type { CategoryCreate, CategoryUpdate, RankGroup } from "../../types";
+import Accordion from 'primevue/accordion';
+import AccordionPanel from 'primevue/accordionpanel';
+import AccordionHeader from 'primevue/accordionheader';
+import AccordionContent from 'primevue/accordioncontent';
 
 const dialogRef = inject<any>("dialogRef");
 const toast = useToast();
@@ -104,7 +108,13 @@ onMounted(async () => {
 
       form.value.modalities = Array.from(finalGroups.values()).map(g => {
         if (g.physicalRequirements.length === 0) {
-          g.physicalRequirements.push({ initialWeight: null, finalWeight: null, initialHeight: null, finalHeight: null });
+          g.physicalRequirements.push({ initialWeight: null, finalWeight: null, initialHeight: 0, finalHeight: 200 });
+        } else {
+          // Force fixed height on rehydration if needed
+          g.physicalRequirements.forEach((pr: any) => {
+            pr.initialHeight = 0;
+            pr.finalHeight = 200;
+          });
         }
         return g;
       });
@@ -122,8 +132,8 @@ function addModalityBlock(): void {
     physicalRequirements: [{
       initialWeight: null,
       finalWeight: null,
-      initialHeight: null,
-      finalHeight: null,
+      initialHeight: 0,
+      finalHeight: 200,
     }],
   });
 }
@@ -169,11 +179,10 @@ async function onSubmit(): Promise<void> {
     }
     if (m.usePhysicalRequirement) {
       const hasValidPr = m.physicalRequirements.some(pr => 
-        pr.initialWeight !== null || pr.finalWeight !== null || 
-        pr.initialHeight !== null || pr.finalHeight !== null
+        pr.initialWeight !== null || pr.finalWeight !== null
       );
       if (!hasValidPr) {
-        toast.add({ severity: "warn", summary: "Validación", detail: `Llene al menos un límite de peso o altura para los requerimientos físicos en la subcategoría ${i + 1}, o desactive la opción.`, life: 5000 });
+        toast.add({ severity: "warn", summary: "Validación", detail: `Llene al menos un límite de peso para los requerimientos físicos en la subcategoría ${i + 1}, o desactive la opción.`, life: 5000 });
         return;
       }
     }
@@ -188,9 +197,12 @@ async function onSubmit(): Promise<void> {
       sexIds: m.sexIds,
       rankGroupIds: m.rankGroupIds,
       physicalRequirements: m.usePhysicalRequirement ? m.physicalRequirements.filter(pr => 
-        pr.initialWeight !== null || pr.finalWeight !== null || 
-        pr.initialHeight !== null || pr.finalHeight !== null
-      ) : [],
+        pr.initialWeight !== null || pr.finalWeight !== null
+      ).map(pr => ({
+        ...pr,
+        initialHeight: 0,
+        finalHeight: 200
+      })) : [],
     })),
   };
 
@@ -223,8 +235,8 @@ function addPhysicalRequirement(modIndex: number): void {
   form.value.modalities[modIndex].physicalRequirements.push({
     initialWeight: null,
     finalWeight: null,
-    initialHeight: null,
-    finalHeight: null,
+    initialHeight: 0,
+    finalHeight: 200,
   });
 }
 
@@ -266,91 +278,92 @@ function removePhysicalRequirement(modIndex: number, reqIndex: number): void {
         <Button label="Añadir Subcategoría" icon="pi pi-plus" size="small" @click="addModalityBlock" />
       </div>
 
-      <div v-if="form.modalities.length > 0" class="flex flex-col gap-4 mt-2">
-        <div v-for="(mod, modIndex) in form.modalities" :key="mod._uiId" 
-             class="border-1 border-surface-200 p-3 border-round bg-surface-50 dark:bg-surface-900 border-l-4 border-l-primary relative">
-          
-          <Button icon="pi pi-trash" severity="danger" text rounded 
-                  class="absolute top-1 right-1" 
-                  @click="removeModalityBlock(modIndex)" />
-
-          <div class="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4 pr-8">
-            <div class="flex flex-col gap-2">
-              <label class="text-xs font-semibold">Seleccionar Modalidad</label>
-              <Dropdown
-                v-model="mod.modalityId"
-                :options="modalityOptions"
-                optionLabel="name"
-                optionValue="id"
-                placeholder="Elegir una modalidad"
-                fluid
-                class="p-inputtext-sm"
-              />
-            </div>
-            <div class="flex items-center gap-2 justify-end self-end h-[38px]">
-              <span class="text-xs font-semibold">Usar Requerimientos físicos</span>
-              <ToggleButton v-model="mod.usePhysicalRequirement" onLabel="Si" offLabel="No" class="w-16 h-8 text-xs" />
-            </div>
-          </div>
-
-          <div class="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
-            <div class="flex flex-col gap-2">
-              <label class="text-xs font-semibold">Sexos permitidos</label>
-              <MultiSelect
-                v-model="mod.sexIds"
-                :options="sexOptions"
-                optionLabel="name"
-                optionValue="id"
-                placeholder="Genders"
-                display="chip"
-                fluid
-                class="p-inputtext-sm"
-              />
-            </div>
-            <div class="flex flex-col gap-2">
-              <label class="text-xs font-semibold">Grupos de Rangos</label>
-              <MultiSelect
-                v-model="mod.rankGroupIds"
-                :options="rankGroups"
-                optionLabel="name"
-                optionValue="id"
-                placeholder="Ranks"
-                display="chip"
-                fluid
-                class="p-inputtext-sm"
-              />
-            </div>
-          </div>
-
-          <div v-if="mod.usePhysicalRequirement" class="flex flex-col gap-3 animate-fade-in border-t-1 border-surface-200 mt-2 pt-3">
-            <div class="flex justify-between items-center px-1">
-              <label class="text-xs font-bold uppercase text-surface-500">Rangos Físicos</label>
-              <Button icon="pi pi-plus" label="Añadir Rango" @click="addPhysicalRequirement(form.modalities.indexOf(mod))" 
-                      class="p-button-text p-button-sm text-xs h-8" />
-            </div>
-
-            <div v-for="(pr, reqIdx) in mod.physicalRequirements" :key="reqIdx" 
-                 class="grid grid-cols-[1fr,1fr,auto] gap-3 items-end p-2 border-round bg-surface-100 dark:bg-surface-800 relative">
-              <div class="flex flex-col gap-1">
-                <label class="text-[10px] font-semibold text-surface-500">Peso (Kg)</label>
-                <div class="flex items-center gap-1">
-                  <InputNumber v-model="pr.initialWeight" :minFractionDigits="1" placeholder="Min" fluid inputClass="p-inputtext-sm" />
-                  <InputNumber v-model="pr.finalWeight" :minFractionDigits="1" placeholder="Max" fluid inputClass="p-inputtext-sm" />
+      <div v-if="form.modalities.length > 0" class="mt-2">
+        <Accordion :value="form.modalities[0]._uiId">
+          <AccordionPanel v-for="(mod, modIndex) in form.modalities" :key="mod._uiId" :value="mod._uiId">
+            
+            <AccordionHeader>
+              <div class="flex justify-between items-center w-full pr-4">
+                <span class="font-bold">{{ mod.modalityId ? getModalityName(mod.modalityId) : 'Nueva Subcategoría' }}</span>
+                <Button icon="pi pi-trash" severity="danger" text rounded 
+                        class="h-8 w-8 !p-0"
+                        @click.stop="removeModalityBlock(modIndex)" title="Eliminar subcategoría" />
+              </div>
+            </AccordionHeader>
+            
+            <AccordionContent>
+              <div class="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4 mt-2">
+                <div class="flex flex-col gap-2">
+                  <label class="text-xs font-semibold">Seleccionar Modalidad</label>
+                  <Dropdown
+                    v-model="mod.modalityId"
+                    :options="modalityOptions"
+                    optionLabel="name"
+                    optionValue="id"
+                    placeholder="Elegir una modalidad"
+                    fluid
+                    class="p-inputtext-sm"
+                  />
+                </div>
+                <div class="flex items-center gap-2 justify-end self-end h-[38px]">
+                  <span class="text-xs font-semibold">Usar Requerimientos físicos</span>
+                  <ToggleButton v-model="mod.usePhysicalRequirement" onLabel="Si" offLabel="No" class="w-16 h-8 text-xs" />
                 </div>
               </div>
-              <div class="flex flex-col gap-1">
-                <label class="text-[10px] font-semibold text-surface-500">Altura (cm)</label>
-                <div class="flex items-center gap-1">
-                  <InputNumber v-model="pr.initialHeight" :minFractionDigits="1" placeholder="Min" fluid inputClass="p-inputtext-sm" />
-                  <InputNumber v-model="pr.finalHeight" :minFractionDigits="1" placeholder="Max" fluid inputClass="p-inputtext-sm" />
+
+              <div class="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
+                <div class="flex flex-col gap-2">
+                  <label class="text-xs font-semibold">Sexos permitidos</label>
+                  <MultiSelect
+                    v-model="mod.sexIds"
+                    :options="sexOptions"
+                    optionLabel="name"
+                    optionValue="id"
+                    placeholder="Select genders"
+                    display="chip"
+                    fluid
+                    class="p-inputtext-sm"
+                  />
+                </div>
+                <div class="flex flex-col gap-2">
+                  <label class="text-xs font-semibold">Grupos de Rangos</label>
+                  <MultiSelect
+                    v-model="mod.rankGroupIds"
+                    :options="rankGroups"
+                    optionLabel="name"
+                    optionValue="id"
+                    placeholder="Select ranks"
+                    display="chip"
+                    fluid
+                    class="p-inputtext-sm"
+                  />
                 </div>
               </div>
-              <Button icon="pi pi-times" severity="danger" text rounded 
-                      @click="removePhysicalRequirement(form.modalities.indexOf(mod), reqIdx)" 
-                      class="h-8 w-8" v-if="mod.physicalRequirements.length > 1" />
-            </div>
-          </div>
-        </div>
+
+              <div v-if="mod.usePhysicalRequirement" class="flex flex-col gap-3 animate-fade-in border-t-1 border-surface-200 mt-2 pt-3">
+                <div class="flex justify-between items-center px-1">
+                  <label class="text-xs font-bold uppercase text-surface-500">Rangos Físicos</label>
+                  <Button icon="pi pi-plus" label="Añadir Rango" @click="addPhysicalRequirement(form.modalities.indexOf(mod))" 
+                          class="p-button-text p-button-sm text-xs h-8" />
+                </div>
+
+                <div v-for="(pr, reqIdx) in mod.physicalRequirements" :key="reqIdx" 
+                     class="grid grid-cols-[1fr,auto] gap-3 items-end p-2 border-round bg-surface-100 dark:bg-surface-800 relative">
+                  <div class="flex flex-col gap-1">
+                    <label class="text-[10px] font-semibold text-surface-500">Peso (Kg)</label>
+                    <div class="flex items-center gap-1">
+                      <InputNumber v-model="pr.initialWeight" :minFractionDigits="1" placeholder="Min" fluid inputClass="p-inputtext-sm" />
+                      <InputNumber v-model="pr.finalWeight" :minFractionDigits="1" placeholder="Max" fluid inputClass="p-inputtext-sm" />
+                    </div>
+                  </div>
+                  <Button icon="pi pi-times" severity="danger" text rounded 
+                          @click="removePhysicalRequirement(form.modalities.indexOf(mod), reqIdx)" 
+                          class="h-8 w-8" v-if="mod.physicalRequirements.length > 1" />
+                </div>
+              </div>
+            </AccordionContent>
+          </AccordionPanel>
+        </Accordion>
       </div>
       <div v-else class="text-center py-4 text-surface-400 italic text-sm">
         No hay modalidades seleccionadas.

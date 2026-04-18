@@ -84,23 +84,22 @@ const suggestedCategory = computed((): CategoryCreate | null => {
 
   const ages = range.map(c => c.age).filter((a): a is number => a !== null);
   const weights = range.map(c => c.weight).filter((w): w is number => w !== null);
-  const heights = range.map(c => c.height).filter((h): h is number => h !== null);
 
   const uniqueSexes = Array.from(new Set(range.map(c => c.sex.id)));
 
   return {
     ages: ages.length > 0 ? [Math.min(...ages), Math.max(...ages)] : [0, 99],
-    sexIds: uniqueSexes,
     specialCondition: range.some(c => c.specialCondition),
     modalities: [
       {
         modalityId: selectedModalityId.value,
+        sexIds: uniqueSexes,
         rankGroupIds: [selectedRankGroupId.value],
         physicalRequirements: [{
           initialWeight: weights.length > 0 ? Math.min(...weights) : null,
           finalWeight: weights.length > 0 ? Math.max(...weights) : null,
-          initialHeight: heights.length > 0 ? Math.min(...heights) : null,
-          finalHeight: heights.length > 0 ? Math.max(...heights) : null,
+          initialHeight: 0,
+          finalHeight: 200,
         }]
       }
     ]
