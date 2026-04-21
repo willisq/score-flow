@@ -1,6 +1,5 @@
 <script setup lang="ts">
 import { ref, reactive, onMounted, computed, watch } from 'vue';
-import { useRouter } from 'vue-router';
 import { useToast } from 'primevue/usetoast';
 import Button from 'primevue/button';
 import DataTable from 'primevue/datatable';
@@ -26,7 +25,6 @@ import type {
 import { useTournamentData } from '../composables/useTournamentData';
 
 // --- State ---
-const router = useRouter();
 const toast = useToast();
 const { modalities } = useTournamentData();
 
@@ -56,7 +54,7 @@ const selectedEndId = ref<string | null>(null);
 const categoryQueue = ref<{ id: string; category: CategoryCreate; competitorNames: string[] }[]>([]);
 
 const selectedModalityId = ref<string | null>(null);
-const selectedRankGroupId = ref<string | null>(null);
+const addingToQueue = ref(false);
 
 // --- Computed ---
 const selectedRange = computed(() => {
@@ -78,31 +76,26 @@ const selectedRange = computed(() => {
 
 const isRangeSelected = computed(() => selectedRange.value.length > 0);
 
-const suggestedCategory = computed((): CategoryCreate | null => {
+const uniqueSelectedRankIds = computed(() => {
+  const ids = selectedRange.value.map(c => c.rank.id);
+  return [...new Set(ids)];
+});
+
+const suggestedCategory = computed(() => {
   const range = selectedRange.value;
-  if (range.length === 0 || !selectedModalityId.value || !selectedRankGroupId.value) return null;
+  if (range.length === 0 || !selectedModalityId.value) return null;
 
   const ages = range.map(c => c.age).filter((a): a is number => a !== null);
   const weights = range.map(c => c.weight).filter((w): w is number => w !== null);
 
-  const uniqueSexes = Array.from(new Set(range.map(c => c.sex.id)));
-
   return {
     ages: ages.length > 0 ? [Math.min(...ages), Math.max(...ages)] : [0, 99],
+    weights: {
+      min: weights.length > 0 ? Math.min(...weights) : null,
+      max: weights.length > 0 ? Math.max(...weights) : null,
+    },
     specialCondition: range.some(c => c.specialCondition),
-    modalities: [
-      {
-        modalityId: selectedModalityId.value,
-        sexIds: uniqueSexes,
-        rankGroupIds: [selectedRankGroupId.value],
-        physicalRequirements: [{
-          initialWeight: weights.length > 0 ? Math.min(...weights) : null,
-          finalWeight: weights.length > 0 ? Math.max(...weights) : null,
-          initialHeight: 0,
-          finalHeight: 200,
-        }]
-      }
-    ]
+    rankNames: [...new Set(range.map(c => c.rank.name))],
   };
 });
 
@@ -158,26 +151,85 @@ function isRowSelected(id: string) {
   return currentIndex >= start && currentIndex <= end;
 }
 
-function addToQueue() {
-  if (!suggestedCategory.value || !selectedModalityId.value) return;
-
-  const modalityName = modalities.value.find(m => m.id === selectedModalityId.value)?.name || 'Desconocida';
-
-  categoryQueue.value.push({
-    id: crypto.randomUUID(),
-    category: { ...suggestedCategory.value },
-    competitorNames: selectedRange.value.map(c => `${c.firstName} ${c.lastName}`)
+async function resolveRankGroupId(rankIds: string[]): Promise<string> {
+  // 1. Buscar un grupo existente que contenga AL MENOS estos rangos
+  const match = rankGroups.value.find(group => {
+    const groupRankIds = new Set(group.ranks.map(r => r.id));
+    return rankIds.every(id => groupRankIds.has(id));
   });
 
-  // Remove these competitors from current view to avoid double assignment in same session
-  const assignedIds = new Set(selectedRange.value.map(c => c.id));
-  competitors.value = competitors.value.filter(c => !assignedIds.has(c.id));
+  if (match) return match.id;
 
-  // Clear selection
-  selectedStartId.value = null;
-  selectedEndId.value = null;
+  // 2. Si no hay coincidencia, crear un nuevo grupo
+  const rankNames = rankIds
+    .map(id => {
+      const competitor = selectedRange.value.find(c => c.rank.id === id);
+      return competitor?.rank.name ?? '';
+    })
+    .filter(Boolean);
 
-  toast.add({ severity: 'success', summary: 'Agregado', detail: `Categoría para ${modalityName} agregada a la cola`, life: 2000 });
+  const newGroup = await RankGroupService.create({
+    name: rankNames.join(' / '),
+    rankIds: rankIds,
+  });
+
+  // Actualizar la lista local para futuras comparaciones
+  rankGroups.value.push(newGroup);
+
+  return newGroup.id;
+}
+
+async function addToQueue() {
+  if (!suggestedCategory.value || !selectedModalityId.value) return;
+
+  addingToQueue.value = true;
+  try {
+    const rankIds = uniqueSelectedRankIds.value;
+    const rankGroupId = await resolveRankGroupId(rankIds);
+
+    const range = selectedRange.value;
+    const ages = range.map(c => c.age).filter((a): a is number => a !== null);
+    const weights = range.map(c => c.weight).filter((w): w is number => w !== null);
+    const uniqueSexes = Array.from(new Set(range.map(c => c.sex.id)));
+
+    const category: CategoryCreate = {
+      ages: ages.length > 0 ? [Math.min(...ages), Math.max(...ages)] : [0, 99],
+      specialCondition: range.some(c => c.specialCondition),
+      modalities: [{
+        modalityId: selectedModalityId.value,
+        sexIds: uniqueSexes,
+        rankGroupIds: [rankGroupId],
+        physicalRequirements: [{
+          initialWeight: weights.length > 0 ? Math.min(...weights) : null,
+          finalWeight: weights.length > 0 ? Math.max(...weights) : null,
+          initialHeight: 0,
+          finalHeight: 200,
+        }]
+      }]
+    };
+
+    const modalityName = modalities.value.find(m => m.id === selectedModalityId.value)?.name || 'Desconocida';
+
+    categoryQueue.value.push({
+      id: crypto.randomUUID(),
+      category,
+      competitorNames: range.map(c => `${c.firstName} ${c.lastName}`)
+    });
+
+    // Remove these competitors
+    const assignedIds = new Set(range.map(c => c.id));
+    competitors.value = competitors.value.filter(c => !assignedIds.has(c.id));
+
+    // Clear selection
+    selectedStartId.value = null;
+    selectedEndId.value = null;
+
+    toast.add({ severity: 'success', summary: 'Agregado', detail: `Categoría para ${modalityName} agregada a la cola`, life: 2000 });
+  } catch (error) {
+    toast.add({ severity: 'error', summary: 'Error', detail: 'No se pudo resolver el grupo de rangos', life: 3000 });
+  } finally {
+    addingToQueue.value = false;
+  }
 }
 
 function removeFromQueue(id: string) {
@@ -195,7 +247,6 @@ async function submitBulk() {
     await CategoryService.createBulk(payload);
     toast.add({ severity: 'success', summary: 'Éxito', detail: `${categoryQueue.value.length} categorías creadas correctamente`, life: 3000 });
     categoryQueue.value = [];
-    router.push({ name: 'categories' });
   } catch (error) {
     toast.add({ severity: 'error', summary: 'Error', detail: 'Error al procesar la creación masiva', life: 3000 });
   } finally {
@@ -216,6 +267,16 @@ onMounted(() => {
   fetchCompetitors();
 });
 
+// Watch modalities to auto-select "Combate"
+watch(modalities, (newModalities) => {
+  if (newModalities.length > 0 && !selectedModalityId.value) {
+    const combatModality = newModalities.find(m => m.name === 'Combate');
+    if (combatModality) {
+      selectedModalityId.value = combatModality.id;
+    }
+  }
+}, { immediate: true });
+
 // Watch filters for changes
 watch(filters, () => {
   fetchCompetitors();
@@ -230,9 +291,10 @@ watch(filters, () => {
       <template #header>
         <div class="p-4">
           <h1 class="text-3xl font-bold bg-gradient-to-r from-primary-500 to-primary-700 bg-clip-text text-transparent">
-            Generador de Categorías
+            Generador de Categorías de Combate
           </h1>
-          <p class="text-surface-500 text-sm mt-1">Extrae y agrupa competidores para crear categorías masivamente.</p>
+          <p class="text-surface-500 text-sm mt-1">Extrae y agrupa competidores para crear categorías de combate
+            masivamente.</p>
         </div>
 
       </template>
@@ -326,6 +388,12 @@ watch(filters, () => {
                   <Tag :value="slotProps.data.rank.name" severity="secondary" class="text-[10px]" />
                 </template>
               </Column>
+              <Column field="specialCondition" header="C.E." style="width: 60px">
+                <template #body="slotProps">
+                  <Tag :value="slotProps.data.specialCondition ? 'SÍ' : 'NO'"
+                    :severity="slotProps.data.specialCondition ? 'warn' : 'secondary'" class="text-[10px]" />
+                </template>
+              </Column>
               <Column field="sex.name" header="Sexo" style="width: 60px">
                 <template #body="slotProps">
                   <i :class="[
@@ -375,30 +443,23 @@ watch(filters, () => {
               </div>
 
               <div class="space-y-3">
-                <div class="flex flex-col gap-1">
-                  <label class="text-[10px] font-bold uppercase text-surface-500">Modalidad</label>
-                  <Select v-model="selectedModalityId" :options="modalities" optionLabel="name" optionValue="id"
-                    placeholder="Elige" class="w-full" fluid />
-                </div>
+                <!-- Modality selection removed - Combat is pre-selected -->
 
-                <div class="flex flex-col gap-1">
-                  <label class="text-[10px] font-bold uppercase text-surface-500">Grupo de Rangos</label>
-                  <Select v-model="selectedRankGroupId" :options="rankGroups" optionLabel="name" optionValue="id"
-                    placeholder="Elige grupo" class="w-full" fluid />
-                </div>
 
                 <div v-if="suggestedCategory"
                   class="text-[11px] p-2 bg-primary-50 dark:bg-primary-950 rounded border border-primary-200 dark:border-primary-800 space-y-1">
                   <p class="flex justify-between"><span>Edades:</span> <b>{{ suggestedCategory.ages[0] }}-{{
                     suggestedCategory.ages[1] }}</b></p>
-                  <p class="flex justify-between"><span>Peso:</span> <b>{{ suggestedCategory.modalities[0].physicalRequirements?.[0]?.initialWeight?.toFixed(1)
-                  }}-{{ suggestedCategory.modalities[0].physicalRequirements?.[0]?.finalWeight?.toFixed(1) }} kg</b></p>
+                  <p class="flex justify-between"><span>Peso:</span> <b>{{ suggestedCategory.weights.min?.toFixed(1)
+                  }}-{{ suggestedCategory.weights.max?.toFixed(1) }} kg</b></p>
+                  <p class="flex justify-between"><span>Rangos:</span> <b>{{ suggestedCategory.rankNames.join(', ')
+                  }}</b></p>
                   <p v-if="suggestedCategory.specialCondition" class="text-amber-600 font-bold">Condición Especial
                     Detectada</p>
                 </div>
 
-                <Button label="Añadir a la Cola" icon="pi pi-plus" class="w-full" :disabled="!selectedModalityId"
-                  @click="addToQueue" />
+                <Button label="Añadir a la Cola" icon="pi pi-plus" class="w-full"
+                  :disabled="!selectedModalityId || !isRangeSelected" :loading="addingToQueue" @click="addToQueue" />
               </div>
             </div>
             <div v-else class="text-center py-8 px-4 opacity-50 space-y-4">
@@ -436,7 +497,8 @@ watch(filters, () => {
                         class="text-xs font-normal opacity-60">años</span>
                     </div>
                     <div class="text-xs opacity-70">
-                      {{ item.category.modalities[0].physicalRequirements?.[0]?.initialWeight?.toFixed(1) }} - {{ item.category.modalities[0].physicalRequirements?.[0]?.finalWeight?.toFixed(1) }} kg
+                      {{ item.category.modalities[0].physicalRequirements?.[0]?.initialWeight?.toFixed(1) }} - {{
+                        item.category.modalities[0].physicalRequirements?.[0]?.finalWeight?.toFixed(1) }} kg
                     </div>
                     <div class="mt-2 flex flex-wrap gap-1">
                       <Tag v-if="item.category.specialCondition" icon="pi pi-star" value="CE" severity="warn"
