@@ -36,6 +36,9 @@ from src.features.registration.data.repository import (
     RankRepository,
     SexRepository,
 )
+from src.features.registration.application.schemas import CompetitorCategoryFilters
+from typing import Annotated
+from fastapi import Query
 
 router = APIRouter(prefix="/tournament", tags=["Tournament"])
 
@@ -163,6 +166,21 @@ async def mass_register_competitors(
         return {"registrations": registrations, "errors": result["errors"]}
     except ValueError as e:
         raise HTTPException(status_code=400, detail=str(e))
+    except Exception as e:
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Internal server error: {str(e)}",
+        )
+
+
+@router.get("/competitors/unregistered", response_model=list[CompetitorSchema])
+async def list_unregistered_competitors(
+    filters: CompetitorCategoryFilters = Depends(),
+    tournament_id: UUID | None = Query(None),
+    use_cases: TournamentUseCases = Depends(get_tournament_use_cases),
+):
+    try:
+        return await use_cases.list_unregistered_competitors(filters, tournament_id)
     except Exception as e:
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,

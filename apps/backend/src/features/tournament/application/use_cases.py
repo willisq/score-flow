@@ -14,6 +14,7 @@ from src.features.tournament.application.schemas import (
     RankGroupCreate,
     RankGroupUpdate,
 )
+from src.features.registration.application.schemas import CompetitorCategoryFilters
 from src.features.tournament.data.repository import (
     ModalityRepository,
     TournamentRepository,
@@ -35,6 +36,7 @@ from src.features.tournament.data.models import (
     CategoryModalityModel,
     CategoryModel,
     RankGroupModel,
+    CategoryRegistrationModel,
 )
 from src.features.registration.data.models import RankModel, SexModel, CompetitorModel
 from src.features.registration.data.repository import (
@@ -42,7 +44,7 @@ from src.features.registration.data.repository import (
     RankRepository,
     SexRepository,
 )
-from src.features.registration.domain.entities import Competitor
+from src.features.registration.domain.entities import Competitor, Academy, Person, Rank, Sex
 
 
 class TournamentUseCases:
@@ -458,3 +460,77 @@ class TournamentUseCases:
             created = await self.register_category(category_schema)
             all_created.extend(created)
         return all_created
+
+    async def list_unregistered_competitors(
+        self, filters: CompetitorCategoryFilters, tournament_id: UUID | None = None
+    ) -> List[Competitor]:
+        from sqlalchemy import select, exists, asc
+        from sqlalchemy.orm import selectinload
+        from src.features.registration.data.models import CompetitorModel, AcademyModel, RankModel, SexModel
+
+        # Build base query for CompetitorModel
+        stmt = (
+            select(CompetitorModel)
+            .join(CompetitorModel.person)
+            .options(
+                selectinload(CompetitorModel.person),
+                selectinload(CompetitorModel.academy).selectinload(AcademyModel.instructor),
+                selectinload(CompetitorModel.rank),
+                selectinload(CompetitorModel.sex),
+            )
+        )
+
+        # Apply CompetitorCategoryFilters
+        if filters.min_age is not None:
+            stmt = stmt.where(CompetitorModel.age >= filters.min_age)
+        if filters.max_age is not None:
+            stmt = stmt.where(CompetitorModel.age <= filters.max_age)
+        if filters.rank_ids:
+            stmt = stmt.where(CompetitorModel.rank_id.in_(filters.rank_ids))
+        if filters.sex_ids:
+            stmt = stmt.where(CompetitorModel.sex_id.in_(filters.sex_ids))
+        if filters.special_condition is not None:
+            stmt = stmt.where(CompetitorModel.special_condition == filters.special_condition)
+
+        # Add filtering for unregistered
+        reg_stmt = select(1).filter(CategoryRegistrationModel.competitor_id == CompetitorModel.id)
+        if tournament_id:
+            reg_stmt = reg_stmt.filter(CategoryRegistrationModel.tournament_id == tournament_id)
+
+        stmt = stmt.where(~exists(reg_stmt))
+
+        # Sort
+        stmt = stmt.order_by(asc(CompetitorModel.age), asc(CompetitorModel.weight))
+
+        result = await self.competitor_repo.session.execute(stmt)
+        models = result.scalars().all()
+
+        # Map to domain
+        return [
+            Competitor(
+                id=m.id,
+                first_name=m.person.first_name,
+                last_name=m.person.last_name,
+                academy=Academy(
+                    id=m.academy.id,
+                    name=m.academy.name,
+                    instructor=Person(
+                        id=m.academy.instructor.id,
+                        first_name=m.academy.instructor.first_name,
+                        last_name=m.academy.instructor.last_name,
+                    ),
+                ),
+                rank=Rank(
+                    id=m.rank.id,
+                    name=m.rank.name,
+                    classification=m.rank.classification,
+                    is_black_belt=m.rank.is_black_belt,
+                ),
+                sex=Sex(id=m.sex.id, name=m.sex.name),
+                weight=m.weight,
+                height=m.height,
+                age=m.age,
+                special_condition=m.special_condition,
+            )
+            for m in models
+        ]

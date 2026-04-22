@@ -38,6 +38,11 @@ const router = createRouter({
           component: () => import("@/features/tournament/views/RankGroupListView.vue"),
         },
         {
+          path: "enrollment",
+          name: "enrollment",
+          component: () => import("@/features/tournament/views/CategoryEnrollmentView.vue"),
+        },
+        {
           path: "category-builder",
           name: "category-builder",
           component: () => import("@/features/tournament/views/CategoryBuilderView.vue"),

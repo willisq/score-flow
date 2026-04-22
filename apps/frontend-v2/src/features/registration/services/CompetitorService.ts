@@ -51,6 +51,22 @@ export class CompetitorService {
     return data;
   }
 
+  static async getUnregisteredForCategoryBuilder(
+    filters: CompetitorCategoryFilters,
+    tournamentId?: string
+  ): Promise<Competitor[]> {
+    const params: any = { ...filters };
+    if (tournamentId) {
+      params.tournament_id = tournamentId;
+    }
+    
+    const { data } = await httpClient.get<Competitor[]>(
+      `/tournament/competitors/unregistered`,
+      { params }
+    );
+    return data;
+  }
+
   static async getFilterOptions(): Promise<CompetitorFilterOptions> {
     const { data } = await httpClient.get<CompetitorFilterOptions>(
       `${this.BASE}/filter-options`
