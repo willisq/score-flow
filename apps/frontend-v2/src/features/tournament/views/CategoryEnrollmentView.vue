@@ -183,6 +183,46 @@ async function submitBulk() {
   }
 }
 
+async function submitAllLoaded() {
+  if (competitors.value.length === 0 && enrollmentQueue.value.length === 0) return;
+  if (!activeTournament.value?.id) {
+    toast.add({ severity: 'error', summary: 'Error', detail: 'Debe seleccionar un torneo activo.', life: 3000 });
+    return;
+  }
+
+  submitting.value = true;
+  try {
+    const allIds = [
+      ...competitors.value.map(c => c.id),
+      ...enrollmentQueue.value.map(c => c.id)
+    ];
+
+    const payload = {
+      competitorIds: allIds,
+      tournamentId: activeTournament.value.id
+    };
+    
+    const response = await InscriptionService.massRegister(payload);
+    const successCount = response.registrations?.length || 0;
+    const errorsCount = response.errors?.length || 0;
+    
+    if (errorsCount > 0) {
+      toast.add({ severity: 'warn', summary: 'Inscripción parcial', detail: `${successCount} inscritos, ${errorsCount} fallaron.`, life: 5000 });
+      enrollmentQueue.value = [];
+      fetchCompetitors();
+    } else {
+      toast.add({ severity: 'success', summary: 'Éxito', detail: `${allIds.length} competidores inscritos correctamente`, life: 3000 });
+      enrollmentQueue.value = [];
+      competitors.value = [];
+      fetchCompetitors();
+    }
+  } catch (error) {
+    toast.add({ severity: 'error', summary: 'Error', detail: 'Problema al procesar la inscripción masiva', life: 3000 });
+  } finally {
+    submitting.value = false;
+  }
+}
+
 onMounted(() => {
   loadFilterOptions();
   fetchCompetitors();
@@ -215,7 +255,7 @@ watch(activeTournament, () => {
         </div>
       </template>
       <template #content>
-        <div class="flex gap-2">
+        <div class="flex flex-wrap gap-3">
           <Button label="Inscribir Seleccionados" icon="pi pi-check-circle" severity="success"
             :disabled="enrollmentQueue.length === 0" :loading="submitting" @click="submitBulk" class="shadow-lg px-6">
             <template #icon>
@@ -228,6 +268,9 @@ watch(activeTournament, () => {
               </div>
             </template>
           </Button>
+
+          <Button label="Inscribir Todo el Listado" icon="pi pi-users" severity="primary"
+            :disabled="competitors.length === 0 && enrollmentQueue.length === 0" :loading="submitting" @click="submitAllLoaded" class="shadow-lg px-6" />
         </div>
       </template>
     </Card>
