@@ -8,9 +8,14 @@ from sqlalchemy.orm import selectinload
 
 from src.features.bracket.domain.entities import Match, Round
 from src.features.bracket.data.models import MatchModel, RoundModel
-from src.features.registration.data.models import CompetitorModel, AcademyModel
-from src.features.tournament.data.models import CategoryRegistrationModel
-
+from src.features.registration.data.models import CompetitorModel, AcademyModel, RankModel
+from src.features.tournament.data.models import (
+    CategoryRegistrationModel, 
+    CategoryModalityModel, 
+    CategoryModel, 
+    RankGroupModel, 
+    PhysicalRequirementModel
+)
 
 class RoundRepository:
     def __init__(self, session: AsyncSession):
@@ -78,7 +83,16 @@ class BracketRepository:
             
         self.session.add_all(models_to_insert)
 
-    async def get_matches(self, categories: Optional[List[UUID]] = None, rounds: Optional[List[UUID]] = None) -> List[MatchModel]:
+    async def get_matches(
+        self, 
+        categories: Optional[List[UUID]] = None, 
+        rounds: Optional[List[UUID]] = None,
+        rank_id: Optional[UUID] = None,
+        age: Optional[int] = None,
+        modality_id: Optional[UUID] = None,
+        special_condition: Optional[bool] = None,
+        weight: Optional[float] = None
+    ) -> List[MatchModel]:
         stmt = (
             select(MatchModel)
             .options(
@@ -112,10 +126,36 @@ class BracketRepository:
             )
         )
         
+        # Determine if we need to join CategoryModality
+        needs_category_modality_join = any(x is not None for x in [rank_id, age, modality_id, special_condition, weight])
+        
+        if needs_category_modality_join:
+            stmt = stmt.join(MatchModel.category_modality_rel)
+            
         if categories:
             stmt = stmt.where(MatchModel.category_modality_id.in_(categories))
         if rounds:
             stmt = stmt.where(MatchModel.round.in_(rounds))
             
+        if modality_id:
+            stmt = stmt.where(CategoryModalityModel.modality_id == modality_id)
+            
+        if rank_id:
+            stmt = stmt.join(CategoryModalityModel.rank_group).join(RankGroupModel.ranks)
+            stmt = stmt.where(RankModel.id == rank_id)
+            
+        if weight is not None:
+            stmt = stmt.join(CategoryModalityModel.physical_requirement)
+            stmt = stmt.where(PhysicalRequirementModel.initial_weight <= weight)
+            stmt = stmt.where(PhysicalRequirementModel.final_weight >= weight)
+            
+        if age is not None or special_condition is not None:
+            # We must join CategoryModel exactly once if age or special_condition is present
+            stmt = stmt.join(CategoryModalityModel.category)
+            if age is not None:
+                stmt = stmt.where(CategoryModel.ages.contains([age]))
+            if special_condition is not None:
+                stmt = stmt.where(CategoryModel.special_condition == special_condition)
+
         result = await self.session.execute(stmt)
         return list(result.scalars().all())

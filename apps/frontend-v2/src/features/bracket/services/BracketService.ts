@@ -8,9 +8,9 @@ import type {
 export class BracketService {
   private static readonly BASE = "/pyramid";
 
-  static async getAll(categories?: string[], rounds?: string[]): Promise<Match[]> {
+  static async getAll(filters: any = {}): Promise<Match[]> {
     const { data } = await httpClient.get<Match[]>(this.BASE, {
-      params: { categories, rounds },
+      params: filters,
     });
     return data;
   }

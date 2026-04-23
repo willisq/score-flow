@@ -71,8 +71,25 @@ class BracketUseCases:
 
         return results
 
-    async def get_brackets(self, categories: Optional[List[UUID]] = None, rounds: Optional[List[UUID]] = None) -> List[MatchSchema]:
-        models = await self.bracket_repo.get_matches(categories, rounds)
+    async def get_brackets(
+        self, 
+        categories: Optional[List[UUID]] = None, 
+        rounds: Optional[List[UUID]] = None,
+        rank_id: Optional[UUID] = None,
+        age: Optional[int] = None,
+        modality_id: Optional[UUID] = None,
+        special_condition: Optional[bool] = None,
+        weight: Optional[float] = None,
+    ) -> List[MatchSchema]:
+        models = await self.bracket_repo.get_matches(
+            categories=categories, 
+            rounds=rounds,
+            rank_id=rank_id,
+            age=age,
+            modality_id=modality_id,
+            special_condition=special_condition,
+            weight=weight
+        )
         
         def map_competitor(reg_model) -> Optional[CompetitorSchema]:
             if not reg_model or not reg_model.competitor:

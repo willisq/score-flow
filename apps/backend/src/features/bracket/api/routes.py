@@ -49,10 +49,23 @@ async def generate_brackets(
 async def get_brackets(
     category_modality_ids: Optional[List[UUID]] = Query(None, description="Filtrar por IDs de category_modality"),
     rounds: Optional[List[UUID]] = Query(None, description="Filtrar por IDs de rondas"),
+    rank_id: Optional[UUID] = Query(None, description="Filtrar por ID de rango"),
+    age: Optional[int] = Query(None, description="Filtrar por edad contenida en la categoría"),
+    modality_id: Optional[UUID] = Query(None, description="Filtrar por ID de modalidad"),
+    special_condition: Optional[bool] = Query(None, description="Filtrar por condición especial"),
+    weight: Optional[float] = Query(None, description="Filtrar por peso (dentro del rango de requermientos)"),
     use_cases: BracketUseCases = Depends(get_bracket_use_cases)
 ):
     try:
-        return await use_cases.get_brackets(category_modality_ids, rounds)
+        return await use_cases.get_brackets(
+            categories=category_modality_ids, 
+            rounds=rounds,
+            rank_id=rank_id,
+            age=age,
+            modality_id=modality_id,
+            special_condition=special_condition,
+            weight=weight
+        )
     except Exception as e:
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,

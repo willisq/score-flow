@@ -11,7 +11,7 @@ export interface Match {
   id: string;
   round: Round;
   position: number;
-  categoryId: string | null;
+  categoryModalityId: string | null;
   firstCompetitor: Competitor;
   secondCompetitor: Competitor | null;
   winner: Competitor | null;
@@ -20,11 +20,11 @@ export interface Match {
 // --- Request / Response DTOs ---
 
 export interface GenerateBracketsRequest {
-  categories?: string[] | null;
+  categoryModalityIds?: string[] | null;
 }
 
 export interface GeneratedCategoryResult {
-  categoryId: string;
+  categoryModalityId: string;
   matchesGenerated: number;
 }
 
