@@ -37,16 +37,8 @@ const bracketRounds = computed(() => {
   }
 
   // Map existing matches into the structure
+  let targetIdx = 0;
   for (const group of sortedRoundGroups) {
-    // Determine which round index this group belongs to by its size
-    // Example: If baseSize is 4, rounds are sizes 4, 2, 1.
-    // If group.length is 4 => index 0. If 2 => index 1.
-    // We use Math.log2 to find the exact index.
-    const roundIndex = Math.log2(baseSize / group.length);
-    // Integer round index ensures it maps exactly (assuming perfect halves).
-    // If incomplete, we place them where they fit best.
-    const targetIdx = Math.round(roundIndex);
-    
     if (allRounds[targetIdx]) {
       for (const match of group) {
         if (match.position < allRounds[targetIdx].length) {
@@ -54,6 +46,7 @@ const bracketRounds = computed(() => {
         }
       }
     }
+    targetIdx++;
   }
 
   return allRounds;
@@ -67,7 +60,8 @@ function isWinner(match: Match | null, position: "first" | "second"): boolean {
 
 function isBye(match: Match | null): boolean {
   if (!match) return false;
-  return !match.secondCompetitor;
+  // A match is a BYE if there is no second competitor AND the first competitor is already the winner
+  return !match.secondCompetitor && match.winner?.id === match.firstCompetitor?.id;
 }
 </script>
 
@@ -91,12 +85,12 @@ function isBye(match: Match | null): boolean {
               {{ match.round.description }}
             </div>
             <CompetitorCard
-              :name="match.firstCompetitor?.firstName + ' ' + match.firstCompetitor?.lastName"
+              :name="match.firstCompetitor ? `${match.firstCompetitor.firstName} ${match.firstCompetitor.lastName}` : '---'"
               :academy="match.firstCompetitor?.academy?.name"
               :is-winner="isWinner(match, 'first')"
             />
             <CompetitorCard
-              :name="match.secondCompetitor ? match.secondCompetitor?.firstName + ' ' + match.secondCompetitor?.lastName : undefined"
+              :name="match.secondCompetitor ? `${match.secondCompetitor.firstName} ${match.secondCompetitor.lastName}` : (isBye(match) ? 'BYE' : '---')"
               :academy="match.secondCompetitor?.academy?.name"
               :is-winner="isWinner(match, 'second')"
               :is-bye="isBye(match)"

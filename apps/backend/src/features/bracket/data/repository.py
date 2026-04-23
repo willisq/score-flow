@@ -40,6 +40,32 @@ class RoundRepository:
         )
 
 
+    async def get_next_round(self, current_round: Round) -> Optional[Round]:
+        # Deduce the expected number of participants for the current round
+        stmt_current = select(RoundModel).where(RoundModel.id == current_round.id)
+        res_current = await self.session.execute(stmt_current)
+        curr_model = res_current.scalar_one_or_none()
+        
+        if not curr_model:
+            return None
+            
+        next_slots = curr_model.numero_participantes // 2
+        # If it's less than 2, it means the current round was the Final
+        if next_slots < 2:
+            return None
+            
+        stmt_next = select(RoundModel).where(RoundModel.numero_participantes == next_slots)
+        res_next = await self.session.execute(stmt_next)
+        next_model = res_next.scalar_one_or_none()
+        
+        if next_model:
+            return Round(
+                id=next_model.id,
+                description=next_model.description,
+                sequence=current_round.sequence + 1
+            )
+        return None
+
 class BracketRepository:
     def __init__(self, session: AsyncSession):
         self.session = session

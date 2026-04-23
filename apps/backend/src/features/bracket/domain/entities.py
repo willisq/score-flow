@@ -108,19 +108,55 @@ class Pyramid:
         round_matches = self.get_matches_by_round(round)
         return [m.winner for m in round_matches if m.winner is not None]
 
-    def advance(
+    def advance_known_winners(
         self,
         current_round: Round,
         next_round: Round,
-        pairing_strategy: "PairingStrategy",
         id_factory: Callable[[], UUID] = uuid4,
     ) -> List[Match]:
         """
-        Advances the winners of the current round to the next round.
+        Advances any existing winners in the current round to the next round automatically.
+        This is particularly useful to immediately register BYE competitors into their next stage.
         """
-        winners = self.get_round_winners(current_round)
-
-        next_matches = pairing_strategy.pair(winners, next_round, id_factory)
-
-        self.matches.extend(next_matches)
-        return next_matches
+        current_matches = self.get_matches_by_round(current_round)
+        next_matches_dict = {}  # Map from position to Match
+        
+        for match in current_matches:
+            if match.winner:
+                next_pos = match.position // 2
+                is_first = (match.position % 2 == 0)
+                
+                if next_pos not in next_matches_dict:
+                    # Create the shell for the next round match
+                    # We initialize both as None, and then override explicitly
+                    next_match = Match(
+                        id=id_factory(),
+                        round=next_round,
+                        first_competitor=match.winner, # Temporary placeholder to satisfy type constructor
+                        second_competitor=None,
+                        position=next_pos
+                    )
+                    if is_first:
+                        next_match.first_competitor = match.winner
+                    else:
+                        # SQLAlchemy nullable schema trick: 
+                        # To bypass strict nullable issues during pure initial tree generation,
+                        # if the winner comes from an odd position, we must set them as first_competitor
+                        # if the schema demands it. But if the schema permits (which it should per our config),
+                        # we can try to respect the strict domain structure:
+                        # Wait, since Match requires first_competitor in its dataclass constructor,
+                        # we pass it above, but we will overwrite it if needed.
+                        next_match.first_competitor = match.winner # We put them as first_competitor to satisfy the Not Null DB constraint.
+                    
+                    next_matches_dict[next_pos] = next_match
+                else:
+                    # The other child match already generated the shell
+                    next_match = next_matches_dict[next_pos]
+                    if is_first:
+                         next_match.first_competitor = match.winner
+                    else:
+                         next_match.second_competitor = match.winner
+        
+        new_matches = list(next_matches_dict.values())
+        self.matches.extend(new_matches)
+        return new_matches

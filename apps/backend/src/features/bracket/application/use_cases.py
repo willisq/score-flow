@@ -66,7 +66,16 @@ class BracketUseCases:
                 pairing_strategy=pairing_strategy
             )
             
-            await self.bracket_repo.save_matches(cm_id, matches, registration_maps[cm_id])
+            # Auto-advance the BYEs to the next round structure
+            next_round = await self.round_repo.get_next_round(first_round)
+            new_matches = []
+            if next_round:
+                new_matches = pyramid.advance_known_winners(
+                    current_round=first_round,
+                    next_round=next_round
+                )
+            
+            await self.bracket_repo.save_matches(cm_id, matches + new_matches, registration_maps[cm_id])
             results.append(GeneratedCategoryResult(category_modality_id=cm_id, matches_generated=len(matches)))
 
         return results
