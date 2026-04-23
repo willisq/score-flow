@@ -5,6 +5,7 @@ import CompetitorCard from "./CompetitorCard.vue";
 
 const props = defineProps<{
   matches: Match[];
+  id?: string;
 }>();
 
 // Compute the full bracket structure
@@ -66,22 +67,22 @@ function isBye(match: Match | null): boolean {
 </script>
 
 <template>
-  <div class="tournament-brackets overflow-x-auto p-4 bg-surface-50 dark:bg-surface-900 rounded-lg">
+  <div :id="id" class="tournament-brackets overflow-x-auto p-4 bg-surface-50 dark:bg-surface-900 rounded-lg">
     <div class="bracket inline-flex">
       <div
         v-for="(round, roundIndex) in bracketRounds"
         :key="roundIndex"
         class="round flex flex-col justify-around"
         :class="['round-' + (roundIndex + 1)]"
-        style="min-width: 240px;"
+        style="min-width: 300px;"
       >
         <div
           v-for="(match, matchIndex) in round"
           :key="matchIndex"
           class="match flex flex-col justify-center relative mx-4 py-3 flex-grow"
         >
-          <div v-if="match" class="match__content relative flex flex-col bg-surface-0 dark:bg-surface-800 border border-surface-200 dark:border-surface-700 rounded-md shadow-sm">
-            <div class="text-[10px] uppercase font-bold text-surface-400 absolute -top-4 left-0 w-full text-center">
+          <div v-if="match" class="match__content relative flex flex-col bg-surface-0 dark:bg-surface-800 border border-surface-200 dark:border-surface-700 rounded-md shadow-sm overflow-hidden">
+            <div class="text-[9px] uppercase font-bold text-surface-400 bg-surface-50/50 dark:bg-surface-900/50 px-2 py-1 border-b border-surface-100 dark:border-surface-700 text-center">
               {{ match.round.description }}
             </div>
             <CompetitorCard

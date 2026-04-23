@@ -2,6 +2,7 @@
 import { ref, onMounted, computed } from "vue";
 import { useToast } from "primevue/usetoast";
 import { useBracketData } from "../composables/useBracketData";
+import { useBracketExport } from "../composables/useBracketExport";
 import { BracketService } from "../services/BracketService";
 import { CategoryService } from "@/features/tournament/services/CategoryService";
 import { ModalityService } from "@/features/tournament/services/ModalityService";
@@ -13,10 +14,27 @@ import TournamentBracket from "./components/TournamentBracket.vue";
 
 const toast = useToast();
 const { matches, loading, loadMatches } = useBracketData();
+const { exportToPdf } = useBracketExport();
 
 const categories = ref<Category[]>([]);
 const selectedCategories = ref<string[]>([]);
 const generating = ref(false);
+const exportingId = ref<string | null>(null);
+
+async function handleExport(group: any) {
+  exportingId.value = group.display.id;
+  try {
+    await exportToPdf(`bracket-${group.display.id}`, {
+      modalityName: group.display.modality.modality.name,
+      ageStr: group.display.ageStr,
+      sexesStr: group.display.sexesStr,
+      ranksStr: group.display.ranksStr,
+      weightStr: group.display.weightStr
+    });
+  } finally {
+    exportingId.value = null;
+  }
+}
 
 const categoryModalitiesDisplay = computed(() => {
   const list: any[] = [];
@@ -202,7 +220,18 @@ onMounted(async () => {
           </div>
         </AccordionHeader>
         <AccordionContent>
-          <TournamentBracket :matches="group.matches" />
+          <div class="flex justify-end mb-4">
+            <Button 
+              label="Exportar PDF" 
+              icon="pi pi-file-pdf" 
+              severity="secondary" 
+              outlined 
+              size="small"
+              :loading="exportingId === group.display?.id"
+              @click="handleExport(group)"
+            />
+          </div>
+          <TournamentBracket :id="`bracket-${group.display?.id}`" :matches="group.matches" />
         </AccordionContent>
       </AccordionPanel>
     </Accordion>
