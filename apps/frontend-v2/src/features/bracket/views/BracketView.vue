@@ -32,7 +32,7 @@ async function handleExport(group: any) {
     }
     const sortedRounds = Object.values(matchesByRound).sort((a, b) => b.length - a.length);
     const firstRoundSize = sortedRounds.length > 0 ? sortedRounds[0].length : 0;
-    
+
     // If more than 8 matches in the first round, use portrait (vertical)
     const orientation = firstRoundSize > 8 ? "portrait" : "landscape";
 
@@ -166,7 +166,7 @@ onMounted(async () => {
 </script>
 
 <template>
-  <div class="card">
+  <div class="card max-w-full overflow-auto">
     <div class="flex justify-between items-center mb-4">
       <h2 class="text-2xl font-bold">Pirámides</h2>
       <div class="flex gap-2 items-center">
@@ -233,18 +233,13 @@ onMounted(async () => {
           </div>
         </AccordionHeader>
         <AccordionContent>
-          <div class="flex justify-end mb-4">
-            <Button 
-              label="Exportar PDF" 
-              icon="pi pi-file-pdf" 
-              severity="secondary" 
-              outlined 
-              size="small"
-              :loading="exportingId === group.display?.id"
-              @click="handleExport(group)"
-            />
+          <div class="flex justify-start mt-6 ">
+            <Button label="Exportar PDF" icon="pi pi-file-pdf" severity="secondary" outlined size="small"
+              :loading="exportingId === group.display?.id" @click="handleExport(group)" />
           </div>
-          <TournamentBracket :id="`bracket-${group.display?.id}`" :matches="group.matches" />
+          <div class="w-full overflow-x-auto min-w-0">
+            <TournamentBracket :id="`bracket-${group.display?.id}`" :matches="group.matches" />
+          </div>
         </AccordionContent>
       </AccordionPanel>
     </Accordion>
