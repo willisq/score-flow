@@ -43,6 +43,12 @@ def test_register_categories_bulk():
     rank_repo.get_by_id = AsyncMock(return_value=rank)
     sex_repo.get_by_id = AsyncMock(return_value=sex)
     category_repo.create = AsyncMock(side_effect=lambda x: x)
+    from src.features.tournament.data.models import PhysicalRequirementModel
+    category_repo.get_or_create_physical_requirement = AsyncMock(
+        side_effect=lambda iw, fw, ih, fh: PhysicalRequirementModel(
+            id=uuid4(), initial_weight=iw, final_weight=fw, initial_height=ih, final_height=fh
+        )
+    )
     
     from src.features.tournament.domain.entities import RankGroup
     rank_group_repo.get_by_id = AsyncMock(

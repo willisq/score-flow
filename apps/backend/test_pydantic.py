@@ -1,14 +1,15 @@
 from uuid import uuid4
 from typing import List, Optional
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, ConfigDict
 
 def to_camel(string: str) -> str:
     return string.split("_")[0] + "".join(word.capitalize() for word in string.split("_")[1:])
 
 class TunedModel(BaseModel):
-    class Config:
-        populate_by_name = True
-        alias_generator = to_camel
+    model_config = ConfigDict(
+        populate_by_name=True,
+        alias_generator=to_camel,
+    )
 
 class PhysicalRequirementCreate(TunedModel):
     initial_weight: Optional[float] = Field(default=None, ge=0)

@@ -41,25 +41,38 @@ class PairingStrategy(ABC):
 
 
 class AcademyAwarePairingStrategy(PairingStrategy):
-    """Pairing strategy that takes into account the academy of the competitors."""
+    """
+    Pairing strategy that takes into account the academy of the competitors
+    and distributes them to maximize tree distance between teammates.
+    """
 
-    def _find_second_competitor(
-        self, first_competitor: Competitor, competitors: List[Competitor]
-    ) -> Competitor | None:
-        """Looks for an opponent from a different academy, or takes the next one if none found."""
-        second_competitor = None
+    def _get_bit_reversal_order(self, n: int) -> List[int]:
+        """Returns indices 0..n-1 in bit-reversed order."""
+        if n <= 1:
+            return [0]
+        width = (n - 1).bit_length()
+        return [int(f"{i:0{width}b}"[::-1], 2) for i in range(n)]
 
-        # Look for an opponent from a different academy
-        for i, candidate in enumerate(competitors):
-            if candidate.academy.id != first_competitor.academy.id:
-                second_competitor = competitors.pop(i)
-                break
+    def _interleave_competitors(self, competitors: List[Competitor]) -> List[Competitor]:
+        """Groups competitors by academy and interleaves them to avoid consecutive teammates."""
+        from collections import defaultdict, deque
 
-        # If no opponent from another academy is found, take the next one
-        if second_competitor is None and competitors:
-            second_competitor = competitors.pop(0)
+        academy_groups = defaultdict(deque)
+        for c in competitors:
+            academy_groups[c.academy.id].append(c)
 
-        return second_competitor
+        # Sort groups by size descending to handle larger academies first
+        sorted_academies = sorted(
+            academy_groups.keys(), key=lambda k: len(academy_groups[k]), reverse=True
+        )
+        ordered_groups = [academy_groups[k] for k in sorted_academies]
+
+        interleaved = []
+        while any(ordered_groups):
+            for group in ordered_groups:
+                if group:
+                    interleaved.append(group.popleft())
+        return interleaved
 
     def pair(
         self,
@@ -70,8 +83,9 @@ class AcademyAwarePairingStrategy(PairingStrategy):
         """
         Pairs competitors according to business rules:
         1. Number of matches is a power of 2 (2^(ceil(log2(N))-1)).
-        2. Byes are matches with one competitor and an automatic winner.
-        3. Real matches avoid same-academy pairings where possible.
+        2. Competitors from the same academy are distributed to different branches.
+        3. Byes are distributed throughout the bracket.
+        4. Minimizes early round collisions using a greedy collision-aware slot assignment.
         """
         if not competitors:
             return []
@@ -79,42 +93,83 @@ class AcademyAwarePairingStrategy(PairingStrategy):
         number_of_competitors = len(competitors)
         number_of_matches = self._get_number_of_matches(number_of_competitors)
 
-        number_of_real_matches = number_of_competitors - number_of_matches
-        number_of_byes = number_of_matches - number_of_real_matches
+        # 1. Prepare ordered list of competitors (use a copy to avoid mutating original list)
+        ordered_competitors = self._interleave_competitors(list(competitors))
 
-        matches = []
+        # 2. Determine slot order (Match Index, Is First Slot)
+        # We fill 'first' slots in bit-reversed order, then 'second' slots in reversed bit-reversed order.
+        # This keeps teammates assigned to the same match at the maximum possible distance in the tree.
+        match_order = self._get_bit_reversal_order(number_of_matches)
 
-        # Create bye matches
-        for index in range(number_of_byes):
-            if not competitors:
-                break
-            competitor = competitors.pop(0)
-            match = Match(
+        slot_order = []
+        for m_idx in match_order:
+            slot_order.append((m_idx, True))
+        for m_idx in reversed(match_order):
+            slot_order.append((m_idx, False))
+
+        # 3. Create match shells
+        matches_dict = {
+            i: Match(
                 id=id_factory(),
                 round=current_round,
-                first_competitor=competitor,
+                first_competitor=None,  # type: ignore
                 second_competitor=None,
-                position=index,
+                position=i,
             )
-            match.set_winner(competitor)
-            matches.append(match)
+            for i in range(number_of_matches)
+        }
 
-        # Create real matches
-        current_position = number_of_byes
-        while competitors:
-            first_competitor = competitors.pop(0)
-            second_competitor = self._find_second_competitor(
-                first_competitor, competitors
-            )
+        # 4. Fill slots greedily avoiding collisions
+        filled_slots = set()
 
-            match = Match(
-                id=id_factory(),
-                round=current_round,
-                first_competitor=first_competitor,
-                second_competitor=second_competitor,
-                position=current_position,
-            )
-            matches.append(match)
-            current_position += 1
+        for competitor in ordered_competitors:
+            chosen_slot_idx = -1
+            fallback_slot_idx = -1
 
-        return matches
+            for i, (m_idx, is_first) in enumerate(slot_order):
+                if i in filled_slots:
+                    continue
+
+                if fallback_slot_idx == -1:
+                    fallback_slot_idx = i  # Store the first available slot as fallback
+
+                # Check for collision in this match
+                match = matches_dict[m_idx]
+                opponent = match.second_competitor if is_first else match.first_competitor
+                
+                if opponent is not None and opponent.academy.id == competitor.academy.id:
+                    continue  # Causes collision, try next available slot
+
+                chosen_slot_idx = i
+                break
+
+            if chosen_slot_idx == -1:
+                # Unavoidable collision (pigeonhole principle), use the first available slot
+                chosen_slot_idx = fallback_slot_idx
+
+            filled_slots.add(chosen_slot_idx)
+            m_idx, is_first = slot_order[chosen_slot_idx]
+            match = matches_dict[m_idx]
+
+            if is_first:
+                match.first_competitor = competitor
+            else:
+                match.second_competitor = competitor
+
+        # 5. Finalize and handle Byes
+        final_matches = []
+        for i in range(number_of_matches):
+            match = matches_dict[i]
+
+            # If a match only has one competitor, it's a bye
+            if match.first_competitor is None and match.second_competitor is not None:
+                # Swap to first if only second exists
+                match.first_competitor = match.second_competitor
+                match.second_competitor = None
+
+            if match.second_competitor is None and match.first_competitor is not None:
+                match.set_winner(match.first_competitor)
+
+            final_matches.append(match)
+
+        return final_matches

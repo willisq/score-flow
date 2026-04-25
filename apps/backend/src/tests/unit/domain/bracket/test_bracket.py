@@ -485,3 +485,60 @@ class TestPyramid:
         matches = pyramid.get_matches_by_round(round1)
         assert matches[0].position == 0
         assert matches[1].position == 1
+
+    def test_academy_distribution_minimizes_early_collisions(
+        self,
+        valid_id,
+        valid_category,
+        valid_sex,
+        valid_rank,
+        valid_round,
+        academy_aware_strategy,
+    ) -> None:
+        """
+        Verify that teammates from the same academy are distributed across the bracket
+        to avoid facing each other in early rounds.
+        """
+        from src.features.registration.domain.entities import Academy, Person
+
+        # Arrange: 2 academies, 4 competitors each (total 8)
+        academy_a = Academy(id=uuid4(), name="Academy A", instructor=Person(uuid4(), "I1", "L1"))
+        academy_b = Academy(id=uuid4(), name="Academy B", instructor=Person(uuid4(), "I2", "L2"))
+
+        competitors = []
+        for i in range(4):
+            competitors.append(Competitor(uuid4(), f"A{i}", "Doe", academy_a, valid_rank, valid_sex, 60.0, 170.0, 20, False))
+            competitors.append(Competitor(uuid4(), f"B{i}", "Doe", academy_b, valid_rank, valid_sex, 60.0, 170.0, 20, False))
+
+        pyramid = Pyramid(id=valid_id, category=valid_category)
+
+        # Act
+        matches = pyramid.generate_initial_round(competitors, valid_round, academy_aware_strategy)
+
+        # Assert: 8 competitors -> 4 matches in 1st round
+        assert len(matches) == 4
+
+        # Verify no two teammates in the same match
+        for match in matches:
+            if match.first_competitor and match.second_competitor:
+                assert match.first_competitor.academy.id != match.second_competitor.academy.id
+
+        # Verify teammates are in different halves where possible
+        # Semi-final 1: matches 0 & 1. Semi-final 2: matches 2 & 3.
+        # Academy A members should be split 2 and 2 between halves.
+        half1_matches = [m for m in matches if m.position < 2]
+        half2_matches = [m for m in matches if m.position >= 2]
+
+        def count_academy(matches_list, academy_id):
+            count = 0
+            for m in matches_list:
+                if m.first_competitor and m.first_competitor.academy.id == academy_id:
+                    count += 1
+                if m.second_competitor and m.second_competitor.academy.id == academy_id:
+                    count += 1
+            return count
+
+        assert count_academy(half1_matches, academy_a.id) == 2
+        assert count_academy(half2_matches, academy_a.id) == 2
+        assert count_academy(half1_matches, academy_b.id) == 2
+        assert count_academy(half2_matches, academy_b.id) == 2

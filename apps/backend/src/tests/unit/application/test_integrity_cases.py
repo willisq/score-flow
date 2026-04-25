@@ -17,6 +17,7 @@ from src.features.tournament.data.models import PhysicalRequirementModel, Catego
 def test_repository_deduplicates_by_rounding():
     # Setup
     session = AsyncMock()
+    session.add = MagicMock()
     # Mocking identity_map and new collections
     session.new = []
     session.identity_map = {}
@@ -50,6 +51,7 @@ def test_repository_deduplicates_by_rounding():
 def test_create_category_internal_caching():
     # Setup
     session = AsyncMock()
+    session.add = MagicMock()
     session.new = []
     session.identity_map = {}
     repo = CategoryRepository(session)
@@ -106,6 +108,7 @@ def test_create_category_internal_caching():
 def test_deduplicates_different_ids_same_data_in_session():
     # Setup
     session = AsyncMock()
+    session.add = MagicMock()
     session.new = []
     session.identity_map = {}
     session.get.return_value = None # Fix: prevent mock from returning a truthy mock object by default

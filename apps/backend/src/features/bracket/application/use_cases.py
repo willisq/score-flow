@@ -70,9 +70,10 @@ class BracketUseCases:
             next_round = await self.round_repo.get_next_round(first_round)
             new_matches = []
             if next_round:
-                new_matches = pyramid.advance_known_winners(
+                new_matches = pyramid.advance(
                     current_round=first_round,
-                    next_round=next_round
+                    next_round=next_round,
+                    require_complete=False
                 )
             
             await self.bracket_repo.save_matches(cm_id, matches + new_matches, registration_maps[cm_id])
