@@ -15,15 +15,15 @@ export function useBracketExport() {
       
       // We want to capture it as it is, but maybe force high quality
       const canvas = await html2canvas(element, {
-        scale: 2,
+        scale: 1.5,
         useCORS: true,
         backgroundColor: "#ffffff", // Force white background for print
         logging: false,
       });
 
-      const imgData = canvas.toDataURL("image/png");
+      const imgData = canvas.toDataURL("image/jpeg", 0.7);
       const pdf = new jsPDF({
-        orientation: "landscape",
+        orientation: category.orientation || "landscape",
         unit: "mm",
         format: "a4",
       });
@@ -61,7 +61,7 @@ export function useBracketExport() {
       }
 
       const xCentering = (pageWidth - finalWidth) / 2;
-      pdf.addImage(imgData, "PNG", xCentering, 40, finalWidth, finalHeight);
+      pdf.addImage(imgData, "JPEG", xCentering, 40, finalWidth, finalHeight, undefined, "FAST");
 
       // Filename: Piramide_Modalidad_Rango.pdf
       const fileName = `Piramide_${category.modalityName.replace(/\s+/g, "_")}_${category.ranksStr.replace(/\s+/g, "_")}.pdf`;

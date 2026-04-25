@@ -24,12 +24,25 @@ const exportingId = ref<string | null>(null);
 async function handleExport(group: any) {
   exportingId.value = group.display.id;
   try {
+    // Calculate first round size to determine orientation
+    const matchesByRound: Record<string, any[]> = {};
+    for (const m of group.matches) {
+      if (!matchesByRound[m.round.id]) matchesByRound[m.round.id] = [];
+      matchesByRound[m.round.id].push(m);
+    }
+    const sortedRounds = Object.values(matchesByRound).sort((a, b) => b.length - a.length);
+    const firstRoundSize = sortedRounds.length > 0 ? sortedRounds[0].length : 0;
+    
+    // If more than 8 matches in the first round, use portrait (vertical)
+    const orientation = firstRoundSize > 8 ? "portrait" : "landscape";
+
     await exportToPdf(`bracket-${group.display.id}`, {
       modalityName: group.display.modality.modality.name,
       ageStr: group.display.ageStr,
       sexesStr: group.display.sexesStr,
       ranksStr: group.display.ranksStr,
-      weightStr: group.display.weightStr
+      weightStr: group.display.weightStr,
+      orientation
     });
   } finally {
     exportingId.value = null;
