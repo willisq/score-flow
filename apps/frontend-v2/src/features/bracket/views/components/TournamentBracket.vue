@@ -67,38 +67,29 @@ function isBye(match: Match | null): boolean {
 </script>
 
 <template>
-  <div :id="id" class="tournament-brackets overflow-x-auto p-4 bg-surface-50 dark:bg-surface-900 rounded-lg">
+  <div :id="id" class="tournament-brackets p-4 bg-surface-50 dark:bg-surface-900 rounded-lg">
     <div class="bracket inline-flex">
-      <div
-        v-for="(round, roundIndex) in bracketRounds"
-        :key="roundIndex"
-        class="round flex flex-col justify-around"
-        :class="['round-' + (roundIndex + 1)]"
-        style="min-width: 300px;"
-      >
-        <div
-          v-for="(match, matchIndex) in round"
-          :key="matchIndex"
-          class="match flex flex-col justify-center relative mx-4 py-3 flex-grow"
-        >
-          <div v-if="match && !(roundIndex === 0 && isBye(match))" class="match__content relative flex flex-col bg-surface-0 dark:bg-surface-800 border border-surface-200 dark:border-surface-700 rounded-md shadow-sm overflow-hidden">
-            <div class="text-[9px] uppercase font-bold text-surface-400 bg-surface-50/50 dark:bg-surface-900/50 px-2 py-1 border-b border-surface-100 dark:border-surface-700 text-center">
+      <div v-for="(round, roundIndex) in bracketRounds" :key="roundIndex" class="round flex flex-col justify-around"
+        :class="['round-' + (roundIndex + 1)]" style="min-width: 300px;">
+        <div v-for="(match, matchIndex) in round" :key="matchIndex"
+          class="match flex flex-col justify-center relative mx-4 py-3 flex-grow">
+          <div v-if="match && !(bracketRounds.length > 1 && roundIndex === 0 && isBye(match))"
+            class="match__content relative flex flex-col bg-surface-0 dark:bg-surface-800 border border-surface-200 dark:border-surface-700 rounded-md shadow-sm overflow-hidden">
+            <div
+              class="text-[9px] uppercase font-bold text-surface-400 bg-surface-50/50 dark:bg-surface-900/50 px-2 py-1 border-b border-surface-100 dark:border-surface-700 text-center">
               {{ match.round.description }}
             </div>
             <CompetitorCard
               :name="match.firstCompetitor ? `${match.firstCompetitor.firstName} ${match.firstCompetitor.lastName}` : '---'"
-              :academy="match.firstCompetitor?.academy?.name"
-              :is-winner="isWinner(match, 'first')"
-            />
+              :academy="match.firstCompetitor?.academy?.name" :is-winner="isWinner(match, 'first')" />
             <CompetitorCard
               :name="match.secondCompetitor ? `${match.secondCompetitor.firstName} ${match.secondCompetitor.lastName}` : (isBye(match) ? 'BYE' : '---')"
-              :academy="match.secondCompetitor?.academy?.name"
-              :is-winner="isWinner(match, 'second')"
-              :is-bye="isBye(match)"
-            />
+              :academy="match.secondCompetitor?.academy?.name" :is-winner="isWinner(match, 'second')"
+              :is-bye="isBye(match)" />
           </div>
-          <div v-else class="match__content relative flex flex-col bg-surface-100 dark:bg-surface-800 opacity-50 border border-dashed border-surface-300 dark:border-surface-700 rounded-md h-20">
-             <!-- Placeholder para futuros enfrentamientos -->
+          <div v-else
+            class="match__content relative flex flex-col bg-surface-100 dark:bg-surface-800 opacity-50 border border-dashed border-surface-300 dark:border-surface-700 rounded-md h-20">
+            <!-- Placeholder para futuros enfrentamientos -->
           </div>
         </div>
       </div>
