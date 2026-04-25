@@ -22,4 +22,16 @@ export class BracketService {
     );
     return data;
   }
+
+  static async delete(categoryModalityId: string): Promise<void> {
+    await httpClient.delete(`${this.BASE}/${categoryModalityId}`);
+  }
+
+  static async removeCompetitor(categoryModalityId: string, registrationId: string, removeFromCategory: boolean = false): Promise<GenerateBracketsResponse> {
+    const { data } = await httpClient.delete<GenerateBracketsResponse>(
+      `${this.BASE}/${categoryModalityId}/competitor/${registrationId}`,
+      { params: { remove_registration: removeFromCategory } }
+    );
+    return data;
+  }
 }

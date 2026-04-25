@@ -110,6 +110,7 @@ class CategoryRegistrationModel(Base):
     tournament_id: Mapped[UUID] = mapped_column(
         ForeignKey("tournament.id"), nullable=False
     )
+    is_active: Mapped[bool] = mapped_column(Boolean, default=True)
 
     competitor: Mapped[CompetitorModel] = relationship()
     category_modality: Mapped[CategoryModalityModel] = relationship(

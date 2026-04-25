@@ -267,6 +267,24 @@ async def update_category_modality(
         )
 
 
+@router.delete("/categories/modalities/{category_modality_id}", status_code=status.HTTP_204_NO_CONTENT)
+async def delete_category_modality(
+    category_modality_id: UUID,
+    use_cases: TournamentUseCases = Depends(get_tournament_use_cases),
+):
+    try:
+        deleted = await use_cases.delete_category_modality(category_modality_id)
+        if not deleted:
+            raise HTTPException(status_code=404, detail="Category Modality not found")
+        await use_cases.category_repo.session.commit()
+    except Exception as e:
+        await use_cases.category_repo.session.rollback()
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Error deleting category modality: {str(e)}",
+        )
+
+
 @router.post(
     "/rank-groups",
     response_model=RankGroupSchema,

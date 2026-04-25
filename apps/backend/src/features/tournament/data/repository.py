@@ -508,6 +508,8 @@ class CategoryRegistrationRepository:
 
         if category_modality_ids:
             stmt = stmt.where(CategoryRegistrationModel.category_modality_id.in_(category_modality_ids))
+        
+        stmt = stmt.where(CategoryRegistrationModel.is_active == True)
 
         result = await self.session.execute(stmt)
         models = result.scalars().all()
@@ -594,3 +596,18 @@ class CategoryRegistrationRepository:
             ))
 
         return registrations
+
+    async def delete_registration(self, registration_id: UUID) -> bool:
+        model = await self.session.get(CategoryRegistrationModel, registration_id)
+        if not model:
+            return False
+        await self.session.delete(model)
+        return True
+
+    async def deactivate_registration(self, registration_id: UUID) -> bool:
+        model = await self.session.get(CategoryRegistrationModel, registration_id)
+        if not model:
+            return False
+        model.is_active = False
+        await self.session.flush()
+        return True

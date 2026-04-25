@@ -284,6 +284,14 @@ class TournamentUseCases:
         await self.category_repo.session.flush() # Ensure it's in DB
         return await self.category_repo.get_by_id(category_id)
 
+    async def delete_category_modality(self, category_modality_id: UUID) -> bool:
+        model = await self.category_repo.get_modality_model_by_id(category_modality_id)
+        if not model:
+            return False
+        await self.category_repo.session.delete(model)
+        await self.category_repo.session.flush()
+        return True
+
     async def update_category_modality(self, modality_id: UUID, schema: CategoryModalityUpdate) -> CategoryModality:
         model = await self.category_repo.get_modality_model_by_id(modality_id)
         if not model:

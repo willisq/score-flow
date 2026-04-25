@@ -128,7 +128,8 @@ class BracketUseCases:
                 weight=c.weight,
                 height=c.height,
                 age=c.age,
-                special_condition=c.special_condition
+                special_condition=c.special_condition,
+                registration_id=reg_model.id
             )
             
         matches = []
@@ -144,3 +145,33 @@ class BracketUseCases:
             ))
             
         return matches
+
+    async def delete_pyramid(self, category_modality_id: UUID) -> None:
+        await self.bracket_repo.clear_category_modality_brackets([category_modality_id])
+
+    async def remove_competitor_and_recalculate(
+        self, 
+        category_modality_id: UUID, 
+        registration_id: UUID,
+        remove_from_category: bool = False
+    ) -> List[GeneratedCategoryResult]:
+        # 1. Limpiar los brackets primero para evitar violaciones de FK
+        await self.bracket_repo.clear_category_modality_brackets([category_modality_id])
+        await self.bracket_repo.session.flush()
+
+        # 2. Manejar la inscripción según la bandera
+        if remove_from_category:
+            success = await self.registration_repo.delete_registration(registration_id)
+        else:
+            # Solo se quita de la pirámide (desactivar)
+            success = await self.registration_repo.deactivate_registration(registration_id)
+
+        if not success:
+            raise ValueError(f"No se encontró la inscripción {registration_id}")
+        
+        await self.bracket_repo.session.flush()
+            
+        # 3. Regenerar la pirámide
+        return await self.generate_initial_brackets(
+            GenerateBracketsRequest(category_modality_ids=[category_modality_id])
+        )

@@ -76,6 +76,7 @@ class CompetitorSchema(TunedModel):
     height: float | None = None
     age: int | None = None
     special_condition: bool
+    registration_id: UUID | None = None
 
 
 class CompetitorFilters(TunedModel):

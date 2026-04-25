@@ -35,6 +35,7 @@ export interface Competitor {
   height: number | null;
   age: number | null;
   specialCondition: boolean;
+  registrationId?: string;
 }
 
 // --- Create DTOs ---

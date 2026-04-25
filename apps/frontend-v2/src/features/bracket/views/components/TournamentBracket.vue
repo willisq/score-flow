@@ -6,6 +6,11 @@ import CompetitorCard from "./CompetitorCard.vue";
 const props = defineProps<{
   matches: Match[];
   id?: string;
+  showEdit?: boolean;
+}>();
+
+const emit = defineEmits<{
+  (e: "delete-competitor", payload: { registrationId: string; categoryModalityId: string }): void;
 }>();
 
 // Compute the full bracket structure
@@ -81,11 +86,15 @@ function isBye(match: Match | null): boolean {
             </div>
             <CompetitorCard
               :name="match.firstCompetitor ? `${match.firstCompetitor.firstName} ${match.firstCompetitor.lastName}` : '---'"
-              :academy="match.firstCompetitor?.academy?.name" :is-winner="isWinner(match, 'first')" />
+              :academy="match.firstCompetitor?.academy?.name" :is-winner="isWinner(match, 'first')"
+              :show-delete="showEdit"
+              @delete="match.firstCompetitor?.registrationId && $emit('delete-competitor', { registrationId: match.firstCompetitor.registrationId, categoryModalityId: match.categoryModalityId! })" />
             <CompetitorCard
               :name="match.secondCompetitor ? `${match.secondCompetitor.firstName} ${match.secondCompetitor.lastName}` : (isBye(match) ? 'BYE' : '---')"
               :academy="match.secondCompetitor?.academy?.name" :is-winner="isWinner(match, 'second')"
-              :is-bye="isBye(match)" />
+              :is-bye="isBye(match)"
+              :show-delete="showEdit"
+              @delete="match.secondCompetitor?.registrationId && $emit('delete-competitor', { registrationId: match.secondCompetitor.registrationId, categoryModalityId: match.categoryModalityId! })" />
           </div>
           <div v-else
             class="match__content relative flex flex-col bg-surface-100 dark:bg-surface-800 opacity-50 border border-dashed border-surface-300 dark:border-surface-700 rounded-md h-20">

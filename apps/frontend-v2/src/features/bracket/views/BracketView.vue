@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { ref, onMounted, computed, nextTick } from "vue";
 import { useToast } from "primevue/usetoast";
+import { useConfirm } from "primevue/useconfirm";
 import { useBracketData } from "../composables/useBracketData";
 import { useBracketExport } from "../composables/useBracketExport";
 import { BracketService } from "../services/BracketService";
@@ -13,8 +14,106 @@ import type { Match } from "../types";
 import TournamentBracket from "./components/TournamentBracket.vue";
 
 const toast = useToast();
+const confirm = useConfirm();
 const { matches, loading, loadMatches } = useBracketData();
 const { exportToPdf, exportAllToPdf } = useBracketExport();
+const isDeleting = ref(false);
+const pendingDeletePayload = ref<{ registrationId: string; categoryModalityId: string } | null>(null);
+
+async function handleDeleteCompetitor(payload: { registrationId: string; categoryModalityId: string }) {
+  if (isDeleting.value) return;
+  pendingDeletePayload.value = payload;
+  confirm.require({
+    group: 'competitorDelete',
+    header: 'Confirmar eliminación',
+    message: '¿Cómo deseas eliminar a este competidor? Puedes quitarlo solo de esta pirámide (se mantiene en la categoría) o eliminar su inscripción permanentemente.',
+    icon: 'pi pi-user-minus',
+  });
+}
+
+async function handleConfirmCompetitorDelete(removeFromCategory: boolean) {
+  if (!pendingDeletePayload.value) return;
+  const payload = pendingDeletePayload.value;
+  confirm.close();
+  
+  isDeleting.value = true;
+  loading.value = true;
+  try {
+    await BracketService.removeCompetitor(payload.categoryModalityId, payload.registrationId, removeFromCategory);
+    toast.add({ 
+      severity: "success", 
+      summary: removeFromCategory ? "Eliminado de categoría" : "Quitado de pirámide", 
+      detail: "La pirámide ha sido regenerada.", 
+      life: 3000 
+    });
+    await applyFilters();
+  } catch (error) {
+    toast.add({ severity: "error", summary: "Error", detail: "No se pudo realizar la operación.", life: 3000 });
+  } finally {
+    loading.value = false;
+    isDeleting.value = false;
+    pendingDeletePayload.value = null;
+  }
+}
+
+async function handleDeletePyramid(cmId: string) {
+  if (isDeleting.value) return;
+  isDeleting.value = true;
+  confirm.require({
+    message: "¿Estás seguro de que deseas eliminar esta pirámide completa? Todos los enfrentamientos de esta categoría serán borrados.",
+    header: "Confirmar eliminación",
+    icon: "pi pi-exclamation-triangle",
+    acceptProps: { label: "Eliminar", severity: "danger" },
+    rejectProps: { label: "Cancelar", severity: "secondary", outlined: true },
+    accept: async () => {
+      loading.value = true;
+      try {
+        await BracketService.delete(cmId);
+        toast.add({ severity: "success", summary: "Pirámide eliminada", life: 3000 });
+        await applyFilters();
+      } catch (error) {
+        toast.add({ severity: "error", summary: "Error", detail: "No se pudo eliminar la pirámide.", life: 3000 });
+      } finally {
+        loading.value = false;
+        isDeleting.value = false;
+      }
+    },
+    onHide: () => {
+      isDeleting.value = false;
+    }
+  });
+}
+
+async function handleDeleteCategory(cmId: string) {
+  if (isDeleting.value) return;
+  isDeleting.value = true;
+  confirm.require({
+    message: "¿Estás seguro de que deseas eliminar esta categoría completa? Se borrarán todas las configuraciones de esta categoría en el torneo. Esta acción no se puede deshacer.",
+    header: "Confirmar eliminación de Categoría",
+    icon: "pi pi-exclamation-triangle",
+    acceptProps: { label: "Eliminar Todo", severity: "danger" },
+    rejectProps: { label: "Cancelar", severity: "secondary", outlined: true },
+    accept: async () => {
+      loading.value = true;
+      try {
+        await CategoryService.deleteModality(cmId);
+        toast.add({ severity: "success", summary: "Categoría eliminada", life: 3000 });
+        await applyFilters();
+        // Refresh categories list
+        const allCats = await CategoryService.getAll();
+        categories.value = allCats;
+      } catch (error) {
+        toast.add({ severity: "error", summary: "Error", detail: "No se pudo eliminar la categoría.", life: 3000 });
+      } finally {
+        loading.value = false;
+        isDeleting.value = false;
+      }
+    },
+    onHide: () => {
+      isDeleting.value = false;
+    }
+  });
+}
 
 const categories = ref<Category[]>([]);
 const selectedCategories = ref<string[]>([]);
@@ -288,15 +387,41 @@ onMounted(async () => {
           </div>
         </AccordionHeader>
         <AccordionContent>
-          <div class="flex justify-start mt-6 ">
+          <div class="flex justify-between items-center mt-6 mb-2">
             <Button label="Exportar PDF" icon="pi pi-file-pdf" severity="secondary" outlined size="small"
               :loading="exportingId === group.display?.id" @click="handleExport(group)" />
+
+            <div class="flex gap-2 no-print">
+              <Button v-if="group.display" label="Eliminar Pirámide" icon="pi pi-times" severity="danger" outlined size="small"
+                @click.stop="handleDeletePyramid(group.display.id)" />
+              <Button v-if="group.display" label="Eliminar Categoría" icon="pi pi-trash" severity="danger" size="small"
+                @click.stop="handleDeleteCategory(group.display.id)" />
+            </div>
           </div>
           <div class="w-full overflow-x-auto min-w-0">
-            <TournamentBracket :id="`bracket-${group.display?.id}`" :matches="group.matches" />
+            <TournamentBracket :id="`bracket-${group.display?.id}`" :matches="group.matches" :show-edit="true"
+              @delete-competitor="handleDeleteCompetitor" />
           </div>
         </AccordionContent>
       </AccordionPanel>
     </Accordion>
+
+    <ConfirmDialog />
+    <ConfirmDialog group="competitorDelete">
+      <template #container="{ message }">
+        <div class="flex flex-col items-center p-6 bg-surface-0 dark:bg-surface-900 rounded-lg shadow-lg border border-surface-200 dark:border-surface-700 max-w-md">
+          <div class="rounded-full bg-primary-100 dark:bg-primary-900/30 p-4 mb-4">
+            <i :class="message.icon" class="text-3xl text-primary-600"></i>
+          </div>
+          <span class="font-bold text-xl mb-2">{{ message.header }}</span>
+          <p class="text-surface-600 dark:text-surface-400 text-center mb-6">{{ message.message }}</p>
+          <div class="flex flex-wrap justify-center gap-2 w-full">
+            <Button label="Cancelar" severity="secondary" outlined @click="confirm.close()" class="flex-1 min-w-[100px]" />
+            <Button label="Solo Pirámide" severity="warn" icon="pi pi-minus-circle" @click="handleConfirmCompetitorDelete(false)" class="flex-1 min-w-[150px]" />
+            <Button label="De Categoría" severity="danger" icon="pi pi-trash" @click="handleConfirmCompetitorDelete(true)" class="flex-1 min-w-[150px]" />
+          </div>
+        </div>
+      </template>
+    </ConfirmDialog>
   </div>
 </template>

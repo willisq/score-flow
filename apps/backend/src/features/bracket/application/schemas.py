@@ -35,3 +35,8 @@ class MatchSchema(TunedModel):
     first_competitor: CompetitorSchema
     second_competitor: Optional[CompetitorSchema] = None
     winner: Optional[CompetitorSchema] = None
+
+
+class RemoveCompetitorRequest(TunedModel):
+    category_modality_id: UUID
+    registration_id: UUID

@@ -71,3 +71,45 @@ async def get_brackets(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail=str(e)
         )
+
+
+@router.delete("/{category_modality_id}", status_code=status.HTTP_204_NO_CONTENT)
+async def delete_pyramid(
+    category_modality_id: UUID,
+    use_cases: BracketUseCases = Depends(get_bracket_use_cases)
+):
+    try:
+        await use_cases.delete_pyramid(category_modality_id)
+        await use_cases.bracket_repo.session.commit()
+    except Exception as e:
+        await use_cases.bracket_repo.session.rollback()
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=str(e)
+        )
+
+
+@router.delete("/{category_modality_id}/competitor/{registration_id}", response_model=GenerateBracketsResponse)
+async def remove_competitor(
+    category_modality_id: UUID,
+    registration_id: UUID,
+    remove_registration: bool = Query(False),
+    use_cases: BracketUseCases = Depends(get_bracket_use_cases)
+):
+    try:
+        results = await use_cases.remove_competitor_and_recalculate(
+            category_modality_id, 
+            registration_id, 
+            remove_from_category=remove_registration
+        )
+        await use_cases.bracket_repo.session.commit()
+        return GenerateBracketsResponse(results=results)
+    except ValueError as ve:
+        await use_cases.bracket_repo.session.rollback()
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=str(ve))
+    except Exception as e:
+        await use_cases.bracket_repo.session.rollback()
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=str(e)
+        )
