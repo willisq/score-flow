@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { ref, onMounted, computed } from "vue";
+import { ref, onMounted, computed, nextTick } from "vue";
 import { useToast } from "primevue/usetoast";
 import { useBracketData } from "../composables/useBracketData";
 import { useBracketExport } from "../composables/useBracketExport";
@@ -14,38 +14,85 @@ import TournamentBracket from "./components/TournamentBracket.vue";
 
 const toast = useToast();
 const { matches, loading, loadMatches } = useBracketData();
-const { exportToPdf } = useBracketExport();
+const { exportToPdf, exportAllToPdf } = useBracketExport();
 
 const categories = ref<Category[]>([]);
 const selectedCategories = ref<string[]>([]);
 const generating = ref(false);
 const exportingId = ref<string | null>(null);
+const exportingGlobal = ref(false);
+const activePanels = ref<string[]>([]);
+
+function getBracketInfo(group: any) {
+  const matchesByRound: Record<string, any[]> = {};
+  for (const m of group.matches) {
+    if (!matchesByRound[m.round.id]) matchesByRound[m.round.id] = [];
+    matchesByRound[m.round.id].push(m);
+  }
+  const sortedRounds = Object.values(matchesByRound).sort((a, b) => b.length - a.length);
+  const firstRoundSize = sortedRounds.length > 0 ? sortedRounds[0].length : 0;
+  
+  // If more than 8 matches in the first round, use portrait (vertical)
+  const orientation = firstRoundSize > 8 ? "portrait" : "landscape";
+
+  return {
+    id: group.display?.id,
+    elementId: `bracket-${group.display?.id}`,
+    modalityName: group.display?.modality.modality.name,
+    ageStr: group.display?.ageStr,
+    sexesStr: group.display?.sexesStr,
+    ranksStr: group.display?.ranksStr,
+    weightStr: group.display?.weightStr,
+    orientation
+  };
+}
 
 async function handleExport(group: any) {
   exportingId.value = group.display.id;
   try {
-    // Calculate first round size to determine orientation
-    const matchesByRound: Record<string, any[]> = {};
-    for (const m of group.matches) {
-      if (!matchesByRound[m.round.id]) matchesByRound[m.round.id] = [];
-      matchesByRound[m.round.id].push(m);
-    }
-    const sortedRounds = Object.values(matchesByRound).sort((a, b) => b.length - a.length);
-    const firstRoundSize = sortedRounds.length > 0 ? sortedRounds[0].length : 0;
-
-    // If more than 8 matches in the first round, use portrait (vertical)
-    const orientation = firstRoundSize > 8 ? "portrait" : "landscape";
-
-    await exportToPdf(`bracket-${group.display.id}`, {
-      modalityName: group.display.modality.modality.name,
-      ageStr: group.display.ageStr,
-      sexesStr: group.display.sexesStr,
-      ranksStr: group.display.ranksStr,
-      weightStr: group.display.weightStr,
-      orientation
-    });
+    const info = getBracketInfo(group);
+    await exportToPdf(info.elementId, info);
   } finally {
     exportingId.value = null;
+  }
+}
+
+async function handleExportAll() {
+  const previousPanels = [...activePanels.value];
+  exportingGlobal.value = true;
+  try {
+    // Open all panels to ensure they are rendered for html2canvas
+    activePanels.value = matchesByCategory.value
+      .filter(g => g.display)
+      .map(g => g.display.id);
+    
+    await nextTick();
+    // Small delay to ensure layout is stable
+    await new Promise(resolve => setTimeout(resolve, 500));
+
+    const allInfo = matchesByCategory.value
+      .filter(g => g.display)
+      .map(g => getBracketInfo(g));
+    
+    await exportAllToPdf(allInfo);
+    
+    toast.add({
+      severity: "success",
+      summary: "Reporte Generado",
+      detail: "Se ha generado el PDF con todas las pirámides.",
+      life: 3000
+    });
+  } catch (error) {
+    console.error(error);
+    toast.add({
+      severity: "error",
+      summary: "Error",
+      detail: "No se pudo generar el reporte global.",
+      life: 3000
+    });
+  } finally {
+    activePanels.value = previousPanels;
+    exportingGlobal.value = false;
   }
 }
 
@@ -123,6 +170,9 @@ async function applyFilters() {
   queryFilters.special_condition = listFilters.value.special_condition;
 
   await loadMatches(queryFilters);
+  if (matchesByCategory.value.length > 0) {
+    activePanels.value = [matchesByCategory.value[0].display?.id].filter(Boolean) as string[];
+  }
 }
 
 async function generateBrackets(): Promise<void> {
@@ -162,6 +212,9 @@ onMounted(async () => {
   modalities.value = modalitiesData;
 
   await loadMatches();
+  if (matchesByCategory.value.length > 0) {
+    activePanels.value = [matchesByCategory.value[0].display?.id].filter(Boolean) as string[];
+  }
 });
 </script>
 
@@ -172,7 +225,9 @@ onMounted(async () => {
       <div class="flex gap-2 items-center">
         <MultiSelect v-model="selectedCategories" :options="categoryModalitiesDisplay" optionLabel="displayName"
           optionValue="id" placeholder="Categorías a generar..." class="w-64" />
-        <Button icon="pi pi-bolt" label="Generar Pirámides" :loading="generating" @click="generateBrackets" />
+        <Button icon="pi pi-bolt" label="Generar" :loading="generating" @click="generateBrackets" />
+        <Button icon="pi pi-file-pdf" label="Reporte Global" severity="secondary" :loading="exportingGlobal"
+          :disabled="matchesByCategory.length === 0" @click="handleExportAll" />
       </div>
     </div>
 
@@ -215,7 +270,7 @@ onMounted(async () => {
       <p>No hay enfrentamientos generados o encontrados bajo los filtros actuales.</p>
     </div>
 
-    <Accordion v-else :value="matchesByCategory[0]?.display?.id">
+    <Accordion v-else v-model:value="activePanels" multiple>
       <AccordionPanel v-for="group in matchesByCategory" :key="group.display?.id ?? 'uncategorized'"
         :value="group.display?.id ?? 'uncategorized'">
         <AccordionHeader>

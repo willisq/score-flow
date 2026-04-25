@@ -49,32 +49,16 @@ const specialConditionOptions = [
 
 
 // Selection state
-const selectedStartId = ref<string | null>(null);
-const selectedEndId = ref<string | null>(null);
+const selectedCompetitors = ref<Competitor[]>([]);
 const categoryQueue = ref<{ id: string; category: CategoryCreate; competitorNames: string[] }[]>([]);
 
 const selectedModalityId = ref<string | null>(null);
 const addingToQueue = ref(false);
 
 // --- Computed ---
-const selectedRange = computed(() => {
-  if (!selectedStartId.value) return [];
+const selectedRange = computed(() => selectedCompetitors.value);
 
-  const startIndex = competitors.value.findIndex(c => c.id === selectedStartId.value);
-  if (startIndex === -1) return [];
-
-  if (!selectedEndId.value) return [competitors.value[startIndex]];
-
-  const endIndex = competitors.value.findIndex(c => c.id === selectedEndId.value);
-  if (endIndex === -1) return [competitors.value[startIndex]];
-
-  const start = Math.min(startIndex, endIndex);
-  const end = Math.max(startIndex, endIndex);
-
-  return competitors.value.slice(start, end + 1);
-});
-
-const isRangeSelected = computed(() => selectedRange.value.length > 0);
+const isRangeSelected = computed(() => selectedCompetitors.value.length > 0);
 
 const uniqueSelectedRankIds = computed(() => {
   const ids = selectedRange.value.map(c => c.rank.id);
@@ -114,8 +98,7 @@ async function fetchCompetitors() {
   try {
     competitors.value = await CompetitorService.getForCategoryBuilder(filters);
     // Clear selection when data changes
-    selectedStartId.value = null;
-    selectedEndId.value = null;
+    selectedCompetitors.value = [];
   } catch (error) {
     toast.add({ severity: 'error', summary: 'Error', detail: 'No se pudieron cargar los competidores', life: 3000 });
   } finally {
@@ -123,33 +106,6 @@ async function fetchCompetitors() {
   }
 }
 
-function handleRowClick(event: any) {
-  const clickedId = event.data.id;
-
-  if (!selectedStartId.value || (selectedStartId.value && selectedEndId.value)) {
-    selectedStartId.value = clickedId;
-    selectedEndId.value = null;
-  } else {
-    selectedEndId.value = clickedId;
-  }
-}
-
-function isRowSelected(id: string) {
-  if (!selectedStartId.value) return false;
-
-  const startIndex = competitors.value.findIndex(c => c.id === selectedStartId.value);
-  if (startIndex === -1) return false;
-
-  if (!selectedEndId.value) return id === selectedStartId.value;
-
-  const endIndex = competitors.value.findIndex(c => c.id === selectedEndId.value);
-  const currentIndex = competitors.value.findIndex(c => c.id === id);
-
-  const start = Math.min(startIndex, endIndex);
-  const end = Math.max(startIndex, endIndex);
-
-  return currentIndex >= start && currentIndex <= end;
-}
 
 async function resolveRankGroupId(rankIds: string[]): Promise<string> {
   // 1. Buscar un grupo existente que contenga AL MENOS estos rangos
@@ -221,8 +177,7 @@ async function addToQueue() {
     competitors.value = competitors.value.filter(c => !assignedIds.has(c.id));
 
     // Clear selection
-    selectedStartId.value = null;
-    selectedEndId.value = null;
+    selectedCompetitors.value = [];
 
     toast.add({ severity: 'success', summary: 'Agregado', detail: `Categoría para ${modalityName} agregada a la cola`, life: 2000 });
   } catch (error) {
@@ -366,12 +321,12 @@ watch(filters, () => {
         <!-- Competitor Table -->
         <Card>
           <template #content>
-            <DataTable :value="competitors" :loading="loading" class="p-datatable-sm h-full" scrollable
-              scrollHeight="flex" @row-click="handleRowClick" dataKey="id">
+            <DataTable v-model:selection="selectedCompetitors" :value="competitors" :loading="loading" class="p-datatable-sm h-full" scrollable
+              scrollHeight="flex" dataKey="id">
+              <Column selectionMode="multiple" headerStyle="width: 3rem"></Column>
               <Column field="firstName" header="Competidor">
                 <template #body="slotProps">
-                  <div class="flex flex-col"
-                    :class="{ 'text-primary-600 dark:text-primary-400 font-bold': isRowSelected(slotProps.data.id) }">
+                  <div class="flex flex-col">
                     <span>{{ slotProps.data.firstName }} {{ slotProps.data.lastName }}</span>
                     <span class="text-[10px] opacity-60">{{ slotProps.data.academy.name }}</span>
                   </div>
@@ -542,15 +497,4 @@ watch(filters, () => {
 }
 
 
-:deep(.p-datatable-row) {
-  cursor: pointer;
-}
-
-:deep(.p-datatable-tbody > tr.bg-primary-50) {
-  background-color: var(--p-primary-50) !important;
-}
-
-.dark :deep(.p-datatable-tbody > tr.bg-primary-900\/20) {
-  background-color: rgba(var(--p-primary-500-rgb), 0.15) !important;
-}
 </style>
