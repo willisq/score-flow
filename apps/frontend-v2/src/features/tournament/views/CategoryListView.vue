@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { ref, onMounted, computed } from "vue";
+import { ref, onMounted, computed, watch } from "vue";
 import { useDialog } from "primevue/usedialog";
 import { CategoryService } from "../services/CategoryService";
 import type { Category } from "../types";
@@ -15,6 +15,7 @@ import Accordion from 'primevue/accordion';
 import AccordionPanel from 'primevue/accordionpanel';
 import AccordionHeader from 'primevue/accordionheader';
 import AccordionContent from 'primevue/accordioncontent';
+import SelectButton from "primevue/selectbutton";
 
 const dialog = useDialog();
 const { ranks, sexes } = useRegistrationData();
@@ -22,6 +23,13 @@ const { modalities: allModalities } = useTournamentData();
 
 const categories = ref<Category[]>([]);
 const loading = ref(true);
+
+const filterOptions = ref([
+  { label: 'Todas', value: null, icon: 'pi pi-list' },
+  { label: 'Con Atletas', value: true, icon: 'pi pi-users' },
+  { label: 'Vacías', value: false, icon: 'pi pi-user-minus' }
+]);
+const selectedFilter = ref(null);
 
 // Grouping logic: Root = Age Range + Special Condition
 const groupedCategories = computed(() => {
@@ -77,11 +85,15 @@ const groupedCategories = computed(() => {
 async function loadCategories(): Promise<void> {
   loading.value = true;
   try {
-    categories.value = await CategoryService.getAll();
+    categories.value = await CategoryService.getAll(selectedFilter.value);
   } finally {
     loading.value = false;
   }
 }
+
+watch(selectedFilter, () => {
+  loadCategories();
+});
 
 function openCreateDialog(): void {
   dialog.open(CategoryForm, {
@@ -154,7 +166,17 @@ onMounted(loadCategories);
         </h2>
         <p class="text-surface-500 text-sm">Organización jerárquica por edades y requerimientos.</p>
       </div>
-      <Button icon="pi pi-plus" label="Nueva Categoría" @click="openCreateDialog" class="shadow-2" />
+      <div class="flex items-center gap-4">
+        <SelectButton v-model="selectedFilter" :options="filterOptions" optionLabel="label" optionValue="value" :allowEmpty="false">
+          <template #option="slotProps">
+            <div class="flex items-center gap-2 px-1">
+              <i :class="slotProps.option.icon" class="text-sm"></i>
+              <span>{{ slotProps.option.label }}</span>
+            </div>
+          </template>
+        </SelectButton>
+        <Button icon="pi pi-plus" label="Nueva Categoría" @click="openCreateDialog" class="shadow-2" />
+      </div>
     </div>
 
     <DataView :value="groupedCategories" :loading="loading" paginator :rows="10">

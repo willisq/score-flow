@@ -337,8 +337,8 @@ class TournamentUseCases:
             final_height
         )
 
-    async def list_categories(self) -> List[Category]:
-        return await self.category_repo.list_all()
+    async def list_categories(self, has_competitors: bool | None = None) -> List[Category]:
+        return await self.category_repo.list_all(has_competitors=has_competitors)
 
     async def inscribe_competitor(self, schema: CategoryRegistrationCreate) -> CategoryRegistration:
         # 1. Fetch dependencies
@@ -460,7 +460,12 @@ class TournamentUseCases:
 
     async def get_competitors_by_category_modality(self, category_modality_id: UUID) -> List[Competitor]:
         registrations = await self.registration_repo.get_by_categories([category_modality_id])
-        return [reg.competitor for reg in registrations]
+        competitors = []
+        for reg in registrations:
+            comp = reg.competitor
+            comp.registration_id = reg.id
+            competitors.append(comp)
+        return competitors
 
     async def register_categories_bulk(self, schema: CategoryBulkCreate) -> List[Category]:
         all_created = []

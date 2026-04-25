@@ -116,9 +116,10 @@ async def create_category(
 
 @router.get("/categories", response_model=list[CategorySchema])
 async def list_categories(
+    has_competitors: bool | None = Query(None),
     use_cases: TournamentUseCases = Depends(get_tournament_use_cases),
 ):
-    return await use_cases.list_categories()
+    return await use_cases.list_categories(has_competitors=has_competitors)
 
 
 @router.post(

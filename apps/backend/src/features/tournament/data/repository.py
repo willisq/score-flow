@@ -1,7 +1,7 @@
 from uuid import UUID, uuid4
 from typing import List, Optional
 
-from sqlalchemy import select
+from sqlalchemy import select, exists, and_
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
@@ -274,12 +274,29 @@ class CategoryRepository:
 
         return self._to_domain(model)
 
-    async def list_all(self) -> List[Category]:
-        stmt = select(CategoryModel).options(
-            selectinload(CategoryModel.modalities).selectinload(CategoryModalityModel.modality),
-            selectinload(CategoryModel.modalities).selectinload(CategoryModalityModel.sexes),
-            selectinload(CategoryModel.modalities).selectinload(CategoryModalityModel.rank_group).selectinload(RankGroupModel.ranks),
-            selectinload(CategoryModel.modalities).selectinload(CategoryModalityModel.physical_requirement),
+    async def list_all(self, has_competitors: Optional[bool] = None) -> List[Category]:
+        reg_exists = exists().where(
+            CategoryRegistrationModel.category_modality_id == CategoryModalityModel.id,
+            CategoryRegistrationModel.is_active == True
+        )
+
+        stmt = select(CategoryModel)
+        
+        if has_competitors is not None:
+            if has_competitors:
+                stmt = stmt.where(CategoryModel.modalities.any(reg_exists))
+                mod_options = selectinload(CategoryModel.modalities.and_(reg_exists))
+            else:
+                stmt = stmt.where(CategoryModel.modalities.any(~reg_exists))
+                mod_options = selectinload(CategoryModel.modalities.and_(~reg_exists))
+        else:
+            mod_options = selectinload(CategoryModel.modalities)
+
+        stmt = stmt.options(
+            mod_options.selectinload(CategoryModalityModel.modality),
+            mod_options.selectinload(CategoryModalityModel.sexes),
+            mod_options.selectinload(CategoryModalityModel.rank_group).selectinload(RankGroupModel.ranks),
+            mod_options.selectinload(CategoryModalityModel.physical_requirement),
         )
         result = await self.session.execute(stmt)
         return [self._to_domain(m) for m in result.scalars().all()]

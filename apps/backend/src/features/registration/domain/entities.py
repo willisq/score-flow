@@ -101,6 +101,7 @@ class Competitor(Person):
     height: float | None = None
     age: int | None = None
     special_condition: bool = False
+    registration_id: UUID | None = None
 
     def __post_init__(self):
         super().__post_init__()

@@ -5,8 +5,10 @@ import type { Competitor } from "@/features/registration/types";
 export class CategoryService {
   private static readonly BASE = "/tournament/categories";
 
-  static async getAll(): Promise<Category[]> {
-    const { data } = await httpClient.get<Category[]>(this.BASE);
+  static async getAll(hasCompetitors?: boolean | null): Promise<Category[]> {
+    const { data } = await httpClient.get<Category[]>(this.BASE, {
+      params: hasCompetitors != null ? { has_competitors: hasCompetitors } : {}
+    });
     return data;
   }
 
