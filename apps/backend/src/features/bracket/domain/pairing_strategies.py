@@ -54,18 +54,26 @@ class AcademyAwarePairingStrategy(PairingStrategy):
         return [int(f"{i:0{width}b}"[::-1], 2) for i in range(n)]
 
     def _interleave_competitors(self, competitors: List[Competitor]) -> List[Competitor]:
-        """Groups competitors by academy and interleaves them to avoid consecutive teammates."""
+        """Groups competitors by academy and interleaves them to avoid consecutive teammates, with randomization."""
+        import random
         from collections import defaultdict, deque
 
+        # 1. Randomize the input list to ensure random assignment within academies
+        shuffled_competitors = list(competitors)
+        random.shuffle(shuffled_competitors)
+
         academy_groups = defaultdict(deque)
-        for c in competitors:
+        for c in shuffled_competitors:
             academy_groups[c.academy.id].append(c)
 
-        # Sort groups by size descending to handle larger academies first
-        sorted_academies = sorted(
-            academy_groups.keys(), key=lambda k: len(academy_groups[k]), reverse=True
+        # 2. Sort groups by size descending, but randomize order within groups of the same size
+        # We use a tuple (size, random_val) to sort
+        sorted_keys = sorted(
+            academy_groups.keys(),
+            key=lambda k: (len(academy_groups[k]), random.random()),
+            reverse=True,
         )
-        ordered_groups = [academy_groups[k] for k in sorted_academies]
+        ordered_groups = [academy_groups[k] for k in sorted_keys]
 
         interleaved = []
         while any(ordered_groups):
