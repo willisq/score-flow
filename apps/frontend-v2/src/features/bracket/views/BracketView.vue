@@ -100,7 +100,7 @@ async function handleDeleteCategory(cmId: string) {
         toast.add({ severity: "success", summary: "Categoría eliminada", life: 3000 });
         await applyFilters();
         // Refresh categories list
-        const allCats = await CategoryService.getAll();
+        const allCats = await CategoryService.getAll(true);
         categories.value = allCats;
       } catch (error) {
         toast.add({ severity: "error", summary: "Error", detail: "No se pudo eliminar la categoría.", life: 3000 });
@@ -302,7 +302,7 @@ async function generateBrackets(): Promise<void> {
 
 onMounted(async () => {
   const [categoriesData, ranksData, modalitiesData] = await Promise.all([
-    CategoryService.getAll(),
+    CategoryService.getAll(true),
     RankService.getAll(),
     ModalityService.getAll()
   ]);
@@ -323,7 +323,7 @@ onMounted(async () => {
       <h2 class="text-2xl font-bold">Pirámides</h2>
       <div class="flex gap-2 items-center">
         <MultiSelect v-model="selectedCategories" :options="categoryModalitiesDisplay" optionLabel="displayName"
-          optionValue="id" placeholder="Categorías a generar..." class="w-64" />
+          optionValue="id" placeholder="Categorías a generar..." class="w-64" :filter="true" />
         <Button icon="pi pi-bolt" label="Generar" :loading="generating" @click="generateBrackets" />
         <Button icon="pi pi-file-pdf" label="Reporte Global" severity="secondary" :loading="exportingGlobal"
           :disabled="matchesByCategory.length === 0" @click="handleExportAll" />

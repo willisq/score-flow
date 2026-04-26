@@ -38,4 +38,8 @@ export class CategoryService {
     const { data } = await httpClient.post<Category[]>(`${this.BASE}/bulk`, payload);
     return data;
   }
+
+  static async deleteModality(id: string): Promise<void> {
+    await httpClient.delete(`${this.BASE}/modalities/${id}`);
+  }
 }
