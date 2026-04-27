@@ -31,8 +31,22 @@ const bracketRounds = computed(() => {
 
   // The first round determines the size of the pyramid
   const firstRoundSize = sortedRoundGroups[0].length;
-  // Make sure it's a power of 2, if not find the next power of 2 (should be given the backend rules, but just in case)
-  const baseSize = Math.pow(2, Math.ceil(Math.log2(firstRoundSize)));
+  // Make sure it's a power of 2
+  let baseSize = Math.pow(2, Math.ceil(Math.log2(firstRoundSize)));
+
+  // If less than 3 competitors, force at least 2 rounds (base size 2)
+  let isForced = false;
+  const competitorIds = new Set<string>();
+  for (const m of props.matches) {
+    if (m.firstCompetitor?.id) competitorIds.add(m.firstCompetitor.id);
+    if (m.secondCompetitor?.id) competitorIds.add(m.secondCompetitor.id);
+  }
+  const competitorsCount = competitorIds.size;
+
+  if (competitorsCount > 0 && competitorsCount < 3 && baseSize < 2) {
+    baseSize = 2;
+    isForced = true;
+  }
 
   // Generate empty structure
   const allRounds: (Match | null)[][] = [];
@@ -43,7 +57,8 @@ const bracketRounds = computed(() => {
   }
 
   // Map existing matches into the structure
-  let targetIdx = 0;
+  // Only shift if we forced an extra round for aesthetic reasons
+  let targetIdx = isForced ? 1 : 0;
   for (const group of sortedRoundGroups) {
     if (allRounds[targetIdx]) {
       for (const match of group) {

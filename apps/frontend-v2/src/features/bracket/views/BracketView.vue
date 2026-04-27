@@ -323,7 +323,8 @@ onMounted(async () => {
       <h2 class="text-2xl font-bold">Pirámides</h2>
       <div class="flex gap-2 items-center">
         <MultiSelect v-model="selectedCategories" :options="categoryModalitiesDisplay" optionLabel="displayName"
-          optionValue="id" placeholder="Categorías a generar..." class="w-64" :filter="true" />
+          optionValue="id" placeholder="Categorías a generar..." class="w-64" :filter="true"
+          :virtualScrollerOptions="{ itemSize: 44 }" />
         <Button icon="pi pi-bolt" label="Generar" :loading="generating" @click="generateBrackets" />
         <Button icon="pi pi-file-pdf" label="Reporte Global" severity="secondary" :loading="exportingGlobal"
           :disabled="matchesByCategory.length === 0" @click="handleExportAll" />
