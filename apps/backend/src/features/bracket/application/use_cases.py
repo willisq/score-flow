@@ -90,6 +90,7 @@ class BracketUseCases:
         modality_id: Optional[UUID] = None,
         special_condition: Optional[bool] = None,
         weight: Optional[float] = None,
+        sex_id: Optional[UUID] = None,
     ) -> List[MatchSchema]:
         models = await self.bracket_repo.get_matches(
             categories=categories, 
@@ -98,7 +99,8 @@ class BracketUseCases:
             age=age,
             modality_id=modality_id,
             special_condition=special_condition,
-            weight=weight
+            weight=weight,
+            sex_id=sex_id
         )
         
         def map_competitor(reg_model) -> Optional[CompetitorSchema]:

@@ -506,7 +506,11 @@ class TournamentUseCases:
             stmt = stmt.where(CompetitorModel.special_condition == filters.special_condition)
 
         # Add filtering for unregistered
-        reg_stmt = select(1).filter(CategoryRegistrationModel.competitor_id == CompetitorModel.id)
+        # Only exclude competitors who already have an assigned category modality
+        reg_stmt = select(1).filter(
+            CategoryRegistrationModel.competitor_id == CompetitorModel.id,
+            CategoryRegistrationModel.category_modality_id.is_not(None)
+        )
         if tournament_id:
             reg_stmt = reg_stmt.filter(CategoryRegistrationModel.tournament_id == tournament_id)
 

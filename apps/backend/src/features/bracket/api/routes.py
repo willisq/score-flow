@@ -54,6 +54,7 @@ async def get_brackets(
     modality_id: Optional[UUID] = Query(None, description="Filtrar por ID de modalidad"),
     special_condition: Optional[bool] = Query(None, description="Filtrar por condición especial"),
     weight: Optional[float] = Query(None, description="Filtrar por peso (dentro del rango de requermientos)"),
+    sex_id: Optional[UUID] = Query(None, description="Filtrar por ID de sexo"),
     use_cases: BracketUseCases = Depends(get_bracket_use_cases)
 ):
     try:
@@ -64,7 +65,8 @@ async def get_brackets(
             age=age,
             modality_id=modality_id,
             special_condition=special_condition,
-            weight=weight
+            weight=weight,
+            sex_id=sex_id
         )
     except Exception as e:
         raise HTTPException(

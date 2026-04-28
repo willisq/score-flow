@@ -8,8 +8,9 @@ import { BracketService } from "../services/BracketService";
 import { CategoryService } from "@/features/tournament/services/CategoryService";
 import { ModalityService } from "@/features/tournament/services/ModalityService";
 import { RankService } from "@/features/registration/services/RankService";
+import { SexService } from "@/features/registration/services/SexService";
 import type { Category, Modality } from "@/features/tournament/types";
-import type { Rank } from "@/features/registration/types";
+import type { Rank, Sex } from "@/features/registration/types";
 import type { Match } from "../types";
 import TournamentBracket from "./components/TournamentBracket.vue";
 
@@ -228,10 +229,12 @@ const categoryModalitiesDisplay = computed(() => {
 
 const ranks = ref<Rank[]>([]);
 const modalities = ref<Modality[]>([]);
+const sexes = ref<Sex[]>([]);
 
 const listFilters = ref({
   rank_id: null as string | null,
   modality_id: null as string | null,
+  sex_id: null as string | null,
   age: null as number | null,
   weight: null as number | null,
   special_condition: false
@@ -263,6 +266,7 @@ async function applyFilters() {
   const queryFilters: any = {};
   if (listFilters.value.rank_id) queryFilters.rank_id = listFilters.value.rank_id;
   if (listFilters.value.modality_id) queryFilters.modality_id = listFilters.value.modality_id;
+  if (listFilters.value.sex_id) queryFilters.sex_id = listFilters.value.sex_id;
   if (listFilters.value.age !== null) queryFilters.age = listFilters.value.age;
   if (listFilters.value.weight !== null) queryFilters.weight = listFilters.value.weight;
 
@@ -301,14 +305,16 @@ async function generateBrackets(): Promise<void> {
 }
 
 onMounted(async () => {
-  const [categoriesData, ranksData, modalitiesData] = await Promise.all([
+  const [categoriesData, ranksData, modalitiesData, sexesData] = await Promise.all([
     CategoryService.getAll(true),
     RankService.getAll(),
-    ModalityService.getAll()
+    ModalityService.getAll(),
+    SexService.getAll()
   ]);
   categories.value = categoriesData;
   ranks.value = ranksData;
   modalities.value = modalitiesData;
+  sexes.value = sexesData;
 
   await loadMatches();
   if (matchesByCategory.value.length > 0) {
@@ -344,6 +350,11 @@ onMounted(async () => {
           optionValue="id" placeholder="Cualquier Modalidad" showClear />
       </div>
       <div class="flex flex-col col-3">
+        <label for="sex">Sexo</label>
+        <Dropdown id="sex" v-model="listFilters.sex_id" :options="sexes" optionLabel="name" optionValue="id"
+          placeholder="Cualquier Sexo" showClear />
+      </div>
+      <div class="flex flex-col col-1">
         <label for="age">Edad</label>
         <InputNumber id="age" v-model="listFilters.age" placeholder="Edad" />
       </div>
