@@ -4,10 +4,11 @@ from typing import List, Optional
 from uuid import UUID
 
 from src.core.database import get_db
-from src.features.bracket.application.schemas import GenerateBracketsRequest, GenerateBracketsResponse, MatchSchema
+from src.features.bracket.application.schemas import GenerateBracketsRequest, GenerateBracketsResponse, MatchSchema, MoveCompetitorRequest
 from src.features.bracket.application.use_cases import BracketUseCases
 from src.features.bracket.data.repository import BracketRepository, RoundRepository
-from src.features.tournament.data.repository import CategoryRegistrationRepository
+from src.features.tournament.data.repository import CategoryRegistrationRepository, CategoryRepository, TournamentRepository
+from src.features.registration.data.repository import CompetitorRepository
 
 router = APIRouter(prefix="/pyramid", tags=["Brackets"])
 
@@ -18,7 +19,10 @@ def get_bracket_use_cases(
     return BracketUseCases(
         bracket_repo=BracketRepository(session),
         round_repo=RoundRepository(session),
-        registration_repo=CategoryRegistrationRepository(session)
+        registration_repo=CategoryRegistrationRepository(session),
+        competitor_repo=CompetitorRepository(session),
+        category_repo=CategoryRepository(session),
+        tournament_repo=TournamentRepository(session)
     )
 
 
@@ -109,6 +113,32 @@ async def remove_competitor(
     except ValueError as ve:
         await use_cases.bracket_repo.session.rollback()
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=str(ve))
+    except Exception as e:
+        await use_cases.bracket_repo.session.rollback()
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=str(e)
+        )
+
+
+@router.post("/{category_modality_id}/competitor/{registration_id}/move", response_model=GenerateBracketsResponse)
+async def move_competitor(
+    category_modality_id: UUID,
+    registration_id: UUID,
+    request: MoveCompetitorRequest,
+    use_cases: BracketUseCases = Depends(get_bracket_use_cases)
+):
+    try:
+        results = await use_cases.move_competitor_to_category(
+            source_cm_id=category_modality_id,
+            registration_id=registration_id,
+            request=request
+        )
+        await use_cases.bracket_repo.session.commit()
+        return GenerateBracketsResponse(results=results)
+    except ValueError as ve:
+        await use_cases.bracket_repo.session.rollback()
+        raise HTTPException(status_code=400, detail=str(ve))
     except Exception as e:
         await use_cases.bracket_repo.session.rollback()
         raise HTTPException(

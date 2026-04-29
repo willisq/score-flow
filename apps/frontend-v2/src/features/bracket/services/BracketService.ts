@@ -34,4 +34,22 @@ export class BracketService {
     );
     return data;
   }
+
+  static async moveCompetitor(
+    sourceCmId: string,
+    registrationId: string,
+    payload: {
+      targetCategoryModalityId: string;
+      competitorId: string;
+      newWeight?: number;
+      newAge?: number;
+      newRankId?: string;
+    }
+  ): Promise<GenerateBracketsResponse> {
+    const { data } = await httpClient.post<GenerateBracketsResponse>(
+      `${this.BASE}/${sourceCmId}/competitor/${registrationId}/move`,
+      payload
+    );
+    return data;
+  }
 }

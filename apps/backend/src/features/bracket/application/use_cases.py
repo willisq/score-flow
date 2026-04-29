@@ -3,12 +3,14 @@ from uuid import UUID
 from typing import List, Optional
 from collections import defaultdict
 
-from src.features.bracket.application.schemas import GenerateBracketsRequest, GeneratedCategoryResult, MatchSchema, RoundSchema
+from src.features.bracket.application.schemas import GenerateBracketsRequest, GeneratedCategoryResult, MatchSchema, RoundSchema, MoveCompetitorRequest
 from src.features.registration.application.schemas import CompetitorSchema, AcademySchema, PersonSchema, RankSchema, SexSchema
 from src.features.bracket.data.repository import BracketRepository, RoundRepository
-from src.features.tournament.data.repository import CategoryRegistrationRepository
+from src.features.tournament.data.repository import CategoryRegistrationRepository, CategoryRepository, TournamentRepository
+from src.features.registration.data.repository import CompetitorRepository
 from src.features.bracket.domain.entities import Pyramid
 from src.features.bracket.domain.pairing_strategies import AcademyAwarePairingStrategy
+from src.features.tournament.domain.entities import CategoryRegistration
 
 
 class BracketUseCases:
@@ -16,11 +18,17 @@ class BracketUseCases:
         self,
         bracket_repo: BracketRepository,
         round_repo: RoundRepository,
-        registration_repo: CategoryRegistrationRepository
+        registration_repo: CategoryRegistrationRepository,
+        competitor_repo: CompetitorRepository,
+        category_repo: CategoryRepository,
+        tournament_repo: TournamentRepository
     ):
         self.bracket_repo = bracket_repo
         self.round_repo = round_repo
         self.registration_repo = registration_repo
+        self.competitor_repo = competitor_repo
+        self.category_repo = category_repo
+        self.tournament_repo = tournament_repo
 
     async def generate_initial_brackets(self, request: GenerateBracketsRequest) -> List[GeneratedCategoryResult]:
         # 1. Obtener inscripciones
@@ -176,4 +184,61 @@ class BracketUseCases:
         # 3. Regenerar la pirámide
         return await self.generate_initial_brackets(
             GenerateBracketsRequest(category_modality_ids=[category_modality_id])
+        )
+
+    async def move_competitor_to_category(
+        self, 
+        source_cm_id: UUID, 
+        registration_id: UUID, 
+        request: MoveCompetitorRequest
+    ) -> List[GeneratedCategoryResult]:
+        # 1. Obtener la inscripción actual para extraer el torneo
+        current_reg = await self.registration_repo.get_by_id(registration_id)
+        if not current_reg:
+            raise ValueError(f"Inscripción {registration_id} no encontrada")
+        
+        tournament = current_reg.tournament
+
+        # 2. Limpiar brackets de ambas categorías involucradas
+        await self.bracket_repo.clear_category_modality_brackets([source_cm_id, request.target_category_modality_id])
+        await self.bracket_repo.session.flush()
+
+        # 3. Eliminar la inscripción actual
+        success = await self.registration_repo.delete_registration(registration_id)
+        if not success:
+            raise ValueError(f"No se pudo eliminar la inscripción {registration_id}")
+
+        # 4. Actualizar datos físicos del competidor en su perfil global
+        updated = await self.competitor_repo.update_physical_stats(
+            request.competitor_id,
+            weight=request.new_weight,
+            age=request.new_age,
+            rank_id=request.new_rank_id
+        )
+        if not updated:
+            raise ValueError(f"Competidor {request.competitor_id} no encontrado")
+
+        await self.bracket_repo.session.flush()
+
+        # 5. Obtener los objetos de dominio frescos para la nueva inscripción
+        competitor = await self.competitor_repo.get_by_id(request.competitor_id)
+        target_cm = await self.category_repo.get_modality_by_id(request.target_category_modality_id)
+        
+        if not competitor or not target_cm:
+            raise ValueError("No se pudo recuperar la información del competidor o de la categoría destino")
+
+        # 6. Crear la nueva inscripción
+        new_registration = CategoryRegistration(
+            id=uuid.uuid4(),
+            competitor=competitor,
+            category_modality=target_cm,
+            tournament=tournament
+        )
+        await self.registration_repo.create(new_registration)
+        
+        await self.bracket_repo.session.flush()
+
+        # 7. Regenerar ambas pirámides involucradas
+        return await self.generate_initial_brackets(
+            GenerateBracketsRequest(category_modality_ids=[source_cm_id, request.target_category_modality_id])
         )

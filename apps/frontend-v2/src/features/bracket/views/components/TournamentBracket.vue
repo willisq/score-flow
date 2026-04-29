@@ -11,6 +11,7 @@ const props = defineProps<{
 
 const emit = defineEmits<{
   (e: "delete-competitor", payload: { registrationId: string; categoryModalityId: string }): void;
+  (e: "move-competitor", payload: { registrationId: string; categoryModalityId: string; competitorId: string; currentName: string }): void;
 }>();
 
 // Compute the full bracket structure
@@ -104,13 +105,17 @@ function isBye(match: Match | null): boolean {
               :name="match.firstCompetitor ? `${match.firstCompetitor.firstName} ${match.firstCompetitor.lastName}` : '---'"
               :academy="match.firstCompetitor?.academy?.name" :is-winner="isWinner(match, 'first')"
               :show-delete="showEdit"
-              @delete="match.firstCompetitor?.registrationId && $emit('delete-competitor', { registrationId: match.firstCompetitor.registrationId, categoryModalityId: match.categoryModalityId! })" />
+              :show-move="showEdit"
+              @delete="match.firstCompetitor?.registrationId && $emit('delete-competitor', { registrationId: match.firstCompetitor.registrationId, categoryModalityId: match.categoryModalityId! })"
+              @move="match.firstCompetitor?.registrationId && $emit('move-competitor', { registrationId: match.firstCompetitor.registrationId, categoryModalityId: match.categoryModalityId!, competitorId: match.firstCompetitor.id, currentName: `${match.firstCompetitor.firstName} ${match.firstCompetitor.lastName}` })" />
             <CompetitorCard
               :name="match.secondCompetitor ? `${match.secondCompetitor.firstName} ${match.secondCompetitor.lastName}` : (isBye(match) ? 'BYE' : '---')"
               :academy="match.secondCompetitor?.academy?.name" :is-winner="isWinner(match, 'second')"
               :is-bye="isBye(match)"
               :show-delete="showEdit"
-              @delete="match.secondCompetitor?.registrationId && $emit('delete-competitor', { registrationId: match.secondCompetitor.registrationId, categoryModalityId: match.categoryModalityId! })" />
+              :show-move="showEdit"
+              @delete="match.secondCompetitor?.registrationId && $emit('delete-competitor', { registrationId: match.secondCompetitor.registrationId, categoryModalityId: match.categoryModalityId! })"
+              @move="match.secondCompetitor?.registrationId && $emit('move-competitor', { registrationId: match.secondCompetitor.registrationId, categoryModalityId: match.categoryModalityId!, competitorId: match.secondCompetitor.id, currentName: `${match.secondCompetitor.firstName} ${match.secondCompetitor.lastName}` })" />
           </div>
           <div v-else
             class="match__content relative flex flex-col bg-surface-100 dark:bg-surface-800 opacity-50 border border-dashed border-surface-300 dark:border-surface-700 rounded-md h-20">

@@ -198,6 +198,26 @@ class CompetitorRepository:
 
         return competitor
 
+    async def update_physical_stats(
+        self,
+        competitor_id: UUID,
+        weight: float | None = None,
+        age: int | None = None,
+        rank_id: UUID | None = None,
+    ) -> bool:
+        model = await self.session.get(CompetitorModel, competitor_id)
+        if not model:
+            return False
+
+        if weight is not None:
+            model.weight = weight
+        if age is not None:
+            model.age = age
+        if rank_id is not None:
+            model.rank_id = rank_id
+
+        return True
+
     async def get_by_id(self, competitor_id: UUID) -> Competitor | None:
         result = await self.session.execute(
             select(CompetitorModel)

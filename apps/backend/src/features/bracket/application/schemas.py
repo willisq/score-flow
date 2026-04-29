@@ -40,3 +40,11 @@ class MatchSchema(TunedModel):
 class RemoveCompetitorRequest(TunedModel):
     category_modality_id: UUID
     registration_id: UUID
+
+
+class MoveCompetitorRequest(TunedModel):
+    target_category_modality_id: UUID
+    competitor_id: UUID
+    new_weight: Optional[float] = None
+    new_age: Optional[int] = None
+    new_rank_id: Optional[UUID] = None

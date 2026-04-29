@@ -13,6 +13,7 @@ import type { Category, Modality } from "@/features/tournament/types";
 import type { Rank, Sex } from "@/features/registration/types";
 import type { Match } from "../types";
 import TournamentBracket from "./components/TournamentBracket.vue";
+import MoveCompetitorDialog from "./components/MoveCompetitorDialog.vue";
 
 const toast = useToast();
 const confirm = useConfirm();
@@ -20,6 +21,14 @@ const { matches, loading, loadMatches } = useBracketData();
 const { exportToPdf, exportAllToPdf } = useBracketExport();
 const isDeleting = ref(false);
 const pendingDeletePayload = ref<{ registrationId: string; categoryModalityId: string } | null>(null);
+
+const showMoveDialog = ref(false);
+const movePayload = ref<{ registrationId: string; categoryModalityId: string; competitorId: string; currentName: string } | null>(null);
+
+function handleMoveCompetitor(payload: any) {
+  movePayload.value = payload;
+  showMoveDialog.value = true;
+}
 
 async function handleDeleteCompetitor(payload: { registrationId: string; categoryModalityId: string }) {
   if (isDeleting.value) return;
@@ -412,11 +421,16 @@ onMounted(async () => {
           </div>
           <div class="w-full overflow-x-auto min-w-0">
             <TournamentBracket :id="`bracket-${group.display?.id}`" :matches="group.matches" :show-edit="true"
-              @delete-competitor="handleDeleteCompetitor" />
+              @delete-competitor="handleDeleteCompetitor" @move-competitor="handleMoveCompetitor" />
           </div>
         </AccordionContent>
       </AccordionPanel>
     </Accordion>
+
+    <MoveCompetitorDialog v-if="showMoveDialog" v-model:visible="showMoveDialog"
+      :registration-id="movePayload?.registrationId || ''" :source-cm-id="movePayload?.categoryModalityId || ''"
+      :competitor="matches.find(m => m.firstCompetitor?.id === movePayload?.competitorId)?.firstCompetitor || matches.find(m => m.secondCompetitor?.id === movePayload?.competitorId)?.secondCompetitor"
+      :categories="categoryModalitiesDisplay" :ranks="ranks" @moved="applyFilters" />
 
     <ConfirmDialog />
     <ConfirmDialog group="competitorDelete">
