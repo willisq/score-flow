@@ -20,6 +20,11 @@ export class CompetitorService {
     return data;
   }
 
+  static async update(id: string, payload: CompetitorCreate): Promise<Competitor> {
+    const { data } = await httpClient.put<Competitor>(`${this.BASE}/${id}`, payload);
+    return data;
+  }
+
   static async createBulk(competitors: CompetitorCreate[]): Promise<Competitor[]> {
     const { data } = await httpClient.post<Competitor[]>(`${this.BASE}/bulk`, { competitors });
     return data;

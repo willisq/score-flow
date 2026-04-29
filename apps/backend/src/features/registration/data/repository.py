@@ -178,6 +178,26 @@ class CompetitorRepository:
         self.session.add(model)
         return competitor
 
+    async def update(self, competitor: Competitor) -> Competitor:
+        # 1. Update Person
+        person_model = await self.session.get(PersonModel, competitor.id)
+        if person_model:
+            person_model.first_name = competitor.first_name
+            person_model.last_name = competitor.last_name
+
+        # 2. Update Competitor
+        model = await self.session.get(CompetitorModel, competitor.id)
+        if model:
+            model.academy_id = competitor.academy.id
+            model.rank_id = competitor.rank.id
+            model.sex_id = competitor.sex.id
+            model.weight = competitor.weight
+            model.height = competitor.height
+            model.age = competitor.age
+            model.special_condition = competitor.special_condition
+
+        return competitor
+
     async def get_by_id(self, competitor_id: UUID) -> Competitor | None:
         result = await self.session.execute(
             select(CompetitorModel)

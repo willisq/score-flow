@@ -29,7 +29,11 @@ const submitting = ref(false);
 async function onSubmit(): Promise<void> {
   submitting.value = true;
   try {
-    await CompetitorService.create(form.value);
+    if (existingCompetitor) {
+      await CompetitorService.update(existingCompetitor.id, form.value);
+    } else {
+      await CompetitorService.create(form.value);
+    }
     toast.add({ severity: "success", summary: "Éxito", detail: "Competidor guardado.", life: 3000 });
     dialogRef?.value?.close();
   } catch {

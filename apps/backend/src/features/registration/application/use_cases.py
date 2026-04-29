@@ -1,4 +1,4 @@
-from uuid import uuid4
+from uuid import UUID, uuid4
 
 from src.features.registration.application.schemas import (
     AcademyCreate,
@@ -92,6 +92,43 @@ class RegistrationUseCases:
 
         return await self.competitor_repo.create(competitor)
 
+    async def update_competitor(
+        self, competitor_id: UUID, schema: CompetitorCreate
+    ) -> Competitor:
+        # 1. Fetch dependencies (Academy, Rank, Sex) to ensure they exist
+        academy = await self.academy_repo.get_by_id(schema.academy_id)
+        if not academy:
+            raise ValueError(f"Academy with ID {schema.academy_id} not found")
+
+        rank = await self.rank_repo.get_by_id(schema.rank_id)
+        if not rank:
+            raise ValueError(f"Rank with ID {schema.rank_id} not found")
+
+        sex = await self.sex_repo.get_by_id(schema.sex_id)
+        if not sex:
+            raise ValueError(f"Sex with ID {schema.sex_id} not found")
+
+        # 2. Check if competitor exists
+        existing = await self.competitor_repo.get_by_id(competitor_id)
+        if not existing:
+            raise ValueError(f"Competitor with ID {competitor_id} not found")
+
+        # 3. Create Domain Entity with EXISTING ID
+        competitor = Competitor(
+            id=competitor_id,
+            first_name=schema.first_name,
+            last_name=schema.last_name,
+            academy=academy,
+            rank=rank,
+            sex=sex,
+            weight=schema.weight,
+            height=schema.height,
+            age=schema.age,
+            special_condition=schema.special_condition,
+        )
+
+        return await self.competitor_repo.update(competitor)
+
     async def register_competitors_bulk(
         self, schemas: list[CompetitorCreate]
     ) -> list[Competitor]:
@@ -157,7 +194,9 @@ class RegistrationUseCases:
             special_condition=filters.special_condition,
         )
 
-    async def list_competitors_for_category_builder(self, filters: CompetitorCategoryFilters) -> list[Competitor]:
+    async def list_competitors_for_category_builder(
+        self, filters: CompetitorCategoryFilters
+    ) -> list[Competitor]:
         return await self.competitor_repo.get_all_for_category_builder(
             min_age=filters.min_age,
             max_age=filters.max_age,

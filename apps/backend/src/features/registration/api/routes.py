@@ -1,3 +1,4 @@
+from uuid import UUID
 import os
 from typing import Annotated
 from fastapi import APIRouter, Depends, File, HTTPException, Query, UploadFile, status
@@ -5,7 +6,9 @@ from fastapi.responses import FileResponse, StreamingResponse
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from src.core.database import get_db
-from src.features.registration.application.excel_processor import ExcelCompetitorProcessor
+from src.features.registration.application.excel_processor import (
+    ExcelCompetitorProcessor,
+)
 from src.features.registration.application.schemas import (
     AcademyCreate,
     AcademySchema,
@@ -114,6 +117,25 @@ async def create_competitor(
         )
 
 
+@router.put("/competitors/{competitor_id}", response_model=CompetitorSchema)
+async def update_competitor(
+    competitor_id: UUID,
+    schema: CompetitorCreate,
+    use_cases: RegistrationUseCases = Depends(get_registration_use_cases),
+):
+    try:
+        result = await use_cases.update_competitor(competitor_id, schema)
+        await use_cases.competitor_repo.session.commit()
+        return await use_cases.competitor_repo.get_by_id(result.id)
+    except ValueError as e:
+        raise HTTPException(status_code=400, detail=str(e))
+    except Exception as e:
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Internal server error: {str(e)}",
+        )
+
+
 @router.post(
     "/competitors/bulk",
     response_model=list[CompetitorSchema],
@@ -193,34 +215,36 @@ async def upload_competitors(
 
 @router.get("/competitors/template")
 async def download_template(
-    use_cases: RegistrationUseCases = Depends(get_registration_use_cases)
+    use_cases: RegistrationUseCases = Depends(get_registration_use_cases),
 ):
     """
     Ruta para descargar la plantilla de Excel para el registro masivo de competidores.
     """
     try:
-        from src.features.registration.application.excel_template_generator import ExcelTemplateGenerator
-        
+        from src.features.registration.application.excel_template_generator import (
+            ExcelTemplateGenerator,
+        )
+
         # Consultar listas de base de datos
         sexes_schemas = await use_cases.list_sexes()
         ranks_schemas = await use_cases.list_ranks()
         academies_schemas = await use_cases.list_academies()
-        
+
         sexes = [s.name for s in sexes_schemas]
         ranks = [r.name for r in ranks_schemas]
         academies = [a.name for a in academies_schemas]
-        
+
         # Generar buffer del template dinámico
         buffer = ExcelTemplateGenerator.generate_dynamic_template(
-            academies=academies,
-            ranks=ranks,
-            sexes=sexes
+            academies=academies, ranks=ranks, sexes=sexes
         )
-        
+
         return StreamingResponse(
             buffer,
             media_type="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
-            headers={"Content-Disposition": "attachment; filename=plantilla_competidores.xlsx"}
+            headers={
+                "Content-Disposition": "attachment; filename=plantilla_competidores.xlsx"
+            },
         )
     except Exception as e:
         raise HTTPException(
