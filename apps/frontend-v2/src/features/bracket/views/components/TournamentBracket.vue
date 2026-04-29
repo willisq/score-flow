@@ -87,7 +87,8 @@ function isBye(match: Match | null): boolean {
 </script>
 
 <template>
-  <div :id="id" class="tournament-brackets p-4 bg-surface-50 dark:bg-surface-900 rounded-lg">
+  <div :id="id" class="tournament-brackets p-4 bg-surface-50 dark:bg-surface-900 rounded-lg relative">
+    <img src="/img/logo.jpeg" class="absolute top-4 right-4 w-32 h-32 object-contain opacity-30 pointer-events-none" alt="Logo" />
     <div class="bracket inline-flex">
       <div v-for="(round, roundIndex) in bracketRounds" :key="roundIndex" class="round flex flex-col justify-around"
         :class="['round-' + (roundIndex + 1)]" style="min-width: 300px;">
