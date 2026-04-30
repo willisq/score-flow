@@ -5,6 +5,7 @@ import { CategoryService } from "../services/CategoryService";
 import type { Category } from "../types";
 import CategoryForm from "./components/CategoryForm.vue";
 import ModalityForm from "./components/ModalityForm.vue";
+import CloneModalityForm from "./components/CloneModalityForm.vue";
 import CategoryCompetitorList from "./components/CategoryCompetitorList.vue";
 import { useRegistrationData } from "@/features/registration/composables/useRegistrationData";
 import { useTournamentData } from "../composables/useTournamentData";
@@ -141,6 +142,24 @@ function openModalityEditDialog(modality: any): void {
   });
 }
 
+function openCloneDialog(modality: any, categoryId: string): void {
+  dialog.open(CloneModalityForm, {
+    props: {
+      header: `Crear nueva subcategoría`,
+      style: { width: "40vw" },
+      breakpoints: { "960px": "60vw", "640px": "90vw" },
+      modal: true,
+      dismissableMask: true,
+    },
+    data: { modality, categoryId, sexes, modalities: allModalities },
+    onClose: (options) => {
+      if (options?.data) {
+        loadCategories();
+      }
+    },
+  });
+}
+
 function showCompetitors(categoryModality: any): void {
   dialog.open(CategoryCompetitorList, {
     props: {
@@ -235,10 +254,16 @@ onMounted(loadCategories);
                                       :class="['pi text-xs', sex.name.toLowerCase().includes('masc') ? 'pi-mars text-blue-500' : 'pi-venus text-pink-500']"
                                       v-tooltip.top="sex.name"></i>
                                   </div>
-                                  <Button icon="pi pi-cog" severity="secondary" text rounded size="small"
-                                    class="opacity-0 group-hover:opacity-100 transition-opacity !p-0 h-5 w-5"
-                                    @click.stop="openModalityEditDialog(mod)"
-                                    v-tooltip.top="'Configurar Subcategoría'" />
+                                  <div class="flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                                    <Button icon="pi pi-copy" severity="secondary" text rounded size="small"
+                                      class="!p-0 h-5 w-5"
+                                      @click.stop="openCloneDialog(mod, mod._categoryId)"
+                                      v-tooltip.top="'Crear a partir de esta'" />
+                                    <Button icon="pi pi-cog" severity="secondary" text rounded size="small"
+                                      class="!p-0 h-5 w-5"
+                                      @click.stop="openModalityEditDialog(mod)"
+                                      v-tooltip.top="'Configurar Subcategoría'" />
+                                  </div>
                                 </div>
                               </div>
                             </div>

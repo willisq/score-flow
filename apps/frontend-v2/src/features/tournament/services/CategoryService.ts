@@ -27,6 +27,11 @@ export class CategoryService {
     return data;
   }
 
+  static async appendModality(categoryId: string, payload: any): Promise<Category> {
+    const { data } = await httpClient.post<Category>(`${this.BASE}/${categoryId}/modalities`, payload);
+    return data;
+  }
+
   static async getCompetitors(categoryModalityId: string): Promise<Competitor[]> {
     const { data } = await httpClient.get<Competitor[]>(
       `${this.BASE}/modalities/${categoryModalityId}/competitors`

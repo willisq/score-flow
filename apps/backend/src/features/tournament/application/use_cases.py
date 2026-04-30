@@ -11,6 +11,7 @@ from src.features.tournament.application.schemas import (
     CategoryBulkCreate,
     CategoryUpdate,
     CategoryModalityUpdate,
+    CategoryModalityCreate,
     RankGroupCreate,
     RankGroupUpdate,
 )
@@ -282,6 +283,58 @@ class TournamentUseCases:
         # We don't need to call repository.create because the model is already in session and tracked
         # But we need to return the domain entity
         await self.category_repo.session.flush() # Ensure it's in DB
+        return await self.category_repo.get_by_id(category_id)
+
+    async def append_category_modalities(self, category_id: UUID, schema: CategoryModalityCreate) -> Category:
+        model = await self.category_repo.get_model_by_id(category_id)
+        if not model:
+            raise ValueError(f"Category with ID {category_id} not found")
+
+        modality = await self.modality_repo.get_by_id(schema.modality_id)
+        if not modality:
+            raise ValueError(f"Modality with ID {schema.modality_id} not found")
+
+        # Fetch sexes for this configuration
+        sex_models = []
+        for sid in schema.sex_ids:
+            sex_model = await self.sex_repo.session.get(SexModel, sid)
+            if sex_model:
+                sex_models.append(sex_model)
+
+        # Collect physical requirement models
+        phys_req_models = []
+        for pr_schema in schema.physical_requirements:
+            if any(v is not None for v in (pr_schema.initial_weight, pr_schema.final_weight, pr_schema.initial_height, pr_schema.final_height)):
+                new_pr_model = await self.category_repo.get_or_create_physical_requirement(
+                    pr_schema.initial_weight,
+                    pr_schema.final_weight,
+                    pr_schema.initial_height,
+                    pr_schema.final_height
+                )
+                phys_req_models.append(new_pr_model)
+
+        # Case: no physical requirements
+        if not phys_req_models:
+            phys_req_models = [None]
+
+        for pr_model in phys_req_models:
+            # Create a CategoryModality record for EACH rank group ID
+            for rgid in schema.rank_group_ids:
+                rank_group = await self.rank_group_repo.get_by_id(rgid)
+                if not rank_group:
+                    raise ValueError(f"Rank Group with ID {rgid} not found")
+
+                cat_mod_model = CategoryModalityModel(
+                    id=uuid4(),
+                    category_id=model.id,
+                    modality_id=modality.id,
+                    sexes=sex_models,
+                    rank_group_id=rank_group.id,
+                    physical_requirement_id=pr_model.id if pr_model else None,
+                )
+                model.modalities.append(cat_mod_model)
+
+        await self.category_repo.session.flush()
         return await self.category_repo.get_by_id(category_id)
 
     async def delete_category_modality(self, category_modality_id: UUID) -> bool:

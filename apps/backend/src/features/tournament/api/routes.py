@@ -1,3 +1,4 @@
+from src.features.tournament.application.schemas import CategoryModalityCreate
 from uuid import UUID
 from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -190,14 +191,17 @@ async def list_unregistered_competitors(
 
 
 @router.get(
-    "/categories/modalities/{category_modality_id}/competitors", response_model=list[CompetitorSchema]
+    "/categories/modalities/{category_modality_id}/competitors",
+    response_model=list[CompetitorSchema],
 )
 async def get_category_modality_competitors(
     category_modality_id: UUID,
     use_cases: TournamentUseCases = Depends(get_tournament_use_cases),
 ):
     try:
-        return await use_cases.get_competitors_by_category_modality(category_modality_id)
+        return await use_cases.get_competitors_by_category_modality(
+            category_modality_id
+        )
     except Exception as e:
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
@@ -248,7 +252,34 @@ async def update_category(
         )
 
 
-@router.patch("/categories/modalities/{category_modality_id}", response_model=CategoryModalitySchema)
+@router.post(
+    "/categories/{category_id}/modalities",
+    response_model=CategorySchema,
+    status_code=status.HTTP_201_CREATED,
+)
+async def append_category_modalities(
+    category_id: UUID,
+    schema: CategoryModalityCreate,
+    use_cases: TournamentUseCases = Depends(get_tournament_use_cases),
+):
+    try:
+        result = await use_cases.append_category_modalities(category_id, schema)
+        await use_cases.category_repo.session.commit()
+        # Reload to ensure all relationships are fresh
+        return await use_cases.category_repo.get_by_id(result.id)
+    except ValueError as e:
+        raise HTTPException(status_code=400, detail=str(e))
+    except Exception as e:
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Internal server error: {str(e)}",
+        )
+
+
+@router.patch(
+    "/categories/modalities/{category_modality_id}",
+    response_model=CategoryModalitySchema,
+)
 async def update_category_modality(
     category_modality_id: UUID,
     schema: CategoryModalityUpdate,
@@ -268,7 +299,10 @@ async def update_category_modality(
         )
 
 
-@router.delete("/categories/modalities/{category_modality_id}", status_code=status.HTTP_204_NO_CONTENT)
+@router.delete(
+    "/categories/modalities/{category_modality_id}",
+    status_code=status.HTTP_204_NO_CONTENT,
+)
 async def delete_category_modality(
     category_modality_id: UUID,
     use_cases: TournamentUseCases = Depends(get_tournament_use_cases),
