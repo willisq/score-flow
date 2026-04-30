@@ -2,6 +2,8 @@
 defineProps<{
   name?: string;
   academy?: string;
+  rankName?: string;
+  weight?: number;
   isWinner?: boolean;
   isBye?: boolean;
   showDelete?: boolean;
@@ -32,6 +34,11 @@ defineEmits<{
         </button>
       </div>
     </div>
-    <span class="text-xs text-surface-400 w-full break-words" :title="academy">{{ academy || "" }}</span>
+    <div class="flex justify-between w-full text-[10px] text-surface-400">
+      <span class="truncate pr-2" :title="academy">{{ academy || "" }}</span>
+      <span v-if="rankName || weight" class="whitespace-nowrap italic">
+        {{ rankName }} {{ weight ? `(${weight}kg)` : '' }}
+      </span>
+    </div>
   </div>
 </template>

@@ -103,14 +103,20 @@ function isBye(match: Match | null): boolean {
             </div>
             <CompetitorCard
               :name="match.firstCompetitor ? `${match.firstCompetitor.firstName} ${match.firstCompetitor.lastName}` : '---'"
-              :academy="match.firstCompetitor?.academy?.name" :is-winner="isWinner(match, 'first')"
+              :academy="match.firstCompetitor?.academy?.name"
+              :rank-name="match.firstCompetitor?.rank?.name"
+              :weight="match.firstCompetitor?.weight"
+              :is-winner="isWinner(match, 'first')"
               :show-delete="showEdit"
               :show-move="showEdit"
               @delete="match.firstCompetitor?.registrationId && $emit('delete-competitor', { registrationId: match.firstCompetitor.registrationId, categoryModalityId: match.categoryModalityId! })"
               @move="match.firstCompetitor?.registrationId && $emit('move-competitor', { registrationId: match.firstCompetitor.registrationId, categoryModalityId: match.categoryModalityId!, competitorId: match.firstCompetitor.id, currentName: `${match.firstCompetitor.firstName} ${match.firstCompetitor.lastName}` })" />
             <CompetitorCard
               :name="match.secondCompetitor ? `${match.secondCompetitor.firstName} ${match.secondCompetitor.lastName}` : (isBye(match) ? 'BYE' : '---')"
-              :academy="match.secondCompetitor?.academy?.name" :is-winner="isWinner(match, 'second')"
+              :academy="match.secondCompetitor?.academy?.name"
+              :rank-name="match.secondCompetitor?.rank?.name"
+              :weight="match.secondCompetitor?.weight"
+              :is-winner="isWinner(match, 'second')"
               :is-bye="isBye(match)"
               :show-delete="showEdit"
               :show-move="showEdit"
