@@ -126,6 +126,7 @@ async function handleDeleteCategory(cmId: string) {
 }
 
 const categories = ref<Category[]>([]);
+const allCategories = ref<Category[]>([]);
 const selectedCategories = ref<string[]>([]);
 const generating = ref(false);
 const exportingId = ref<string | null>(null);
@@ -205,9 +206,9 @@ async function handleExportAll() {
   }
 }
 
-const categoryModalitiesDisplay = computed(() => {
+function mapCategoriesToDisplay(cats: Category[]) {
   const list: any[] = [];
-  for (const cat of categories.value) {
+  for (const cat of cats) {
     for (const cm of cat.modalities) {
       const minAge = Math.min(...cat.ages);
       const maxAge = Math.max(...cat.ages);
@@ -234,7 +235,10 @@ const categoryModalitiesDisplay = computed(() => {
     }
   }
   return list;
-});
+}
+
+const categoryModalitiesDisplay = computed(() => mapCategoriesToDisplay(categories.value));
+const allCategoryModalitiesDisplay = computed(() => mapCategoriesToDisplay(allCategories.value));
 
 const ranks = ref<Rank[]>([]);
 const modalities = ref<Modality[]>([]);
@@ -255,7 +259,7 @@ const matchesByCategory = computed(() => {
     const cmId = match.categoryModalityId ?? "uncategorized";
     if (!grouped[cmId]) {
       grouped[cmId] = {
-        display: categoryModalitiesDisplay.value.find((c) => c.id === cmId) ?? null,
+        display: allCategoryModalitiesDisplay.value.find((c) => c.id === cmId) ?? null,
         matches: [],
         realMatchesCount: 0
       };
@@ -314,13 +318,15 @@ async function generateBrackets(): Promise<void> {
 }
 
 onMounted(async () => {
-  const [categoriesData, ranksData, modalitiesData, sexesData] = await Promise.all([
+  const [categoriesData, allCategoriesData, ranksData, modalitiesData, sexesData] = await Promise.all([
     CategoryService.getAll(true),
+    CategoryService.getAll(),
     RankService.getAll(),
     ModalityService.getAll(),
     SexService.getAll()
   ]);
   categories.value = categoriesData;
+  allCategories.value = allCategoriesData;
   ranks.value = ranksData;
   modalities.value = modalitiesData;
   sexes.value = sexesData;
@@ -430,7 +436,7 @@ onMounted(async () => {
     <MoveCompetitorDialog v-if="showMoveDialog" v-model:visible="showMoveDialog"
       :registration-id="movePayload?.registrationId || ''" :source-cm-id="movePayload?.categoryModalityId || ''"
       :competitor="matches.find(m => m.firstCompetitor?.id === movePayload?.competitorId)?.firstCompetitor || matches.find(m => m.secondCompetitor?.id === movePayload?.competitorId)?.secondCompetitor"
-      :categories="categoryModalitiesDisplay" :ranks="ranks" @moved="applyFilters" />
+      :categories="allCategoryModalitiesDisplay" :ranks="ranks" @moved="applyFilters" />
 
     <ConfirmDialog />
     <ConfirmDialog group="competitorDelete">

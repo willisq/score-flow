@@ -25,6 +25,22 @@ const form = ref({
   rankId: "",
 });
 
+const filteredCategories = computed(() => {
+  if (!props.competitor) return [];
+  const competitorRankId = props.competitor.rank.id;
+  const competitorSexId = props.competitor.sex.id;
+  
+  return props.categories.filter(c => {
+    const rankMatch = !c.modality.ranks || c.modality.ranks.length === 0 || c.modality.ranks.some((r: any) => r.id === competitorRankId);
+    if (!rankMatch) return false;
+
+    const sexMatch = !c.modality.sexes || c.modality.sexes.length === 0 || c.modality.sexes.some((s: any) => s.id === competitorSexId);
+    if (!sexMatch) return false;
+
+    return true;
+  });
+});
+
 watch(() => props.visible, (newVal) => {
   if (newVal && props.competitor) {
     form.value.weight = props.competitor.weight || 0;
@@ -32,7 +48,7 @@ watch(() => props.visible, (newVal) => {
     form.value.rankId = props.competitor.rank.id;
     selectedTargetId.value = null;
   }
-});
+}, { immediate: true });
 
 const targetCategory = computed(() => {
   return props.categories.find(c => c.id === selectedTargetId.value);
@@ -126,7 +142,7 @@ async function handleMove() {
           </h3>
           <div class="flex flex-col gap-1">
             <label for="target">Categoría</label>
-            <Dropdown id="target" v-model="selectedTargetId" :options="categories" optionLabel="displayName" optionValue="id" 
+            <Dropdown id="target" v-model="selectedTargetId" :options="filteredCategories" optionLabel="displayName" optionValue="id" 
               placeholder="Buscar categoría..." filter class="w-full" :loading="loading" />
           </div>
 
@@ -160,11 +176,7 @@ async function handleMove() {
             <small v-if="eligibility && !eligibility.weight" class="text-red-500">El peso está fuera del rango permitido.</small>
           </div>
 
-          <div class="flex flex-col gap-1">
-            <label for="rank">Rango</label>
-            <Dropdown id="rank" v-model="form.rankId" :options="ranks" optionLabel="name" optionValue="id" filter class="w-full" :invalid="eligibility && !eligibility.rank" />
-            <small v-if="eligibility && !eligibility.rank" class="text-red-500">El rango no es válido para esta categoría.</small>
-          </div>
+
 
           <div v-if="eligibility && !eligibility.sex" class="p-2 bg-red-50 dark:bg-red-900/20 text-red-600 dark:text-red-400 rounded text-xs flex items-center gap-2">
             <i class="pi pi-exclamation-circle"></i>
