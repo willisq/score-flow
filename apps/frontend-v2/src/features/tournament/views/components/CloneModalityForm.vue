@@ -5,6 +5,8 @@ import MultiSelect from 'primevue/multiselect';
 import Dropdown from 'primevue/dropdown';
 import Button from 'primevue/button';
 import Message from 'primevue/message';
+import DataTable from 'primevue/datatable';
+import Column from 'primevue/column';
 import { CategoryService } from '../../services/CategoryService';
 import { RankGroupService } from '../../services/RankGroupService';
 import type { CategoryModality, RankGroup } from '../../types';
@@ -18,6 +20,11 @@ const categoryId = ref<string>("");
 const sexesOptions = ref<Sex[]>([]);
 const modalityOptions = ref<any[]>([]);
 const rankGroups = ref<RankGroup[]>([]);
+const ranks = ref<any[]>([]);
+
+const competitors = ref<any[]>([]);
+const selectedCompetitors = ref<any[]>([]);
+const loadingCompetitors = ref(false);
 
 const form = ref({
   modalityId: "",
@@ -51,6 +58,9 @@ onMounted(async () => {
     const rawModalities = dialogRef.value.data.modalities;
     modalityOptions.value = rawModalities?.value ?? rawModalities ?? [];
 
+    const rawRanks = dialogRef.value.data.ranks;
+    ranks.value = rawRanks?.value ?? rawRanks ?? [];
+
     if (modality.value) {
       form.value.modalityId = modality.value.modality.id;
       form.value.sexIds = modality.value.sexes.map(s => s.id);
@@ -61,6 +71,21 @@ onMounted(async () => {
         initialHeight: 0,
         finalHeight: 200,
       };
+
+      loadingCompetitors.value = true;
+      try {
+        const data = await CategoryService.getCompetitors(modality.value.id);
+        competitors.value = data.map(c => ({
+          ...c,
+          newWeight: c.weight,
+          newAge: c.age,
+          newRankId: c.rank.id
+        }));
+      } catch (err) {
+        console.error("Error cargando atletas", err);
+      } finally {
+        loadingCompetitors.value = false;
+      }
     }
   }
 });
@@ -90,7 +115,15 @@ async function handleSave() {
       ...form.value.physicalRequirement,
       initialHeight: 0,
       finalHeight: 200,
-    }]
+    }],
+    sourceCategoryModalityId: modality.value?.id,
+    competitorsToMigrate: selectedCompetitors.value.map(c => ({
+      registrationId: c.registrationId,
+      competitorId: c.id,
+      newWeight: c.newWeight,
+      newAge: c.newAge,
+      newRankId: c.newRankId
+    }))
   };
 
   try {
@@ -154,7 +187,37 @@ function cancel() {
       </div>
     </div>
 
-    <div class="flex justify-end gap-2 mt-4">
+    <!-- Migración de Competidores -->
+    <div v-if="competitors.length > 0" class="flex flex-col gap-4 border-t-1 border-surface-200 pt-4 mt-2">
+      <h3 class="text-lg font-bold m-0 text-surface-700 dark:text-surface-0/80">Migrar Atletas</h3>
+      <p class="text-sm text-surface-500">Seleccione los atletas que desea mover a esta nueva subcategoría y edite sus datos si es necesario.</p>
+      
+      <DataTable :value="competitors" v-model:selection="selectedCompetitors" dataKey="id" :loading="loadingCompetitors" class="p-datatable-sm" scrollable scrollHeight="200px">
+        <Column selectionMode="multiple" headerStyle="width: 3rem"></Column>
+        <Column field="firstName" header="Atleta" style="min-width: 150px">
+          <template #body="{ data }">
+            <span class="font-semibold">{{ data.firstName }} {{ data.lastName }}</span>
+          </template>
+        </Column>
+        <Column header="Peso (kg)" style="min-width: 100px">
+          <template #body="{ data }">
+            <InputNumber v-model="data.newWeight" :minFractionDigits="1" class="w-full max-w-[5rem]" inputClass="p-inputtext-sm" />
+          </template>
+        </Column>
+        <Column header="Edad" style="min-width: 80px">
+          <template #body="{ data }">
+            <InputNumber v-model="data.newAge" :min="0" class="w-full max-w-[4rem]" inputClass="p-inputtext-sm" />
+          </template>
+        </Column>
+        <Column header="Rango" style="min-width: 150px">
+          <template #body="{ data }">
+            <Dropdown v-model="data.newRankId" :options="ranks" optionLabel="name" optionValue="id" class="w-full p-inputtext-sm" appendTo="body" />
+          </template>
+        </Column>
+      </DataTable>
+    </div>
+
+    <div class="flex justify-end gap-2 mt-4 border-t-1 border-surface-200 pt-4">
       <Button label="Cancelar" icon="pi pi-times" text @click="cancel" />
       <Button label="Guardar" icon="pi pi-check" :loading="loading" @click="handleSave" />
     </div>

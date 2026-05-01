@@ -285,7 +285,7 @@ class TournamentUseCases:
         await self.category_repo.session.flush() # Ensure it's in DB
         return await self.category_repo.get_by_id(category_id)
 
-    async def append_category_modalities(self, category_id: UUID, schema: CategoryModalityCreate) -> Category:
+    async def append_category_modalities(self, category_id: UUID, schema: CategoryModalityCreate) -> tuple[Category, list[CategoryModality]]:
         model = await self.category_repo.get_model_by_id(category_id)
         if not model:
             raise ValueError(f"Category with ID {category_id} not found")
@@ -317,6 +317,8 @@ class TournamentUseCases:
         if not phys_req_models:
             phys_req_models = [None]
 
+        created_modalities = []
+
         for pr_model in phys_req_models:
             # Create a CategoryModality record for EACH rank group ID
             for rgid in schema.rank_group_ids:
@@ -333,9 +335,14 @@ class TournamentUseCases:
                     physical_requirement_id=pr_model.id if pr_model else None,
                 )
                 model.modalities.append(cat_mod_model)
+                created_modalities.append(cat_mod_model)
 
         await self.category_repo.session.flush()
-        return await self.category_repo.get_by_id(category_id)
+        
+        domain_category = await self.category_repo.get_by_id(category_id)
+        domain_modalities = [await self.category_repo.get_modality_by_id(cm.id) for cm in created_modalities if cm.id]
+        
+        return domain_category, domain_modalities
 
     async def delete_category_modality(self, category_modality_id: UUID) -> bool:
         model = await self.category_repo.get_modality_model_by_id(category_modality_id)

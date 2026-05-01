@@ -38,6 +38,19 @@ class CategoryModalityCreate(TunedModel):
     physical_requirements: List[PhysicalRequirementCreate] = []
 
 
+class CompetitorMigrationData(TunedModel):
+    registration_id: UUID
+    competitor_id: UUID
+    new_weight: Optional[float] = None
+    new_age: Optional[int] = None
+    new_rank_id: Optional[UUID] = None
+
+
+class CloneCategoryModalityRequest(CategoryModalityCreate):
+    source_category_modality_id: Optional[UUID] = None
+    competitors_to_migrate: Optional[List[CompetitorMigrationData]] = []
+
+
 class CategoryCreate(TunedModel):
     ages: List[int]
     special_condition: bool = False

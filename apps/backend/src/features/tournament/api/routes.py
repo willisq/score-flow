@@ -1,4 +1,4 @@
-from src.features.tournament.application.schemas import CategoryModalityCreate
+from src.features.tournament.application.schemas import CategoryModalityCreate, CloneCategoryModalityRequest
 from uuid import UUID
 from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -259,14 +259,26 @@ async def update_category(
 )
 async def append_category_modalities(
     category_id: UUID,
-    schema: CategoryModalityCreate,
+    schema: CloneCategoryModalityRequest,
     use_cases: TournamentUseCases = Depends(get_tournament_use_cases),
+    session: AsyncSession = Depends(get_db),
 ):
     try:
-        result = await use_cases.append_category_modalities(category_id, schema)
+        domain_category, created_modalities = await use_cases.append_category_modalities(category_id, schema)
+        
+        if schema.source_category_modality_id and schema.competitors_to_migrate and created_modalities:
+            from src.features.bracket.api.routes import get_bracket_use_cases
+            bracket_use_cases = get_bracket_use_cases(session)
+            target_cm_id = created_modalities[0].id
+            await bracket_use_cases.move_competitors_to_category_bulk(
+                schema.source_category_modality_id,
+                target_cm_id,
+                schema.competitors_to_migrate
+            )
+
         await use_cases.category_repo.session.commit()
         # Reload to ensure all relationships are fresh
-        return await use_cases.category_repo.get_by_id(result.id)
+        return await use_cases.category_repo.get_by_id(domain_category.id)
     except ValueError as e:
         raise HTTPException(status_code=400, detail=str(e))
     except Exception as e:

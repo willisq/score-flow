@@ -151,7 +151,7 @@ function openCloneDialog(modality: any, categoryId: string): void {
       modal: true,
       dismissableMask: true,
     },
-    data: { modality, categoryId, sexes, modalities: allModalities },
+    data: { modality, categoryId, sexes, modalities: allModalities, ranks },
     onClose: (options) => {
       if (options?.data) {
         loadCategories();

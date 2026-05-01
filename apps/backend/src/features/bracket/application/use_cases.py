@@ -4,6 +4,7 @@ from typing import List, Optional
 from collections import defaultdict
 
 from src.features.bracket.application.schemas import GenerateBracketsRequest, GeneratedCategoryResult, MatchSchema, RoundSchema, MoveCompetitorRequest
+from src.features.tournament.application.schemas import CompetitorMigrationData
 from src.features.registration.application.schemas import CompetitorSchema, AcademySchema, PersonSchema, RankSchema, SexSchema
 from src.features.bracket.data.repository import BracketRepository, RoundRepository
 from src.features.tournament.data.repository import CategoryRegistrationRepository, CategoryRepository, TournamentRepository
@@ -241,4 +242,63 @@ class BracketUseCases:
         # 7. Regenerar ambas pirámides involucradas
         return await self.generate_initial_brackets(
             GenerateBracketsRequest(category_modality_ids=[source_cm_id, request.target_category_modality_id])
+        )
+
+    async def move_competitors_to_category_bulk(
+        self,
+        source_cm_id: UUID,
+        target_cm_id: UUID,
+        migrations: List[CompetitorMigrationData]
+    ) -> List[GeneratedCategoryResult]:
+        if not migrations:
+            return []
+
+        # 1. Obtener la primera inscripción para extraer el torneo
+        first_reg = await self.registration_repo.get_by_id(migrations[0].registration_id)
+        if not first_reg:
+            raise ValueError(f"Inscripción {migrations[0].registration_id} no encontrada")
+        tournament = first_reg.tournament
+
+        # 2. Limpiar brackets de ambas categorías
+        await self.bracket_repo.clear_category_modality_brackets([source_cm_id, target_cm_id])
+        await self.bracket_repo.session.flush()
+
+        for req in migrations:
+            # 3. Eliminar la inscripción actual
+            success = await self.registration_repo.delete_registration(req.registration_id)
+            if not success:
+                continue # o lanzar error
+
+            # 4. Actualizar datos físicos
+            await self.competitor_repo.update_physical_stats(
+                req.competitor_id,
+                weight=req.new_weight,
+                age=req.new_age,
+                rank_id=req.new_rank_id
+            )
+
+        await self.bracket_repo.session.flush()
+
+        # 5. Obtener el objeto destino
+        target_cm = await self.category_repo.get_modality_by_id(target_cm_id)
+        if not target_cm:
+            raise ValueError("No se pudo recuperar la información de la categoría destino")
+
+        # 6. Crear las nuevas inscripciones
+        for req in migrations:
+            competitor = await self.competitor_repo.get_by_id(req.competitor_id)
+            if competitor:
+                new_registration = CategoryRegistration(
+                    id=uuid.uuid4(),
+                    competitor=competitor,
+                    category_modality=target_cm,
+                    tournament=tournament
+                )
+                await self.registration_repo.create(new_registration)
+
+        await self.bracket_repo.session.flush()
+
+        # 7. Regenerar ambas pirámides
+        return await self.generate_initial_brackets(
+            GenerateBracketsRequest(category_modality_ids=[source_cm_id, target_cm_id])
         )
