@@ -88,43 +88,35 @@ function isBye(match: Match | null): boolean {
 </script>
 
 <template>
-  <div :id="id" class="tournament-brackets p-4 bg-surface-50 dark:bg-surface-900 rounded-lg relative">
-    <img src="/img/logo.jpeg" class="absolute top-4 right-4 w-32 h-32 object-contain opacity-30 pointer-events-none" alt="Logo" />
+  <div :id="id" class="tournament-brackets p-4 bg-surface-50 dark:bg-surface-900 rounded-lg inline-block">
     <div class="bracket inline-flex">
       <div v-for="(round, roundIndex) in bracketRounds" :key="roundIndex" class="round flex flex-col justify-around"
-        :class="['round-' + (roundIndex + 1)]" style="min-width: 300px;">
+        :class="['round-' + (roundIndex + 1)]">
         <div v-for="(match, matchIndex) in round" :key="matchIndex"
           class="match flex flex-col justify-center relative mx-4 py-3 flex-grow">
           <div v-if="match && !(bracketRounds.length > 1 && roundIndex === 0 && isBye(match))"
-            class="match__content relative flex flex-col bg-surface-0 dark:bg-surface-800 border border-surface-200 dark:border-surface-700 rounded-md shadow-sm overflow-hidden">
+            class="match__content relative flex flex-col bg-surface-0 dark:bg-surface-800 border border-surface-200 dark:border-surface-700 rounded-md shadow-sm w-[200px]">
             <div
-              class="text-[9px] uppercase font-bold text-surface-400 bg-surface-50/50 dark:bg-surface-900/50 px-2 py-1 border-b border-surface-100 dark:border-surface-700 text-center">
+              class="h-6 flex items-center justify-center text-[10px] uppercase font-bold text-surface-400 bg-surface-50/50 dark:bg-surface-900/50 px-2 border-b border-surface-100 dark:border-surface-700 whitespace-nowrap">
               {{ match.round.description }}
             </div>
             <CompetitorCard
               :name="match.firstCompetitor ? `${match.firstCompetitor.firstName} ${match.firstCompetitor.lastName}` : '---'"
-              :academy="match.firstCompetitor?.academy?.name"
-              :rank-name="match.firstCompetitor?.rank?.name"
-              :weight="match.firstCompetitor?.weight"
-              :is-winner="isWinner(match, 'first')"
-              :show-delete="showEdit"
+              :academy="match.firstCompetitor?.academy?.name" :rank-name="match.firstCompetitor?.rank?.name"
+              :weight="match.firstCompetitor?.weight" :is-winner="isWinner(match, 'first')" :show-delete="showEdit"
               :show-move="showEdit"
               @delete="match.firstCompetitor?.registrationId && $emit('delete-competitor', { registrationId: match.firstCompetitor.registrationId, categoryModalityId: match.categoryModalityId! })"
               @move="match.firstCompetitor?.registrationId && $emit('move-competitor', { registrationId: match.firstCompetitor.registrationId, categoryModalityId: match.categoryModalityId!, competitorId: match.firstCompetitor.id, currentName: `${match.firstCompetitor.firstName} ${match.firstCompetitor.lastName}` })" />
             <CompetitorCard
               :name="match.secondCompetitor ? `${match.secondCompetitor.firstName} ${match.secondCompetitor.lastName}` : (isBye(match) ? 'BYE' : '---')"
-              :academy="match.secondCompetitor?.academy?.name"
-              :rank-name="match.secondCompetitor?.rank?.name"
-              :weight="match.secondCompetitor?.weight"
-              :is-winner="isWinner(match, 'second')"
-              :is-bye="isBye(match)"
-              :show-delete="showEdit"
-              :show-move="showEdit"
+              :academy="match.secondCompetitor?.academy?.name" :rank-name="match.secondCompetitor?.rank?.name"
+              :weight="match.secondCompetitor?.weight" :is-winner="isWinner(match, 'second')" :is-bye="isBye(match)"
+              :show-delete="showEdit" :show-move="showEdit"
               @delete="match.secondCompetitor?.registrationId && $emit('delete-competitor', { registrationId: match.secondCompetitor.registrationId, categoryModalityId: match.categoryModalityId! })"
               @move="match.secondCompetitor?.registrationId && $emit('move-competitor', { registrationId: match.secondCompetitor.registrationId, categoryModalityId: match.categoryModalityId!, competitorId: match.secondCompetitor.id, currentName: `${match.secondCompetitor.firstName} ${match.secondCompetitor.lastName}` })" />
           </div>
           <div v-else
-            class="match__content relative flex flex-col bg-surface-100 dark:bg-surface-800 opacity-50 border border-dashed border-surface-300 dark:border-surface-700 rounded-md h-20">
+            class="match__content relative flex flex-col bg-surface-100 dark:bg-surface-800 opacity-50 border border-dashed border-surface-300 dark:border-surface-700 rounded-md h-[144px] w-[200px]">
             <!-- Placeholder para futuros enfrentamientos -->
           </div>
         </div>

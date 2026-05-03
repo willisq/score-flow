@@ -142,8 +142,8 @@ function getBracketInfo(group: any) {
   const sortedRounds = Object.values(matchesByRound).sort((a, b) => b.length - a.length);
   const firstRoundSize = sortedRounds.length > 0 ? sortedRounds[0].length : 0;
   
-  // If more than 8 matches in the first round, use portrait (vertical)
-  const orientation = firstRoundSize > 8 ? "portrait" : "landscape";
+  // If 8 or more matches in the first round (16+ competitors), use portrait (vertical)
+  const orientation = firstRoundSize >= 8 ? "portrait" : "landscape";
 
   return {
     id: group.display?.id,
@@ -153,6 +153,7 @@ function getBracketInfo(group: any) {
     sexesStr: group.display?.sexesStr,
     ranksStr: group.display?.ranksStr,
     weightStr: group.display?.weightStr,
+    isSpecial: group.display?.isSpecial,
     orientation
   };
 }
